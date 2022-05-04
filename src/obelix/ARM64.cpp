@@ -48,8 +48,8 @@ static TypeMnemonicMap mnemonic_map[] = {
 
 TypeMnemonicMap const* get_type_mnemonic_map(std::shared_ptr<ObjectType> type)
 {
-    bool is_signed = (type->has_template_argument("signed")) ? type->template_argument<bool>("signed") : false;
-    int size = (type->has_template_argument("size")) ? type->template_argument<long>("size") : type->size(); 
+    bool is_signed = (type->has_template_argument("signed")) && type->template_argument<bool>("signed");
+    int size = (type->has_template_argument("size")) ? type->template_argument<long>("size") : type->size();
     for (auto const& mm : mnemonic_map) {
         if (mm.type != type->type())
             continue;
@@ -65,7 +65,7 @@ ErrorOr<void, SyntaxError> load_variable(ARM64Context &ctx, std::shared_ptr<Obje
     if (type->type() != PrimitiveType::Struct) {
         auto mm = get_type_mnemonic_map(type);
         if (mm == nullptr)
-            return SyntaxError { ErrorCode::NotYetImplemented, Token {}, 
+            return SyntaxError { ErrorCode::NotYetImplemented, Token {},
                 format("Cannot push values of array elements of type {} yet", type) };
 
         auto offset_str = format("[fp,#{}]", offset);
@@ -97,7 +97,7 @@ ErrorOr<void, SyntaxError> assign_variable(ARM64Context &ctx, std::shared_ptr<Ob
     if (type->type() != PrimitiveType::Struct) {
         auto mm = get_type_mnemonic_map(type);
         if (mm == nullptr)
-            return SyntaxError { ErrorCode::NotYetImplemented, Token {}, 
+            return SyntaxError { ErrorCode::NotYetImplemented, Token {},
                 format("Cannot push values of array elements of type {} yet", type) };
 
         auto offset_str = format("[fp,#{}]", offset);
@@ -280,7 +280,7 @@ NODE_PROCESSOR(BoundIntLiteral)
     auto literal = std::dynamic_pointer_cast<BoundIntLiteral>(tree);
     auto mm = get_type_mnemonic_map(literal->type());
     if (mm == nullptr)
-        return SyntaxError { ErrorCode::NotYetImplemented, literal->token(), 
+        return SyntaxError { ErrorCode::NotYetImplemented, literal->token(),
             format("Cannot push values of variables of type {} yet", literal->type()) };
 
     ctx.assembly().add_instruction("mov", "{}0,#{}", mm->reg_width, literal->value());
@@ -307,7 +307,7 @@ NODE_PROCESSOR(MaterializedIntIdentifier)
 
     auto mm = get_type_mnemonic_map(identifier->type());
     if (mm == nullptr)
-        return SyntaxError { ErrorCode::NotYetImplemented, identifier->token(), 
+        return SyntaxError { ErrorCode::NotYetImplemented, identifier->token(),
             format("Cannot push values of variables of type {} yet", identifier->type()) };
 
     ctx.assembly().add_instruction(mm->load_mnemonic, "{}0,{}", mm->reg_width, source);
@@ -335,7 +335,12 @@ NODE_PROCESSOR(MaterializedStructIdentifier)
     return tree;
 }
 
-ALIAS_NODE_PROCESSOR(MaterializedMemberAccess, MaterializedIdentifier);
+NODE_PROCESSOR(MaterializedMemberAccess)
+{
+    auto member_access = std::dynamic_pointer_cast<MaterializedMemberAccess>(tree);
+    TRY_RETURN(process(member_access->member(), ctx));
+    return tree;
+}
 
 NODE_PROCESSOR(MaterializedArrayAccess)
 {
@@ -345,7 +350,7 @@ NODE_PROCESSOR(MaterializedArrayAccess)
     if (array_access->type()->type() != PrimitiveType::Struct) {
         auto mm = get_type_mnemonic_map(array_access->type());
         if (mm == nullptr)
-            return SyntaxError { ErrorCode::NotYetImplemented, array_access->token(), 
+            return SyntaxError { ErrorCode::NotYetImplemented, array_access->token(),
                 format("Cannot push values of array elements of type {} yet", array_access->type()) };
 
         ctx.assembly().add_instruction(mm->load_mnemonic, "{}0,[fp,x8]", mm->reg_width);

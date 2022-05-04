@@ -190,8 +190,7 @@ NODE_PROCESSOR(BoundBinaryExpression)
 
     auto method_descr_maybe = lhs->type()->get_method(to_operator(expr->op()), { rhs->type() });
     if (!method_descr_maybe.has_value())
-        return SyntaxError { ErrorCode::InternalError, lhs->token(), format("No method defined for binary operator {}::{}({})", 
-            lhs->type()->to_string(), expr->op(), rhs->type()->to_string()) };
+        return SyntaxError { ErrorCode::InternalError, lhs->token(), format("No method defined for binary operator {}::{}({})", lhs->type()->to_string(), expr->op(), rhs->type()->to_string()) };
     auto method_descr = method_descr_maybe.value();
     auto impl = method_descr.implementation(Architecture::MACOS_ARM64);
     if (!impl.is_intrinsic || impl.intrinsic == IntrinsicType::NotIntrinsic)
@@ -201,7 +200,7 @@ NODE_PROCESSOR(BoundBinaryExpression)
     return make_node<BoundIntrinsicCall>(expr->token(), BinaryOperator_name(expr->op()), intrinsic, BoundExpressions { lhs, rhs }, expr->type() );
 }
 
-std::shared_ptr<MaterializedIdentifier> make_materialized_identifier(std::shared_ptr<BoundIdentifier> identifier, std::string label, int offset)
+std::shared_ptr<MaterializedIdentifier> make_materialized_identifier(std::shared_ptr<BoundIdentifier> const& identifier, std::string label, int offset)
 {
     switch (identifier->type()->type()) {
     case PrimitiveType::IntegerNumber:
@@ -214,7 +213,7 @@ std::shared_ptr<MaterializedIdentifier> make_materialized_identifier(std::shared
     }
 }
 
-std::shared_ptr<MaterializedIdentifier> make_materialized_identifier(std::shared_ptr<MaterializedDeclaration> decl, std::shared_ptr<BoundIdentifier> identifier)
+std::shared_ptr<MaterializedIdentifier> make_materialized_identifier(std::shared_ptr<MaterializedDeclaration> const& decl, std::shared_ptr<BoundIdentifier> const& identifier)
 {
     return make_materialized_identifier(identifier, decl->label(), decl->offset());
 }

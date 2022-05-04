@@ -79,7 +79,7 @@ public:
         }
         if (m_declared_functions.contains(name))
             return m_declared_functions.at(name);
-        return {};   
+        return {};
     }
 
     void clear_declared_functions()
@@ -235,8 +235,6 @@ NODE_PROCESSOR(BinaryExpression)
         return tree;
     auto rhs = TRY(process(expr->rhs(), ctx));
     auto rhs_bound = std::dynamic_pointer_cast<BoundExpression>(rhs);
-    if (rhs_bound == nullptr)
-        return tree;
 
     struct BinaryOperatorMap {
         TokenCode code;
@@ -298,7 +296,7 @@ NODE_PROCESSOR(BinaryExpression)
             auto ident = std::dynamic_pointer_cast<Identifier>(rhs);
             return SyntaxError { ErrorCode::UndeclaredVariable, ident->token(), ident->name() };
         }
-        return SyntaxError { ErrorCode::UntypedExpression, rhs->token(), expr->rhs()->to_string() };
+        return tree;
     }
 
     if (op == BinaryOperator::Subscript) {
@@ -602,7 +600,7 @@ ErrorOrNode bind_types(std::shared_ptr<SyntaxNode> const& tree)
     }
     auto func_call = root.unresolved_functions().back();
     // FIXME Deal with multiple unresolved functions
-    return SyntaxError { ErrorCode::UntypedFunction, func_call->token(), func_call->name() };    
+    return SyntaxError { ErrorCode::UntypedFunction, func_call->token(), func_call->name() };
 }
 
 }
