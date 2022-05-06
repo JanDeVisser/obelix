@@ -62,15 +62,8 @@ TypeMnemonicMap const* get_type_mnemonic_map(std::shared_ptr<ObjectType> type)
 
 ErrorOr<void, SyntaxError> load_variable(ARM64Context &ctx, std::shared_ptr<ObjectType> type, int offset)
 {
-    if (type->type() != PrimitiveType::Struct) {
-        auto mm = get_type_mnemonic_map(type);
-        if (mm == nullptr)
-            return SyntaxError { ErrorCode::NotYetImplemented, Token {},
-                format("Cannot push values of array elements of type {} yet", type) };
-
-        auto offset_str = format("[fp,#{}]", offset);
-        ctx.assembly().add_instruction(mm->load_mnemonic, "{}0,{}", mm->reg_width, offset_str);
-    } else {
+    switch (type->type()) {
+    case PrimitiveType::Struct: {
         if (type->fields().size() > 4) {
             return SyntaxError { ErrorCode::NotYetImplemented, Token {}, format("Cannot load structs with more than 4 fields yet") };
         }
@@ -88,6 +81,19 @@ ErrorOr<void, SyntaxError> load_variable(ARM64Context &ctx, std::shared_ptr<Obje
                 return SyntaxError { ErrorCode::NotYetImplemented, Token {}, format("Cannot load structs with nested struct fields yet") };
             }
         }
+    } break;
+    case PrimitiveType::Array: {
+        ctx.assembly().add_instruction("mov", "x0,fp,#{}", offset);
+    } break;
+    default: {
+        auto mm = get_type_mnemonic_map(type);
+        if (mm == nullptr)
+            return SyntaxError { ErrorCode::NotYetImplemented, Token {},
+                format("Cannot push values of array elements of type {} yet", type) };
+
+        auto offset_str = format("[fp,#{}]", offset);
+        ctx.assembly().add_instruction(mm->load_mnemonic, "{}0,{}", mm->reg_width, offset_str);
+    } break;
     }
     return {};
 }
@@ -101,6 +107,8 @@ ErrorOr<void, SyntaxError> assign_variable(ARM64Context &ctx, std::shared_ptr<Ob
                 format("Cannot push values of array elements of type {} yet", type) };
 
         auto offset_str = format("[fp,#{}]", offset);
+        if (offset < 0)
+            offset_str = "[fp,x8]";
         ctx.assembly().add_instruction(mm->store_mnemonic, "{}0,{}", mm->reg_width, offset_str);
     } else {
         if (type->fields().size() > 4) {
@@ -154,6 +162,10 @@ ErrorOr<void, SyntaxError> zero_initialize(ARM64Context &ctx, std::shared_ptr<Ob
         }
         break;
     }
+    case PrimitiveType::Array: {
+        // Arrays are not initialized now. Maybe that should be fixed
+        break;
+    }
     default:
         return SyntaxError { ErrorCode::NotYetImplemented, Token { }, format("Cannot initialize variables of type {} yet", type) };
     }
@@ -162,6 +174,7 @@ ErrorOr<void, SyntaxError> zero_initialize(ARM64Context &ctx, std::shared_ptr<Ob
 
 ErrorOr<void, SyntaxError> calculate_array_element_offset(ARM64Context &ctx, std::shared_ptr<MaterializedArrayAccess> array_access)
 {
+    push(ctx, "x0");
     TRY_RETURN(process(array_access->index(), ctx));
     switch (array_access->element_size()) {
         case 1:
@@ -183,6 +196,7 @@ ErrorOr<void, SyntaxError> calculate_array_element_offset(ARM64Context &ctx, std
             return SyntaxError { ErrorCode::InternalError, array_access->token(), "Cannot access arrays with elements of size {} yet", array_access->element_size()};
     }
     ctx.assembly().add_instruction("add", "x8,x8,#{}", array_access->array()->offset());
+    pop(ctx, "x0");
     return {};
 }
 
@@ -335,6 +349,8 @@ NODE_PROCESSOR(MaterializedStructIdentifier)
     return tree;
 }
 
+ALIAS_NODE_PROCESSOR(MaterializedArrayIdentifier, MaterializedStructIdentifier)
+
 NODE_PROCESSOR(MaterializedMemberAccess)
 {
     auto member_access = std::dynamic_pointer_cast<MaterializedMemberAccess>(tree);
@@ -373,7 +389,8 @@ NODE_PROCESSOR(BoundAssignment)
     auto array_access = std::dynamic_pointer_cast<MaterializedArrayAccess>(assignee);
     if (array_access) {
         TRY_RETURN(calculate_array_element_offset(ctx, array_access));
-        offset = "[fp,x8]";
+        TRY_RETURN(assign_variable(ctx, assignee->type(), -1));
+        return tree;
     }
     TRY_RETURN(assign_variable(ctx, assignee->type(), assignee->offset()));
     return tree;

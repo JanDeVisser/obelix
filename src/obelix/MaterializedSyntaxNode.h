@@ -338,6 +338,21 @@ public:
     [[nodiscard]] SyntaxNodeType node_type() const override { return SyntaxNodeType::MaterializedStructIdentifier; }
 };
 
+class MaterializedArrayIdentifier : public MaterializedIdentifier {
+public:
+    MaterializedArrayIdentifier(std::shared_ptr<BoundIdentifier> const& identifier, int offset)
+        : MaterializedIdentifier(identifier, offset)
+    {
+    }
+
+    MaterializedArrayIdentifier(std::shared_ptr<BoundIdentifier> const& identifier, std::string label, int offset=0)
+        : MaterializedIdentifier(identifier, move(label), offset)
+    {
+    }
+
+    [[nodiscard]] SyntaxNodeType node_type() const override { return SyntaxNodeType::MaterializedArrayIdentifier; }
+};
+
 class MaterializedMemberAccess : public MaterializedVariableAccess {
 public:
     MaterializedMemberAccess(std::shared_ptr<BoundMemberAccess> const& member_access,

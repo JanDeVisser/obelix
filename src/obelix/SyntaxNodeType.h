@@ -67,6 +67,7 @@ namespace Obelix {
     S(MaterializedIdentifier)           \
     S(MaterializedIntIdentifier)        \
     S(MaterializedStructIdentifier)     \
+    S(MaterializedArrayIdentifier)      \
     S(MaterializedMemberAccess)         \
     S(MaterializedArrayAccess)          \
     S(MaterializedStaticVariableAccess) \

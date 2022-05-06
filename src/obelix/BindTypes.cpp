@@ -302,7 +302,7 @@ NODE_PROCESSOR(BinaryExpression)
     if (op == BinaryOperator::Subscript) {
         if (lhs->type()->type() != PrimitiveType::Array)
             return SyntaxError { ErrorCode::CannotAccessMember, lhs->token(), lhs->to_string() };
-        if (rhs_bound->type()->type() != PrimitiveType::Int)
+        if (rhs_bound->type()->type() != PrimitiveType::SignedIntegerNumber)
             return SyntaxError { ErrorCode::TypeMismatch, rhs->token(), rhs, ObjectType::get(PrimitiveType::Int), rhs_bound->type() };
         if (rhs_bound->node_type() == SyntaxNodeType::BoundIntLiteral) {
             auto literal = std::dynamic_pointer_cast<BoundIntLiteral>(rhs_bound);

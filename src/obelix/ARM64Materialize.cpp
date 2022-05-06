@@ -208,6 +208,8 @@ std::shared_ptr<MaterializedIdentifier> make_materialized_identifier(std::shared
         return make_node<MaterializedIntIdentifier>(identifier, move(label), offset);
     case PrimitiveType::Struct:
         return make_node<MaterializedStructIdentifier>(identifier, move(label), offset);
+    case PrimitiveType::Array:
+        return make_node<MaterializedArrayIdentifier>(identifier, move(label), offset);
     default:
         fatal("Cannot materialize identifiers of type '{}' yet", identifier->type());
     }
