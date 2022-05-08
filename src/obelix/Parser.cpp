@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
+#include "lexer/Token.h"
 #include <obelix/BoundSyntaxNode.h>
 #include <obelix/Intrinsics.h>
 #include <obelix/Parser.h>
@@ -678,9 +679,6 @@ int Parser::unary_precedence(TokenCode code)
 int Parser::is_postfix_unary_operator(TokenCode code)
 {
     switch (code) {
-    case TokenCode::OpenParen:
-        //    case TokenCode::OpenBracket:
-        return true;
     default:
         return false;
     }
@@ -759,13 +757,7 @@ std::shared_ptr<Expression> Parser::parse_expression_1(std::shared_ptr<Expressio
 std::shared_ptr<Expression> Parser::parse_postfix_unary_operator(std::shared_ptr<Expression> const& expression)
 {
     assert(is_postfix_unary_operator(current_code()));
-    switch (current_code()) {
-    case TokenCode::OpenParen:
-        // rhs := function call with rhs as function expr.
-        return parse_function_call(expression);
-    default:
-        fatal("Unreachable");
-    }
+    fatal("Postfix operator '{}' not implemented yet", current_code());
 }
 
 std::shared_ptr<Expression> Parser::parse_primary_expression()
@@ -809,7 +801,10 @@ std::shared_ptr<Expression> Parser::parse_primary_expression()
     case KeywordFalse:
         return make_node<BooleanLiteral>(t);
     case TokenCode::Identifier: {
-        return make_node<Identifier>(t, t.value());
+        auto identifier = make_node<Identifier>(t, t.value());
+        if (current_code() != TokenCode::OpenParen)
+            return identifier;
+        return parse_function_call(identifier);
     }
     default:
         add_error(t, format("Syntax Error: Expected literal or variable, got '{}' ({})", t.value(), t.code_name()));
