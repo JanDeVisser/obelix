@@ -1,0 +1,16 @@
+func fib(i: s32) : s32
+{
+  if ((i == 0) || (i == 1)) {
+    return i;
+  }
+  var ret: s32 = fib(i-1) + fib(i-2);
+  return ret;
+}
+
+func main() : s32
+{
+  for (i in 0 .. 20) {
+    puti(i); puts(" -> "); puti(fib(i)); putln("");
+  }
+  return 0;
+}
