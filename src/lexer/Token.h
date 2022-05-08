@@ -202,6 +202,26 @@ struct Span {
     }
 };
 
+
+template<>
+struct Converter<TokenCode> {
+    static std::string to_string(TokenCode val)
+    {
+        return TokenCode_name(val);
+    }
+
+    static double to_double(TokenCode val)
+    {
+        return static_cast<double>(val);
+    }
+
+    static long to_long(TokenCode val)
+    {
+        return static_cast<long>(val);
+    }
+};
+
+
 class Token {
 public:
     Token() = default;
