@@ -4,6 +4,8 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
+#include "core/Object.h"
+#include "obelix/Type.h"
 #include <filesystem>
 #include <memory>
 #include <optional>
@@ -516,16 +518,33 @@ NODE_PROCESSOR(MaterializedVariableDecl)
     auto var_decl = std::dynamic_pointer_cast<MaterializedVariableDecl>(tree);
     ctx.assembly().add_comment(var_decl->to_string());
 
-    if (var_decl->type()->type() == PrimitiveType::Array)
-        return tree;
+    // if (var_decl->type()->type() == PrimitiveType::Array)
+    //     return tree;
 
     auto static_address = std::dynamic_pointer_cast<StaticVariableAddress>(var_decl->address());
     if (static_address) {
-        int initial_value = 0;
-        auto literal = std::dynamic_pointer_cast<BoundIntLiteral>(var_decl->expression());
-        if (literal != nullptr)
-            initial_value = literal->value();
-        ctx.assembly().add_data(static_address->label(), true, ".long", initial_value);
+        switch (var_decl->type()->type()) {
+            case PrimitiveType::IntegerNumber: {
+                int initial_value = 0;
+                auto literal = std::dynamic_pointer_cast<BoundIntLiteral>(var_decl->expression());
+                if (literal != nullptr)
+                    initial_value = literal->value();
+                ctx.assembly().add_data(static_address->label(), true, ".long", initial_value);
+                break;
+            }
+            case PrimitiveType::Array: {
+                ctx.assembly().add_data(static_address->label(), true, ".space", 
+                    var_decl->type()->template_argument<std::shared_ptr<ObjectType>>("base_type")->size() * 
+                    var_decl->type()->template_argument<long>("size"));
+                break;
+            }
+            case PrimitiveType::Struct: {
+                ctx.assembly().add_data(static_address->label(), true, ".space", var_decl->type()->size());
+                break;
+            }
+            default:
+                fatal("Can't emit static variables of type {} yet", var_decl->type()->type());
+        }
         return tree;
     }
 

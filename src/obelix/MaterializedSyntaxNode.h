@@ -78,7 +78,7 @@ public:
     [[nodiscard]] int offset() const { return m_offset; }
     [[nodiscard]] std::string to_string() const override
     {
-        return format("[{}]", m_offset);
+        return format("StackVariableAddress: [{}]", m_offset);
     }
     [[nodiscard]] VariableAddressType address_type() const override { return VariableAddressType::StackVariableAddress; }
     ErrorOr<void, SyntaxError> store_variable(std::shared_ptr<ObjectType>, ARM64Context&, int) const override;
@@ -98,7 +98,7 @@ public:
     [[nodiscard]] std::string const& label() const { return m_label; }
     [[nodiscard]] std::string to_string() const override
     {
-        return format("[.{}]", m_label);
+        return format("StaticVariableAddress: [.{}]", m_label);
     }
     [[nodiscard]] VariableAddressType address_type() const override { return VariableAddressType::StaticVariableAddress; }
     ErrorOr<void, SyntaxError> store_variable(std::shared_ptr<ObjectType>, ARM64Context&, int) const override;
@@ -120,7 +120,7 @@ public:
     [[nodiscard]] int offset() const { return m_offset; }
     [[nodiscard]] std::string to_string() const override
     {
-        return format("[{}]", m_offset);
+        return format("StructMemberAddress: [{}]", m_offset);
     }
     [[nodiscard]] VariableAddressType address_type() const override { return VariableAddressType::StructMemberAddress; }
     ErrorOr<void, SyntaxError> store_variable(std::shared_ptr<ObjectType>, ARM64Context&, int) const override;
@@ -143,7 +143,7 @@ public:
     [[nodiscard]] int element_size() const { return m_element_size; }
     [[nodiscard]] std::string to_string() const override
     {
-        return format("[{}]", m_element_size);
+        return format("ArrayElementAddress: [{}]", m_element_size);
     }
     [[nodiscard]] VariableAddressType address_type() const override { return VariableAddressType::StructMemberAddress; }
     ErrorOr<void, SyntaxError> store_variable(std::shared_ptr<ObjectType>, ARM64Context&, int) const override;
@@ -343,7 +343,7 @@ public:
 
     [[nodiscard]] std::string attributes() const override
     {
-        return format(R"(name="{}" type="{}" is_const="{}")", name(), type(), is_const());
+        return format(R"(name="{}" type="{}" is_const="{}" address="{}")", name(), type(), is_const(), address()->to_string());
     }
 
     [[nodiscard]] Nodes children() const override

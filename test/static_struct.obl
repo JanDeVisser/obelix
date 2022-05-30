@@ -1,0 +1,13 @@
+struct A {
+  foo: int;
+  bar: int;
+};
+
+static var a: A;
+
+func main(argc: int, argv: ptr<ptr<char>>): int
+{
+  a.foo = 2;
+  a.bar = 5;
+  return a.foo + a.bar;
+}

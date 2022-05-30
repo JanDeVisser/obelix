@@ -768,6 +768,11 @@ ErrorOr<std::shared_ptr<ObjectType>> ObjectType::make_struct_type(std::string na
     assert(!fields.empty()); // TODO return proper error
     ret = std::make_shared<ObjectType>(PrimitiveType::Struct, move(name));
     ret->m_fields = move(fields);
+    size_t sz= 0;
+    for (auto const& f : ret->m_fields) {
+        sz += f.type->size();
+    }
+    ret->has_size(sz);
 
     if (builder != nullptr)
         builder(ret.get());
