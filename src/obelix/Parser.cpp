@@ -732,8 +732,8 @@ std::shared_ptr<Expression> Parser::parse_expression_1(std::shared_ptr<Expressio
             rhs = parse_primary_expression();
             if (!rhs)
                 return nullptr;
-            while (binary_precedence(current_code()) > binary_precedence(op.code())) {
-                rhs = parse_expression_1(rhs, binary_precedence(op.code()) + 1);
+            while ((open_bracket && (current_code() != TokenCode::CloseBracket)) || (binary_precedence(current_code()) > binary_precedence(op.code()))) {
+                rhs = parse_expression_1(rhs, (open_bracket) ? 0 : (binary_precedence(op.code()) + 1));
             }
             if (open_bracket) {
                 if (current_code() != TokenCode::CloseBracket)

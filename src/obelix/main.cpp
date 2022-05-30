@@ -181,7 +181,7 @@ int main(int argc, char** argv)
             }
         } else if (!strcmp(argv[ix], "--show-tree")) {
             config.show_tree = true;
-        } else if (!strcmp(argv[ix], "--lex")) {
+        } else if (!strcmp(argv[ix], "--parse")) {
             config.bind = false;
         } else if (!strcmp(argv[ix], "--bind")) {
             config.lower = false;

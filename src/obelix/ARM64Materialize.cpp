@@ -31,7 +31,7 @@ NODE_PROCESSOR(BoundFunctionDef)
     int offset = 16;
     MaterializedFunctionParameters function_parameters;
     for (auto& parameter : func_decl->parameters()) {
-        auto materialized_parameter = make_node<MaterializedFunctionParameter>(parameter, offset);
+        auto materialized_parameter = make_node<MaterializedFunctionParameter>(parameter, std::make_shared<StackVariableAddress>(offset));
         func_ctx.declare(materialized_parameter->name(), materialized_parameter);
         function_parameters.push_back(materialized_parameter);
         offset += parameter->type()->size();
@@ -79,7 +79,7 @@ NODE_PROCESSOR(BoundVariableDeclaration)
     auto var_decl = std::dynamic_pointer_cast<BoundVariableDeclaration>(tree);
     auto offset = ctx.offset;
     auto expression = TRY_AND_CAST(BoundExpression, process(var_decl->expression(), ctx));
-    auto ret = make_node<MaterializedVariableDecl>(var_decl, offset, expression);
+    auto ret = make_node<MaterializedVariableDecl>(var_decl, std::make_shared<StackVariableAddress>(offset), expression);
     ctx.declare(var_decl->name(), ret);
     offset += var_decl->type()->size();
     if (offset % 8)
@@ -92,7 +92,7 @@ NODE_PROCESSOR(BoundStaticVariableDeclaration)
 {
     auto var_decl = std::dynamic_pointer_cast<BoundStaticVariableDeclaration>(tree);
     auto expression = TRY_AND_CAST(BoundExpression, process(var_decl->expression(), ctx));
-    auto ret = make_node<MaterializedVariableDecl>(var_decl, format("_{}", var_decl->name()), 0, expression);
+    auto ret = make_node<MaterializedVariableDecl>(var_decl, std::make_shared<StaticVariableAddress>(format("_{}", var_decl->name())), expression);
     ctx.declare(var_decl->name(), ret);
     return ret;
 }
@@ -200,16 +200,17 @@ NODE_PROCESSOR(BoundBinaryExpression)
     return make_node<BoundIntrinsicCall>(expr->token(), BinaryOperator_name(expr->op()), intrinsic, BoundExpressions { lhs, rhs }, expr->type() );
 }
 
-std::shared_ptr<MaterializedIdentifier> make_materialized_identifier(std::shared_ptr<BoundIdentifier> const& identifier, std::string label, int offset)
+std::shared_ptr<MaterializedIdentifier> make_materialized_identifier(std::shared_ptr<BoundIdentifier> const& identifier, std::shared_ptr<VariableAddress> const& address)
 {
     switch (identifier->type()->type()) {
     case PrimitiveType::IntegerNumber:
     case PrimitiveType::SignedIntegerNumber:
-        return make_node<MaterializedIntIdentifier>(identifier, move(label), offset);
+    case PrimitiveType::Pointer:
+        return make_node<MaterializedIntIdentifier>(identifier, address);
     case PrimitiveType::Struct:
-        return make_node<MaterializedStructIdentifier>(identifier, move(label), offset);
+        return make_node<MaterializedStructIdentifier>(identifier, address);
     case PrimitiveType::Array:
-        return make_node<MaterializedArrayIdentifier>(identifier, move(label), offset);
+        return make_node<MaterializedArrayIdentifier>(identifier, address);
     default:
         fatal("Cannot materialize identifiers of type '{}' yet", identifier->type());
     }
@@ -217,7 +218,7 @@ std::shared_ptr<MaterializedIdentifier> make_materialized_identifier(std::shared
 
 std::shared_ptr<MaterializedIdentifier> make_materialized_identifier(std::shared_ptr<MaterializedDeclaration> const& decl, std::shared_ptr<BoundIdentifier> const& identifier)
 {
-    return make_materialized_identifier(identifier, decl->label(), decl->offset());
+    return make_materialized_identifier(identifier, decl->address());
 }
 
 NODE_PROCESSOR(BoundIdentifier)
@@ -243,7 +244,7 @@ NODE_PROCESSOR(BoundMemberAccess)
     auto offset = type->offset_of(member->name());
     if (offset < 0)
         return SyntaxError { ErrorCode::InternalError, member_access->token(), format("Invalid member name '{}' for struct of type '{}'", member->name(), type->name()) };
-    auto materialized_member = make_materialized_identifier(member, "", strukt->offset() + offset);
+    auto materialized_member = make_materialized_identifier(member, std::make_shared<StructMemberAddress>(strukt->address(), offset));
     return make_node<MaterializedMemberAccess>(member_access, strukt, materialized_member);
 }
 
@@ -254,7 +255,7 @@ NODE_PROCESSOR(BoundArrayAccess)
     auto subscript = TRY_AND_CAST(BoundExpression, process(array_access->subscript(), ctx));
     auto type = array->type()->template_arguments()[0].as_type();
     auto element_size = type->size();
-   return make_node<MaterializedArrayAccess>(array_access, array, subscript, element_size);
+    return make_node<MaterializedArrayAccess>(array_access, array, subscript, element_size);
 }
 
 ErrorOrNode materialize_arm64(std::shared_ptr<SyntaxNode> const& tree)

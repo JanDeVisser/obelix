@@ -1,6 +1,12 @@
 static var x: int = 12;
 
-func main(argc: int, argv: ptr<ptr<char>>) : int
+func f(): s32
 {
   return x;
+}
+
+func main(argc: int, argv: ptr<ptr<char>>) : int
+{
+  x = 42;
+  return f();
 }

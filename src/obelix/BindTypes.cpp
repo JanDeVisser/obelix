@@ -231,8 +231,13 @@ NODE_PROCESSOR(BinaryExpression)
 {
     auto expr = std::dynamic_pointer_cast<BinaryExpression>(tree);
     auto lhs = TRY_AND_CAST(BoundExpression, process(expr->lhs(), ctx));
-    if (lhs == nullptr)
+    if (lhs == nullptr) {
+        auto ident = std::dynamic_pointer_cast<Identifier>(expr->lhs());
+        if (ident != nullptr) {
+            return SyntaxError { ErrorCode::UndeclaredVariable, ident->token(), ident->name() };
+        }
         return tree;
+    }
     auto rhs = TRY(process(expr->rhs(), ctx));
     auto rhs_bound = std::dynamic_pointer_cast<BoundExpression>(rhs);
 
@@ -292,8 +297,8 @@ NODE_PROCESSOR(BinaryExpression)
     if (lhs == nullptr)
         return SyntaxError { ErrorCode::UntypedExpression, expr->lhs()->token(), expr->lhs()->to_string() };
     if (rhs_bound == nullptr) {
-        if (rhs->node_type() == SyntaxNodeType::Identifier) {
-            auto ident = std::dynamic_pointer_cast<Identifier>(rhs);
+        auto ident = std::dynamic_pointer_cast<Identifier>(rhs);
+        if (ident != nullptr) {
             return SyntaxError { ErrorCode::UndeclaredVariable, ident->token(), ident->name() };
         }
         return tree;
@@ -323,9 +328,9 @@ NODE_PROCESSOR(BinaryExpression)
             auto var_decl_maybe = ctx.get(identifier->name());
             if (!var_decl_maybe.has_value())
                 return SyntaxError { ErrorCode::UndeclaredVariable, lhs->token(), identifier->name() };
-            if (var_decl_maybe.value()->node_type() != SyntaxNodeType::BoundVariableDeclaration)
-                return SyntaxError { ErrorCode::CannotAssignToFunction, lhs->token(), identifier->name() };
             auto var_decl = std::dynamic_pointer_cast<BoundVariableDeclaration>(var_decl_maybe.value());
+            if (var_decl == nullptr)
+                return SyntaxError { ErrorCode::CannotAssignToFunction, lhs->token(), identifier->name() };
             if (var_decl->is_const())
                 return SyntaxError { ErrorCode::CannotAssignToConstant, lhs->token(), var_decl->name() };
         }

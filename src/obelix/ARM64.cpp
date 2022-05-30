@@ -4,11 +4,9 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
-#include "obelix/Context.h"
-#include "obelix/Syntax.h"
-#include "obelix/Type.h"
 #include <filesystem>
 #include <memory>
+#include <optional>
 
 #include <config.h>
 
@@ -153,7 +151,6 @@ ErrorOr<void, SyntaxError> zero_initialize(ARM64Context &ctx, std::shared_ptr<Ob
                 auto mm = get_type_mnemonic_map(field.type);
                 if (mm == nullptr)
                     return SyntaxError { ErrorCode::NotYetImplemented, Token {}, format("Cannot assign struct fields of type '{}' yet", field.type) };
-                auto offset = format("[fp,#{}]", off);
                 ctx.assembly().add_instruction("str", "x0,[fp,#{}]", off);
                 off += mm->size;
             } else {
@@ -195,7 +192,8 @@ ErrorOr<void, SyntaxError> calculate_array_element_offset(ARM64Context &ctx, std
         default:
             return SyntaxError { ErrorCode::InternalError, array_access->token(), "Cannot access arrays with elements of size {} yet", array_access->element_size()};
     }
-    ctx.assembly().add_instruction("add", "x8,x8,#{}", array_access->array()->offset());
+    auto address = std::dynamic_pointer_cast<StackVariableAddress>(array_access->array()->address());
+    ctx.assembly().add_instruction("add", "x8,x8,#{}", address->offset());
     pop(ctx, "x0");
     return {};
 }
@@ -221,7 +219,8 @@ NODE_PROCESSOR(MaterializedFunctionDef)
     auto func_def = std::dynamic_pointer_cast<MaterializedFunctionDef>(tree);
 
     for (auto& param : func_def->declaration()->parameters()) {
-        ctx.declare(param->name(), param->offset());
+        auto address = std::dynamic_pointer_cast<StackVariableAddress>(param->address());
+        ctx.declare(param->name(), address->offset());
     }
 
     if (func_def->declaration()->node_type() == SyntaxNodeType::MaterializedFunctionDecl) {
@@ -301,6 +300,159 @@ NODE_PROCESSOR(BoundIntLiteral)
     return tree;
 }
 
+ErrorOr<void, SyntaxError> StackVariableAddress::load_variable(std::shared_ptr<ObjectType> type, ARM64Context& ctx, int target) const
+{
+    auto mm = get_type_mnemonic_map(type);
+    if (mm == nullptr)
+        return SyntaxError { ErrorCode::NotYetImplemented, Token {},
+            format("Cannot push values of variables of type {} yet", type) };
+
+    ctx.assembly().add_instruction(mm->load_mnemonic, "{}{},[fp,#{}]", mm->reg_width, target, offset());
+    return {};
+}
+
+ErrorOr<void, SyntaxError> StackVariableAddress::store_variable(std::shared_ptr<ObjectType> type, ARM64Context& ctx, int from) const
+{
+    auto mm = get_type_mnemonic_map(type);
+    if (mm == nullptr)
+        return SyntaxError { ErrorCode::NotYetImplemented, Token {},
+            format("Cannot store values type {} yet", type) };
+    ctx.assembly().add_instruction(mm->store_mnemonic, "{}{},[fp,#{}]", mm->reg_width, from, offset());
+    return {};
+}
+
+ErrorOr<void, SyntaxError> StackVariableAddress::prepare_pointer(ARM64Context& ctx) const
+{
+    ctx.assembly().add_instruction("add", "x8,fp,#{}", offset());
+    return {};
+}
+
+ErrorOr<void, SyntaxError> StructMemberAddress::load_variable(std::shared_ptr<ObjectType> type, ARM64Context& ctx, int target) const
+{
+    auto mm = get_type_mnemonic_map(type);
+    if (mm == nullptr)
+        return SyntaxError { ErrorCode::NotYetImplemented, Token {},
+            format("Cannot push values of variables of type {} yet", type) };
+
+    if (auto error_maybe = structure()->prepare_pointer(ctx); error_maybe.is_error()) {
+        return error_maybe.error();
+    }
+    if (offset() > 0)
+        ctx.assembly().add_instruction("add", "x8,x8,#{}", offset());
+    ctx.assembly().add_instruction(mm->load_mnemonic, "{}{},[x8]", mm->reg_width, target);
+    return {};
+}
+
+ErrorOr<void, SyntaxError> StructMemberAddress::store_variable(std::shared_ptr<ObjectType> type, ARM64Context& ctx, int from) const
+{
+    auto mm = get_type_mnemonic_map(type);
+    if (mm == nullptr)
+        return SyntaxError { ErrorCode::NotYetImplemented, Token {},
+            format("Cannot store values type {} yet", type) };
+    if (auto error_maybe = structure()->prepare_pointer(ctx); error_maybe.is_error()) {
+        return error_maybe.error();
+    }
+    if (offset() > 0)
+        ctx.assembly().add_instruction("add", "x8,x8,#{}", offset());
+    ctx.assembly().add_instruction(mm->store_mnemonic, "{}{},[x8]", mm->reg_width, from);
+    return {};
+}
+
+ErrorOr<void, SyntaxError> StructMemberAddress::prepare_pointer(ARM64Context& ctx) const
+{
+    ctx.assembly().add_instruction("add", "x8,x8,#{}", offset());
+    return {};
+}
+
+ErrorOr<void, SyntaxError> ArrayElementAddress::load_variable(std::shared_ptr<ObjectType> type, ARM64Context& ctx, int target) const
+{
+    auto mm = get_type_mnemonic_map(type);
+    if (mm == nullptr)
+        return SyntaxError { ErrorCode::NotYetImplemented, Token {},
+            format("Cannot push values of variables of type {} yet", type) };
+
+    TRY_RETURN(array()->prepare_pointer(ctx));
+    TRY_RETURN(prepare_pointer(ctx));
+    pop(ctx, "x0");
+    ctx.assembly().add_instruction(mm->load_mnemonic, "{}{},[x8]", mm->reg_width, target);
+    return {};
+}
+
+ErrorOr<void, SyntaxError> ArrayElementAddress::store_variable(std::shared_ptr<ObjectType> type, ARM64Context& ctx, int from) const
+{
+    auto mm = get_type_mnemonic_map(type);
+    if (mm == nullptr)
+        return SyntaxError { ErrorCode::NotYetImplemented, Token {},
+            format("Cannot store values type {} yet", type) };
+    TRY_RETURN(array()->prepare_pointer(ctx));
+    TRY_RETURN(prepare_pointer(ctx));
+    pop(ctx, "x0");
+    ctx.assembly().add_instruction(mm->store_mnemonic, "{}{},[x8]", mm->reg_width, from);
+    return {};
+}
+
+ErrorOr<void, SyntaxError> ArrayElementAddress::prepare_pointer(ARM64Context& ctx) const
+{
+    // x0 will hold the array index. Here we add that index, multiplied by the element size,
+    // to x8, which should hold the array base address
+    
+    // First update x0 to the actual offset of the indexed element in the array:
+    switch (element_size()) {
+        case 1:
+            // Index and offset will be the same so x0 already contains the offset.
+            break;
+        case 2:
+            ctx.assembly().add_instruction("lsl", "x0,x0,#1");
+            break;
+        case 4:
+            ctx.assembly().add_instruction("lsl", "x0,x0,#2");
+            break;
+        case 8:
+            ctx.assembly().add_instruction("lsl", "x0,x0,#3");
+            break;
+        case 16:
+            ctx.assembly().add_instruction("lsl", "x0,x0,#4");
+            break;
+        default:
+            return SyntaxError { ErrorCode::InternalError, Token {}, "Cannot access arrays with elements of size {} yet", element_size()};
+    }
+
+    // Add offset to x8:
+    ctx.assembly().add_instruction("add", "x8,x8,x0");
+    return {};
+}
+
+ErrorOr<void, SyntaxError> StaticVariableAddress::load_variable(std::shared_ptr<ObjectType> type, ARM64Context& ctx, int target) const
+{
+    auto mm = get_type_mnemonic_map(type);
+    if (mm == nullptr)
+        return SyntaxError { ErrorCode::NotYetImplemented, Token {},
+            format("Cannot push values of variables of type {} yet", type) };
+
+    ctx.assembly().add_instruction("adrp", "x8,{}@PAGE", label());
+    ctx.assembly().add_instruction(mm->load_mnemonic, "{}{},[x8,{}@PAGEOFF]", mm->reg_width, target, label());
+    return {};
+}
+
+ErrorOr<void, SyntaxError> StaticVariableAddress::store_variable(std::shared_ptr<ObjectType> type, ARM64Context& ctx, int from) const
+{
+    auto mm = get_type_mnemonic_map(type);
+    if (mm == nullptr)
+        return SyntaxError { ErrorCode::NotYetImplemented, Token {},
+            format("Cannot store values of type {} yet", type) };
+
+    ctx.assembly().add_instruction("adrp", "x8,{}@PAGE", label());
+    ctx.assembly().add_instruction(mm->store_mnemonic, "{}{},[x8,{}@PAGEOFF]", mm->reg_width, from, label());
+    return {};
+}
+
+ErrorOr<void, SyntaxError> StaticVariableAddress::prepare_pointer(ARM64Context& ctx) const
+{
+    ctx.assembly().add_instruction("adrp", "x8,{}@PAGE", label());
+    ctx.assembly().add_instruction("add", "x8,x8,{}@PAGEOFF", label());
+    return {};
+}
+
 NODE_PROCESSOR(BoundStringLiteral)
 {
     auto literal = std::dynamic_pointer_cast<BoundStringLiteral>(tree);
@@ -313,39 +465,14 @@ NODE_PROCESSOR(BoundStringLiteral)
 NODE_PROCESSOR(MaterializedIntIdentifier)
 {
     auto identifier = std::dynamic_pointer_cast<MaterializedVariableAccess>(tree);
-    std::string source = format("[fp,#{}]", identifier->offset());
-    if (!identifier->label().empty()) {
-        ctx.assembly().add_instruction("adrp", "x8,{}@PAGE", identifier->label());
-        source = format("[x8,{}@PAGEOFF]", identifier->label());
-    }
-
-    auto mm = get_type_mnemonic_map(identifier->type());
-    if (mm == nullptr)
-        return SyntaxError { ErrorCode::NotYetImplemented, identifier->token(),
-            format("Cannot push values of variables of type {} yet", identifier->type()) };
-
-    ctx.assembly().add_instruction(mm->load_mnemonic, "{}0,{}", mm->reg_width, source);
+    TRY_RETURN(identifier->address()->load_variable(identifier->type(), ctx, 0));
     return tree;
 }
 
 NODE_PROCESSOR(MaterializedStructIdentifier)
 {
     auto identifier = std::dynamic_pointer_cast<MaterializedVariableAccess>(tree);
-#if 0
-    auto target = ctx.target_register();
-    std::string source;
-
-    if (!identifier->label().empty()) {
-        ctx.inc_target_register();
-        auto ptr_reg = ctx.target_register();
-        ctx.assembly().add_instruction("adrp", "x{},{}@PAGE", ptr_reg, identifier->label());
-        source = format("x{},{}@PAGEOFF", ptr_reg, identifier->label());
-    } else {
-        source = format("fp,#{}", identifier->offset());
-    }
-    ctx.assembly().add_instruction("add", "x{},{}", target, source);
-#endif
-    TRY_RETURN(load_variable(ctx, identifier->type(), identifier->offset()));
+    TRY_RETURN(identifier->address()->load_variable(identifier->type(), ctx, 0));
     return tree;
 }
 
@@ -361,18 +488,9 @@ NODE_PROCESSOR(MaterializedMemberAccess)
 NODE_PROCESSOR(MaterializedArrayAccess)
 {
     auto array_access = std::dynamic_pointer_cast<MaterializedArrayAccess>(tree);
-    TRY_RETURN(calculate_array_element_offset(ctx, array_access));
-
-    if (array_access->type()->type() != PrimitiveType::Struct) {
-        auto mm = get_type_mnemonic_map(array_access->type());
-        if (mm == nullptr)
-            return SyntaxError { ErrorCode::NotYetImplemented, array_access->token(),
-                format("Cannot push values of array elements of type {} yet", array_access->type()) };
-
-        ctx.assembly().add_instruction(mm->load_mnemonic, "{}0,[fp,x8]", mm->reg_width);
-    } else {
-        ctx.assembly().add_instruction("add", "x0,fp,x8");
-    }
+    push(ctx, "x0");
+    TRY_RETURN(process(array_access->index(), ctx));;
+    TRY_RETURN(array_access->address()->load_variable(array_access->type(), ctx, 0));
     return tree;
 }
 
@@ -384,15 +502,12 @@ NODE_PROCESSOR(BoundAssignment)
         return SyntaxError { ErrorCode::InternalError, assignment->token(), format("Variable access '{}' not materialized", assignment->assignee()) };
 
     TRY_RETURN(process(assignment->expression(), ctx));
-
-    auto offset = format("[fp,#{}]", assignee->offset());
     auto array_access = std::dynamic_pointer_cast<MaterializedArrayAccess>(assignee);
     if (array_access) {
-        TRY_RETURN(calculate_array_element_offset(ctx, array_access));
-        TRY_RETURN(assign_variable(ctx, assignee->type(), -1));
-        return tree;
+        push(ctx, "x0");
+        TRY_RETURN(process(array_access->index(), ctx));;
     }
-    TRY_RETURN(assign_variable(ctx, assignee->type(), assignee->offset()));
+    TRY_RETURN(assignee->address()->store_variable(assignment->type(), ctx, 0));
     return tree;
 }
 
@@ -404,20 +519,26 @@ NODE_PROCESSOR(MaterializedVariableDecl)
     if (var_decl->type()->type() == PrimitiveType::Array)
         return tree;
 
-    if (!var_decl->label().empty()) {
+    auto static_address = std::dynamic_pointer_cast<StaticVariableAddress>(var_decl->address());
+    if (static_address) {
         int initial_value = 0;
         auto literal = std::dynamic_pointer_cast<BoundIntLiteral>(var_decl->expression());
         if (literal != nullptr)
             initial_value = literal->value();
-        ctx.assembly().add_data(var_decl->label(), true, ".long", initial_value);
+        ctx.assembly().add_data(static_address->label(), true, ".long", initial_value);
         return tree;
     }
 
     if (var_decl->expression() != nullptr) {
         TRY_RETURN(process(var_decl->expression(), ctx));
-        TRY_RETURN(assign_variable(ctx, var_decl->type(), var_decl->offset()));
+        auto error_maybe = var_decl->address()->store_variable(var_decl->type(), ctx, 0);
+        if (error_maybe.is_error()) {
+            ctx.add_error(error_maybe.error());
+            return error_maybe.error();
+        }
     } else {
-        TRY_RETURN(zero_initialize(ctx, var_decl->type(), var_decl->offset()));
+        auto stack_address = std::dynamic_pointer_cast<StackVariableAddress>(var_decl->address());
+        TRY_RETURN(zero_initialize(ctx, var_decl->type(), stack_address->offset()));
     }
     return tree;
 }

@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
+#include <memory>
 #include <obelix/ARM64Context.h>
 
 namespace Obelix {
@@ -59,11 +60,7 @@ void ARM64Context::enter_function(std::shared_ptr<MaterializedFunctionDef> const
     // @improve Do this lazily, i.e. when we need the registers
     auto reg = 0;
     for (auto& param : func->declaration()->parameters()) {
-        assembly().add_instruction("str", "x{},[fp,#{}]", reg++, param->offset());
-#if 0
-        if (param->type()->type() == PrimitiveType::String)
-            assembly().add_instruction("str", "x{},[fp,#{}]", reg++, param->offset() + 8);
-#endif
+        assembly().add_instruction("str", "x{},[fp,#{}]", reg++, std::dynamic_pointer_cast<StackVariableAddress>(param->address())->offset());
     }
 }
 
