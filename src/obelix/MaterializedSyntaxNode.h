@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include "obelix/Intrinsics.h"
 #include <memory>
 #include <string>
 
@@ -170,47 +171,60 @@ private:
 
 class MaterializedFunctionParameter : public BoundIdentifier, public MaterializedDeclaration {
 public:
-    MaterializedFunctionParameter(std::shared_ptr<BoundIdentifier> const& param, std::shared_ptr<VariableAddress> address)
+    enum class ParameterPassingMethod {
+        Register,
+        Stack
+    };
+
+    MaterializedFunctionParameter(std::shared_ptr<BoundIdentifier> const& param, std::shared_ptr<VariableAddress> address, ParameterPassingMethod method, int where)
         : BoundIdentifier(param->token(), param->name(), param->type())
         , MaterializedDeclaration(move(address))
+        , m_method(method)
+        , m_where(where)
     {
     }
 
     [[nodiscard]] SyntaxNodeType node_type() const override { return SyntaxNodeType::MaterializedFunctionParameter; }
     [[nodiscard]] std::string attributes() const override
     {
-        return format(R"({} address="{}")", BoundIdentifier::attributes(), address()->to_string());
+        return format(R"({} address="{}" where="{}")", BoundIdentifier::attributes(), address()->to_string(), where());
     }
     [[nodiscard]] std::string to_string() const override
     {
-        return format("{} {}", BoundIdentifier::to_string(), address()->to_string());
+        return format("{} {} => {}", BoundIdentifier::to_string(), where(), address()->to_string());
     }
 
     [[nodiscard]] std::shared_ptr<ObjectType> const& declared_type() const override
     {
         return type();
     }
+
+    [[nodiscard]] ParameterPassingMethod method() const { return m_method; }
+    [[nodiscard]] int where() const { return m_where; }
+
+private:
+    ParameterPassingMethod m_method;
+    int m_where;
 };
 
 using MaterializedFunctionParameters = std::vector<std::shared_ptr<MaterializedFunctionParameter>>;
 
 class MaterializedFunctionDecl : public SyntaxNode {
 public:
-    explicit MaterializedFunctionDecl(std::shared_ptr<BoundFunctionDecl> const& decl, MaterializedFunctionParameters parameters)
+    explicit MaterializedFunctionDecl(std::shared_ptr<BoundFunctionDecl> const& decl, MaterializedFunctionParameters parameters, int nsaa, int stack_depth)
         : SyntaxNode(decl->token())
         , m_identifier(decl->identifier())
-        , m_parameters(move(parameters))
+        , m_nsaa(nsaa)
+        , m_stack_depth(stack_depth)
     {
     }
 
-    explicit MaterializedFunctionDecl(std::shared_ptr<BoundFunctionDecl> const& decl)
+    explicit MaterializedFunctionDecl(std::shared_ptr<BoundFunctionDecl> const& decl, MaterializedFunctionParameters parameters, int nsaa)
         : SyntaxNode(decl->token())
         , m_identifier(decl->identifier())
+        , m_parameters(move(parameters))
+        , m_nsaa(nsaa)
     {
-        for (auto& param : decl->parameters()) {
-            auto materialized_param = std::make_shared<MaterializedFunctionParameter>(param, std::make_shared<StackVariableAddress>(0));
-            m_parameters.push_back(materialized_param);
-        }
     }
 
     [[nodiscard]] SyntaxNodeType node_type() const override { return SyntaxNodeType::MaterializedFunctionDecl; }
@@ -218,10 +232,12 @@ public:
     [[nodiscard]] std::string const& name() const { return identifier()->name(); }
     [[nodiscard]] std::shared_ptr<ObjectType> type() const { return identifier()->type(); }
     [[nodiscard]] MaterializedFunctionParameters const& parameters() const { return m_parameters; }
+    [[nodiscard]] int stack_depth() const { return m_stack_depth; }
+    [[nodiscard]] int nsaa() const { return m_nsaa; }
 
     [[nodiscard]] std::string attributes() const override
     {
-        return format(R"(name="{}" return_type="{}")", name(), type());
+        return format(R"(name="{}" return_type="{}" nsaa="{}" stack_depth="{}")", name(), type(), nsaa(), stack_depth());
     }
 
     [[nodiscard]] Nodes children() const override
@@ -235,7 +251,7 @@ public:
 
     [[nodiscard]] std::string to_string() const override
     {
-        return format("func {}({}): {}", name(), parameters_to_string(), type());
+        return format("func {}({}): {} [{}/{}]", name(), parameters_to_string(), type(), nsaa(), stack_depth());
     }
 
 protected:
@@ -255,12 +271,14 @@ protected:
 private:
     std::shared_ptr<BoundIdentifier> m_identifier;
     MaterializedFunctionParameters m_parameters;
+    int m_nsaa;
+    int m_stack_depth;
 };
 
 class MaterializedNativeFunctionDecl : public MaterializedFunctionDecl {
 public:
-    explicit MaterializedNativeFunctionDecl(std::shared_ptr<BoundNativeFunctionDecl> const& func_decl)
-        : MaterializedFunctionDecl(func_decl)
+    explicit MaterializedNativeFunctionDecl(std::shared_ptr<BoundNativeFunctionDecl> const& func_decl, MaterializedFunctionParameters parameters, int nsaa)
+        : MaterializedFunctionDecl(func_decl, parameters, nsaa)
         , m_native_function_name(func_decl->native_function_name())
     {
     }
@@ -278,8 +296,8 @@ private:
 
 class MaterializedIntrinsicDecl : public MaterializedFunctionDecl {
 public:
-    explicit MaterializedIntrinsicDecl(std::shared_ptr<BoundIntrinsicDecl> const& decl)
-        : MaterializedFunctionDecl(decl)
+    explicit MaterializedIntrinsicDecl(std::shared_ptr<BoundIntrinsicDecl> const& decl, MaterializedFunctionParameters parameters, int nsaa)
+        : MaterializedFunctionDecl(decl, parameters, nsaa)
     {
     }
 
@@ -292,11 +310,10 @@ public:
 
 class MaterializedFunctionDef : public Statement {
 public:
-    MaterializedFunctionDef(std::shared_ptr<BoundFunctionDef> const& bound_def, std::shared_ptr<MaterializedFunctionDecl> func_decl, std::shared_ptr<Statement> statement, int stack_depth)
+    MaterializedFunctionDef(std::shared_ptr<BoundFunctionDef> const& bound_def, std::shared_ptr<MaterializedFunctionDecl> func_decl, std::shared_ptr<Statement> statement)
         : Statement(bound_def->token())
         , m_function_decl(move(func_decl))
         , m_statement(move(statement))
-        , m_stack_depth(stack_depth)
     {
     }
 
@@ -307,11 +324,10 @@ public:
     [[nodiscard]] std::shared_ptr<ObjectType> const& type() const { return identifier()->type(); }
     [[nodiscard]] MaterializedFunctionParameters const& parameters() const { return m_function_decl->parameters(); }
     [[nodiscard]] std::shared_ptr<Statement> const& statement() const { return m_statement; }
-    [[nodiscard]] int stack_depth() const { return m_stack_depth; }
     [[nodiscard]] std::string to_string() const override
     {
         if (m_statement != nullptr)
-            return format("{} [{}]\n{}", m_function_decl, m_stack_depth, m_statement);
+            return format("{}\n{}", m_function_decl, m_statement);
         return m_function_decl->to_string();
     }
 
@@ -327,7 +343,84 @@ public:
 protected:
     std::shared_ptr<MaterializedFunctionDecl> m_function_decl;
     std::shared_ptr<Statement> m_statement;
-    int m_stack_depth;
+};
+
+class MaterializedFunctionCall : public BoundExpression {
+public:
+    MaterializedFunctionCall(std::shared_ptr<BoundFunctionCall> const& call, BoundExpressions arguments, std::shared_ptr<MaterializedFunctionDecl> decl)
+        : BoundExpression(call)
+        , m_name(call->name())
+        , m_arguments(move(arguments))
+        , m_declaration(move(decl))
+    {
+    }
+
+    [[nodiscard]] std::string attributes() const override
+    {
+        return format(R"(name="{}" type="{}")", name(), type());
+    }
+
+    [[nodiscard]] Nodes children() const override
+    {
+        Nodes ret;
+        for (auto& arg : m_arguments) {
+            ret.push_back(arg);
+        }
+        return ret;
+    }
+
+    [[nodiscard]] std::string to_string() const override
+    {
+        Strings args;
+        for (auto& arg : m_arguments) {
+            args.push_back(arg->to_string());
+        }
+        return format("{}({}): {}", name(), join(args, ","), type());
+    }
+
+    [[nodiscard]] SyntaxNodeType node_type() const override { return SyntaxNodeType::MaterializedFunctionCall; }
+    [[nodiscard]] std::string const& name() const { return m_name; }
+    [[nodiscard]] BoundExpressions const& arguments() const { return m_arguments; }
+    [[nodiscard]] std::shared_ptr<MaterializedFunctionDecl> const& declaration() const { return m_declaration; }
+
+    [[nodiscard]] ObjectTypes argument_types() const
+    {
+        ObjectTypes ret;
+        for (auto& arg : arguments()) {
+            ret.push_back(arg->type());
+        }
+        return ret;
+    }
+
+private:
+    std::string m_name;
+    BoundExpressions m_arguments;
+    std::shared_ptr<MaterializedFunctionDecl> m_declaration;
+};
+
+class MaterializedNativeFunctionCall : public MaterializedFunctionCall {
+public:
+    MaterializedNativeFunctionCall(std::shared_ptr<BoundFunctionCall> const& call, BoundExpressions arguments, std::shared_ptr<MaterializedNativeFunctionDecl> decl)
+        : MaterializedFunctionCall(call, move(arguments), move(decl))
+    {
+    }
+
+    [[nodiscard]] SyntaxNodeType node_type() const override { return SyntaxNodeType::MaterializedNativeFunctionCall; }
+};
+
+class MaterializedIntrinsicCall : public MaterializedFunctionCall {
+public:
+    MaterializedIntrinsicCall(std::shared_ptr<BoundFunctionCall> const& call, BoundExpressions arguments, std::shared_ptr<MaterializedIntrinsicDecl> decl, IntrinsicType intrinsic)
+        : MaterializedFunctionCall(call, move(arguments), move(decl))
+        , m_intrinsic(intrinsic)
+    {
+    }
+
+    [[nodiscard]] SyntaxNodeType node_type() const override { return SyntaxNodeType::MaterializedIntrinsicCall; }
+    [[nodiscard]] IntrinsicType intrinsic() const { return m_intrinsic; }
+
+private:
+    IntrinsicType m_intrinsic;
 };
 
 class MaterializedVariableDecl : public Statement, public MaterializedDeclaration {

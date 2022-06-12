@@ -560,80 +560,37 @@ public:
     }
 
     BoundNativeFunctionCall(std::shared_ptr<BoundNativeFunctionCall> const& call, BoundExpressions arguments, std::shared_ptr<BoundFunctionDecl> const& decl = nullptr)
-        : BoundFunctionCall(call, arguments, decl)
+        : BoundFunctionCall(call, move(arguments), decl)
     {
     }
 
     [[nodiscard]] SyntaxNodeType node_type() const override { return SyntaxNodeType::BoundNativeFunctionCall; }
 };
 
-class BoundIntrinsicCall : public BoundExpression {
+class BoundIntrinsicCall : public BoundFunctionCall {
 public:
-    BoundIntrinsicCall(std::shared_ptr<FunctionCall> const& call, IntrinsicType intrinsic, BoundExpressions arguments, std::shared_ptr<ObjectType> type)
-        : BoundExpression(call->token(), move(type))
-        , m_name(call->name())
-        , m_arguments(move(arguments))
+    BoundIntrinsicCall(std::shared_ptr<FunctionCall> const& call, BoundExpressions arguments, std::shared_ptr<BoundIntrinsicDecl> decl, IntrinsicType intrinsic)
+        : BoundFunctionCall(call, move(arguments), move(decl))
         , m_intrinsic(intrinsic)
     {
     }
 
-    BoundIntrinsicCall(Token token, std::string name, IntrinsicType intrinsic, BoundExpressions arguments, std::shared_ptr<ObjectType> type)
-        : BoundExpression(std::move(token), move(type))
-        , m_name(move(name))
-        , m_arguments(move(arguments))
-        , m_intrinsic(intrinsic)
-    {
-    }
-
-    BoundIntrinsicCall(std::shared_ptr<BoundIntrinsicCall> const& call, BoundExpressions arguments)
-        : BoundExpression(call->token(), call->type())
-        , m_name(call->name())
-        , m_arguments(move(arguments))
+    BoundIntrinsicCall(std::shared_ptr<BoundIntrinsicCall> const& call, BoundExpressions arguments, std::shared_ptr<BoundIntrinsicDecl> const& decl = nullptr)
+        : BoundFunctionCall(call, move(arguments), decl)
         , m_intrinsic(call->intrinsic())
+    {
+    }
+
+    BoundIntrinsicCall(Token token, std::shared_ptr<BoundIntrinsicDecl> const& decl, BoundExpressions arguments, IntrinsicType intrinsic_type)
+        : BoundFunctionCall(std::move(token), decl, move(arguments))
+        , m_intrinsic(intrinsic_type)
     {
     }
 
     [[nodiscard]] SyntaxNodeType node_type() const override { return SyntaxNodeType::BoundIntrinsicCall; }
     [[nodiscard]] IntrinsicType intrinsic() const { return m_intrinsic; }
 
-    [[nodiscard]] std::string attributes() const override
-    {
-        return format(R"(name="{}" type="{}")", name(), type());
-    }
-
-    [[nodiscard]] Nodes children() const override
-    {
-        Nodes ret;
-        for (auto& arg : m_arguments) {
-            ret.push_back(arg);
-        }
-        return ret;
-    }
-
-    [[nodiscard]] std::string to_string() const override
-    {
-        Strings args;
-        for (auto& arg : m_arguments) {
-            args.push_back(arg->to_string());
-        }
-        return format("{}({}): {}", name(), join(args, ","), type());
-    }
-
-    [[nodiscard]] std::string const& name() const { return m_name; }
-    [[nodiscard]] BoundExpressions const& arguments() const { return m_arguments; }
-
-    [[nodiscard]] ObjectTypes argument_types() const
-    {
-        ObjectTypes ret;
-        for (auto& arg : arguments()) {
-            ret.push_back(arg->type());
-        }
-        return ret;
-    }
-
 private:
-    std::string m_name;
-    BoundExpressions m_arguments;
     IntrinsicType m_intrinsic;
 };
 

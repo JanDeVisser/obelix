@@ -115,7 +115,7 @@ public:
     MethodDescription(Operator, PrimitiveType, IntrinsicType = IntrinsicType::NotIntrinsic, MethodParameters = {});
     MethodDescription(Operator, std::shared_ptr<ObjectType>, IntrinsicType = IntrinsicType::NotIntrinsic, MethodParameters = {});
 
-    [[nodiscard]] std::string_view name() const 
+    [[nodiscard]] std::string_view name() const
     {
         if (m_is_operator)
             return Operator_name(m_operator);
@@ -133,6 +133,7 @@ public:
     [[nodiscard]] bool varargs() const { return m_varargs; }
     [[nodiscard]] MethodParameters const& parameters() const { return m_parameters; }
     [[nodiscard]] bool is_operator() const { return m_is_operator; }
+    [[nodiscard]] std::shared_ptr<class BoundIntrinsicDecl> declaration() const;
 
 private:
     union {
@@ -176,7 +177,7 @@ struct TemplateParameter {
 using TemplateParameters = std::vector<TemplateParameter>;
 
 struct TemplateArgument {
-    TemplateArgument(std::shared_ptr<ObjectType> type) 
+    TemplateArgument(std::shared_ptr<ObjectType> type)
         : parameter_type(TemplateParameterType::Type)
         , value(type)
     {
@@ -199,13 +200,13 @@ struct TemplateArgument {
         , value(string)
     {
     }
-    
+
     TemplateArgument(bool boolean)
         : parameter_type(TemplateParameterType::Boolean)
         , value(boolean)
     {
     }
-    
+
     TemplateParameterType parameter_type;
     std::variant<std::shared_ptr<ObjectType>, long, std::string, bool> value;
 
@@ -312,7 +313,7 @@ public:
                 return template_arguments()[ix].get<ArgType>();
             }
         }
-        fatal("Type '{}' instantiates template '{}' which has no template parameter named '{}'", 
+        fatal("Type '{}' instantiates template '{}' which has no template parameter named '{}'",
             name(), specializes_template()->name(), arg_name);
     }
 
@@ -321,7 +322,8 @@ public:
     [[nodiscard]] std::optional<std::shared_ptr<ObjectType>> return_type_of(std::string_view method_name, ObjectTypes const& argument_types = {}) const;
     [[nodiscard]] std::optional<std::shared_ptr<ObjectType>> return_type_of(Operator op, ObjectTypes const& argument_types = {}) const;
 
-    [[nodiscard]] std::optional<MethodDescription> get_method(Operator op, ObjectTypes const& argument_types = {});
+    [[nodiscard]] std::optional<MethodDescription> get_method(Operator op) const;
+    [[nodiscard]] std::optional<MethodDescription> get_method(Operator op, ObjectTypes const& argument_types) const;
     [[nodiscard]] FieldDefs const& fields() const { return m_fields; }
     [[nodiscard]] FieldDef const& field(std::string const&) const;
 

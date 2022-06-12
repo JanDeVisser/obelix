@@ -4,6 +4,8 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
+#include "obelix/MaterializedSyntaxNode.h"
+#include "obelix/Type.h"
 #include <memory>
 #include <obelix/ARM64Context.h>
 
@@ -46,7 +48,7 @@ void ARM64Context::enter_function(std::shared_ptr<MaterializedFunctionDef> const
     assembly().add_label(func->name());
 
     // Save fp and lr:
-    int depth = func->stack_depth();
+    int depth = func->declaration()->stack_depth();
     if (depth % 16) {
         depth += (16 - (depth % 16));
     }
@@ -58,9 +60,23 @@ void ARM64Context::enter_function(std::shared_ptr<MaterializedFunctionDef> const
 
     // Copy parameters from registers to their spot in the stack.
     // @improve Do this lazily, i.e. when we need the registers
-    auto reg = 0;
     for (auto& param : func->declaration()->parameters()) {
-        assembly().add_instruction("str", "x{},[fp,#{}]", reg++, std::dynamic_pointer_cast<StackVariableAddress>(param->address())->offset());
+        switch (param->type()->type()) {
+            case PrimitiveType::IntegerNumber:
+            case PrimitiveType::SignedIntegerNumber:
+                switch (param->method()) {
+                    case MaterializedFunctionParameter::ParameterPassingMethod::Register:
+                        assembly().add_instruction("str", "x{},[fp,#{}]", param->where(), std::dynamic_pointer_cast<StackVariableAddress>(param->address())->offset());
+                        break;
+                    case MaterializedFunctionParameter::ParameterPassingMethod::Stack:
+                        assembly().add_instruction("ldr", "x9,[fp,#{}]", param->where() - (func->declaration()->nsaa()+16));
+                        assembly().add_instruction("str", "x9,[fp,#{}]", std::dynamic_pointer_cast<StackVariableAddress>(param->address())->offset());
+                        break;
+                }
+            case PrimitiveType::Struct:
+            default:
+                fatal("Not yet implemented in {}", __func__);
+        }
     }
 }
 
@@ -76,7 +92,7 @@ void ARM64Context::leave_function() const
     assert(!s_function_stack.empty());
     auto func_def = s_function_stack.back();
     assembly().add_label(format("__{}_return", func_def->name()));
-    int depth = func_def->stack_depth();
+    int depth = func_def->declaration()->stack_depth();
     if (depth % 16) {
         depth += (16 - (depth % 16));
     }
@@ -98,6 +114,5 @@ void ARM64Context::release_stack()
     assembly().add_instruction("add", "sp,sp,#{}", m_stack_allocated);
     m_stack_allocated = 0;
 }
-
 
 }

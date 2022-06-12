@@ -20,14 +20,27 @@ namespace Obelix {
 
 extern_logging_category(parser);
 
-#define TRY_AND_CAST(cls, expr)                                      \
-    ({                                                               \
-        auto __##var##_maybe = (expr);                               \
-        if (__##var##_maybe.is_error()) {                            \
-            debug(parser, "Error processing node of type {}", #cls); \
-            return __##var##_maybe.error();                          \
-        }                                                            \
-        std::dynamic_pointer_cast<cls>(__##var##_maybe.value());     \
+#define TRY_AND_CAST(cls, expr)                                                                       \
+    ({                                                                                                \
+        auto __##var##_maybe = (expr);                                                                \
+        if (__##var##_maybe.is_error()) {                                                             \
+            debug(parser, "Processing node results in error '{}' instead of node of type '" #cls "'", \
+                __##var##_maybe.error());                                                             \
+            return __##var##_maybe.error();                                                           \
+        }                                                                                             \
+        auto __##var##_processed = __##var##_maybe.value();                                           \
+        std::shared_ptr<cls> __##var##_casted = nullptr;                                              \
+        if (__##var##_processed != nullptr) {                                                         \
+            __##var##_casted = std::dynamic_pointer_cast<cls>(__##var##_processed);                   \
+            if (__##var##_casted == nullptr) {                                                        \
+                return SyntaxError {                                                                  \
+                    ErrorCode::InternalError,                                                         \
+                    format("Processing node results in unexpected type '{}' instead of '" #cls "'",   \
+                        __##var##_processed->node_type())                                             \
+                };                                                                                    \
+            }                                                                                         \
+        }                                                                                             \
+        __##var##_casted;                                                                             \
     })
 
 using ErrorOrNode = ErrorOr<std::shared_ptr<SyntaxNode>, SyntaxError>;
@@ -457,7 +470,7 @@ ErrorOr<BoundExpressions, SyntaxError> xform_bound_expressions(BoundExpressions 
     return ret;
 };
 
-template <typename Ctx>
+template<typename Ctx>
 ErrorOrNode process(std::shared_ptr<SyntaxNode> const& tree, Ctx& ctx)
 {
     if (!tree)
@@ -478,17 +491,17 @@ ErrorOrNode process(std::shared_ptr<SyntaxNode> const& tree, Ctx& ctx)
     }
         ENUMERATE_SYNTAXNODETYPES(__SYNTAXNODETYPE)
 #undef __SYNTAXNODETYPE
-    }    
+    }
 }
 
-template <typename Ctx>
+template<typename Ctx>
 ErrorOrNode process(std::shared_ptr<SyntaxNode> const& tree)
 {
     Ctx ctx;
     return process<Ctx>(tree, ctx);
 }
 
-template <typename Ctx, SyntaxNodeType node_type>
+template<typename Ctx, SyntaxNodeType node_type>
 ErrorOrNode process_node(std::shared_ptr<SyntaxNode> const& tree, Ctx& ctx)
 {
     debug(parser, "{} = {} forwarding to process_tree", tree->node_type(), tree);
@@ -507,7 +520,6 @@ ErrorOrNode process_node(std::shared_ptr<SyntaxNode> const& tree, Ctx& ctx)
 #define NODE_PROCESSOR(node_type) \
     template<>                    \
     ErrorOrNode process_node<ContextType, SyntaxNodeType::node_type>(std::shared_ptr<SyntaxNode> const& tree, ContextType& ctx)
-
 
 #define ALIAS_NODE_PROCESSOR(node_type, alias_node_type)                                                                        \
     template<>                                                                                                                  \

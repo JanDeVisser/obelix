@@ -458,7 +458,7 @@ NODE_PROCESSOR(FunctionCall)
         auto intrinsic = IntrinsicType_by_name(func_decl->name());
         if (intrinsic == IntrinsicType::NotIntrinsic)
             return SyntaxError { ErrorCode::SyntaxError, func_call->token(), format("Intrinsic {} not defined", func_decl->name()) };
-        return make_node<BoundIntrinsicCall>(func_call, intrinsic, args, func_decl->type());
+        return make_node<BoundIntrinsicCall>(func_call, args, std::dynamic_pointer_cast<BoundIntrinsicDecl>(func_decl), intrinsic);
     }
     case SyntaxNodeType::BoundNativeFunctionDecl:
         return make_node<BoundNativeFunctionCall>(func_call, args, std::dynamic_pointer_cast<BoundNativeFunctionDecl>(func_decl));

@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
+#include "obelix/Type.h"
 #include <memory>
 
 #include <obelix/ARM64.h>
@@ -19,6 +20,72 @@ class MaterializeContext : public Context<std::shared_ptr<SyntaxNode>>
 {
 public:
     int offset { 0 };
+    void add_unresolved_function(std::shared_ptr<FunctionCall> func_call)
+    {
+        if (parent() != nullptr) {
+            (static_cast<MaterializeContext*>(parent()))->add_unresolved_function(func_call);
+            return;
+        }
+        m_unresolved_functions.push_back(func_call);
+    }
+
+    [[nodiscard]] std::vector<std::shared_ptr<FunctionCall>> const& unresolved_functions() const
+    {
+        if (parent() != nullptr) {
+            return (static_cast<MaterializeContext*>(parent()))->unresolved_functions();
+        }
+        return m_unresolved_functions;
+    }
+
+    void clear_unresolved_functions()
+    {
+        if (parent() != nullptr) {
+            (static_cast<MaterializeContext*>(parent()))->clear_unresolved_functions();
+            return;
+        }
+        m_unresolved_functions.clear();
+    }
+
+    void add_declared_function(std::string const& name, std::shared_ptr<MaterializedFunctionDecl> func)
+    {
+        if (parent() != nullptr) {
+            (static_cast<MaterializeContext*>(parent()))->add_declared_function(name, func);
+            return;
+        }
+        m_declared_functions[name] = func;
+    }
+
+    [[nodiscard]] std::unordered_map<std::string, std::shared_ptr<MaterializedFunctionDecl>> const& declared_functions() const
+    {
+        if (parent() != nullptr) {
+            return (static_cast<MaterializeContext*>(parent()))->declared_functions();
+        }
+        return m_declared_functions;
+    }
+
+    [[nodiscard]] std::optional<std::shared_ptr<MaterializedFunctionDecl>> declared_function(std::string const& name) const
+    {
+        if (parent() != nullptr) {
+            return (static_cast<MaterializeContext*>(parent()))->declared_function(name);
+        }
+        if (m_declared_functions.contains(name))
+            return m_declared_functions.at(name);
+        return {};
+    }
+
+    void clear_declared_functions()
+    {
+        if (parent() != nullptr) {
+            (static_cast<MaterializeContext*>(parent()))->clear_declared_functions();
+            return;
+        }
+        m_declared_functions.clear();
+    }
+
+private:
+    std::vector<std::shared_ptr<FunctionCall>> m_unresolved_functions;
+    std::unordered_map<std::string, std::shared_ptr<MaterializedFunctionDecl>> m_declared_functions;
+
 };
 
 INIT_NODE_PROCESSOR(MaterializeContext);
@@ -30,8 +97,44 @@ NODE_PROCESSOR(BoundFunctionDef)
     MaterializeContext func_ctx(ctx);
     int offset = 16;
     MaterializedFunctionParameters function_parameters;
+
+    auto ngrn = 0;
+    auto nsaa = 0;
     for (auto& parameter : func_decl->parameters()) {
-        auto materialized_parameter = make_node<MaterializedFunctionParameter>(parameter, std::make_shared<StackVariableAddress>(offset));
+        MaterializedFunctionParameter::ParameterPassingMethod method;
+        int where;
+        switch (parameter->type()->type()) {
+            case PrimitiveType::IntegerNumber:
+            case PrimitiveType::SignedIntegerNumber:
+            case PrimitiveType::Pointer:
+                if (ngrn < 8) {
+                    method = MaterializedFunctionParameter::ParameterPassingMethod::Register;
+                    where = ngrn++;
+                    break;
+                }
+                method = MaterializedFunctionParameter::ParameterPassingMethod::Stack;
+                where = nsaa;
+                nsaa += 8;
+                break;
+            case PrimitiveType::Struct: {
+                auto size_in_double_words = parameter->type()->size() / 8;
+                if (parameter->type()->size() % 8 != 0)
+                    size_in_double_words++;
+                if (ngrn + size_in_double_words <= 8) {
+                    method = MaterializedFunctionParameter::ParameterPassingMethod::Register;
+                    where = ngrn;
+                    ngrn += size_in_double_words;
+                }
+                method = MaterializedFunctionParameter::ParameterPassingMethod::Stack;
+                where = nsaa;
+                nsaa += parameter->type()->size();
+                break;
+            }
+            default:
+                fatal("Not yet implemented in materialize BoundFunctionDef");
+        }
+
+        auto materialized_parameter = make_node<MaterializedFunctionParameter>(parameter, std::make_shared<StackVariableAddress>(offset), method, where);
         func_ctx.declare(materialized_parameter->name(), materialized_parameter);
         function_parameters.push_back(materialized_parameter);
         offset += parameter->type()->size();
@@ -39,28 +142,36 @@ NODE_PROCESSOR(BoundFunctionDef)
             offset += 8 - (offset % 8);
     }
 
-    auto materialized_function_decl = make_node<MaterializedFunctionDecl>(func_decl, function_parameters);
+    std::shared_ptr<MaterializedFunctionDecl> materialized_function_decl;
+    std::shared_ptr<MaterializedFunctionDef> ret;
     switch (func_decl->node_type()) {
     case SyntaxNodeType::BoundNativeFunctionDecl: {
         auto native_decl = std::dynamic_pointer_cast<BoundNativeFunctionDecl>(func_decl);
-        materialized_function_decl = make_node<MaterializedNativeFunctionDecl>(native_decl);
-        return make_node<MaterializedFunctionDef>(func_def, materialized_function_decl, nullptr, 0);
+        materialized_function_decl = make_node<MaterializedNativeFunctionDecl>(native_decl, function_parameters, nsaa);
+        ret = make_node<MaterializedFunctionDef>(func_def, materialized_function_decl, nullptr);
+        break;
     }
     case SyntaxNodeType::BoundIntrinsicDecl: {
         auto intrinsic_decl = std::dynamic_pointer_cast<BoundIntrinsicDecl>(func_decl);
-        materialized_function_decl = make_node<MaterializedIntrinsicDecl>(intrinsic_decl);
-        return make_node<MaterializedFunctionDef>(func_def, materialized_function_decl, nullptr, 0);
+        materialized_function_decl = make_node<MaterializedIntrinsicDecl>(intrinsic_decl, function_parameters, nsaa);
+        ret = make_node<MaterializedFunctionDef>(func_def, materialized_function_decl, nullptr);
+        break;
     }
     case SyntaxNodeType::BoundFunctionDecl: {
         func_ctx.offset = offset;
         std::shared_ptr<Block> block;
         assert(func_def->statement()->node_type() == SyntaxNodeType::FunctionBlock);
         block = TRY_AND_CAST(FunctionBlock, process(func_def->statement(), func_ctx));
-        return make_node<MaterializedFunctionDef>(func_def, materialized_function_decl, block, func_ctx.offset);
+        materialized_function_decl = make_node<MaterializedFunctionDecl>(func_decl, function_parameters, nsaa, offset);
+        ret = make_node<MaterializedFunctionDef>(func_def, materialized_function_decl, block);
+        break;
     }
     default:
         fatal("Unreachable");
     }
+    ctx.declare(materialized_function_decl->name(), materialized_function_decl);
+    ctx.add_declared_function(materialized_function_decl->name(), materialized_function_decl);
+    return ret;
 }
 
 NODE_PROCESSOR(FunctionBlock)
@@ -107,7 +218,10 @@ NODE_PROCESSOR(BoundFunctionCall)
             return new_expr.error();
         arguments.push_back(std::dynamic_pointer_cast<BoundExpression>(new_expr.value()));
     }
-    return make_node<BoundFunctionCall>(call, arguments);
+    auto decl_maybe = ctx.declared_function(call->name());
+    assert(decl_maybe.has_value());
+    auto decl = decl_maybe.value();
+    return make_node<MaterializedFunctionCall>(call, arguments, decl);
 }
 
 NODE_PROCESSOR(BoundNativeFunctionCall)
@@ -120,7 +234,11 @@ NODE_PROCESSOR(BoundNativeFunctionCall)
             return new_expr.error();
         arguments.push_back(std::dynamic_pointer_cast<BoundExpression>(new_expr.value()));
     }
-    return make_node<BoundNativeFunctionCall>(call, arguments);
+    auto decl_maybe = ctx.declared_function(call->name());
+    assert(decl_maybe.has_value());
+    auto decl = std::dynamic_pointer_cast<MaterializedNativeFunctionDecl>(decl_maybe.value());
+    assert(decl != nullptr);
+    return make_node<MaterializedNativeFunctionCall>(call, arguments, decl);
 }
 
 NODE_PROCESSOR(BoundIntrinsicCall)
@@ -133,7 +251,17 @@ NODE_PROCESSOR(BoundIntrinsicCall)
             return new_expr.error();
         arguments.push_back(std::dynamic_pointer_cast<BoundExpression>(new_expr.value()));
     }
-    return make_node<BoundIntrinsicCall>(call, arguments);
+    auto decl_maybe = ctx.declared_function(call->name());
+    std::shared_ptr<MaterializedIntrinsicDecl> materialized;
+    if (!decl_maybe.has_value()) {
+        materialized = TRY_AND_CAST(MaterializedIntrinsicDecl, process(call->declaration(), ctx));
+        ctx.add_declared_function(call->name(), materialized);
+        ctx.declare(call->name(), materialized);
+    } else {
+        materialized = std::dynamic_pointer_cast<MaterializedIntrinsicDecl>(decl_maybe.value());
+        assert(materialized != nullptr);
+    }
+    return std::make_shared<MaterializedIntrinsicCall>(call, arguments, materialized, call->intrinsic());
 }
 
 NODE_PROCESSOR(BoundUnaryExpression)
@@ -142,15 +270,23 @@ NODE_PROCESSOR(BoundUnaryExpression)
     auto operand = TRY_AND_CAST(BoundExpression, process(expr->operand(), ctx));
 
     IntrinsicType intrinsic;
+    std::shared_ptr<BoundIntrinsicDecl> decl;
     switch (expr->op()) {
-    case UnaryOperator::Dereference:
+    case UnaryOperator::Dereference: {
+        auto method_descr_maybe = operand->type()->get_method(Operator::Dereference);
+        if (!method_descr_maybe.has_value())
+            return SyntaxError { ErrorCode::InternalError, expr->token(), format("No method defined for unary operator {}::{}", operand->type()->to_string(), expr->op()) };
+        auto method_descr = method_descr_maybe.value();
+        decl = method_descr.declaration();
         intrinsic = IntrinsicType::dereference;
         break;
+    }
     default: {
         auto method_descr_maybe = operand->type()->get_method(to_operator(expr->op()), {});
         if (!method_descr_maybe.has_value())
             return SyntaxError { ErrorCode::InternalError, expr->token(), format("No method defined for unary operator {}::{}", operand->type()->to_string(), expr->op()) };
         auto method_descr = method_descr_maybe.value();
+        decl = method_descr.declaration();
         auto impl = method_descr.implementation(Architecture::MACOS_ARM64);
         if (!impl.is_intrinsic || impl.intrinsic == IntrinsicType::NotIntrinsic)
             return SyntaxError { ErrorCode::InternalError, expr->token(), format("No intrinsic defined for {}", method_descr.name()) };
@@ -158,7 +294,7 @@ NODE_PROCESSOR(BoundUnaryExpression)
         break;
     }
     }
-    return make_node<BoundIntrinsicCall>(expr->token(), UnaryOperator_name(expr->op()), intrinsic, BoundExpressions { operand }, expr->type());
+    return process(make_node<BoundIntrinsicCall>(expr->token(), decl, BoundExpressions { operand }, intrinsic), ctx);
 }
 
 NODE_PROCESSOR(BoundBinaryExpression)
@@ -185,7 +321,12 @@ NODE_PROCESSOR(BoundBinaryExpression)
             offset = make_node<BoundBinaryExpression>(expr->token(), size, BinaryOperator::Multiply, offset, get_type<int>());
             offset = TRY_AND_CAST(BoundExpression, process(offset, ctx));
         }
-        return make_node<BoundIntrinsicCall>(expr->token(), BinaryOperator_name(expr->op()), IntrinsicType::ptr_math, BoundExpressions { lhs, offset }, expr->type());
+        auto ident = make_node<BoundIdentifier>(Token {}, BinaryOperator_name(expr->op()), lhs->type());
+        BoundIdentifiers params;
+        params.push_back(make_node<BoundIdentifier>(Token {}, "ptr", lhs->type()));
+        params.push_back(make_node<BoundIdentifier>(Token {}, "offset", ObjectType::get("s32")));
+        auto decl = make_node<BoundIntrinsicDecl>(ident, params);
+        return process(make_node<BoundIntrinsicCall>(expr->token(), decl, BoundExpressions { lhs, offset }, IntrinsicType::ptr_math), ctx);
     }
 
     auto method_descr_maybe = lhs->type()->get_method(to_operator(expr->op()), { rhs->type() });
@@ -196,8 +337,7 @@ NODE_PROCESSOR(BoundBinaryExpression)
     if (!impl.is_intrinsic || impl.intrinsic == IntrinsicType::NotIntrinsic)
         return SyntaxError { ErrorCode::InternalError, lhs->token(), format("No intrinsic defined for {}", method_descr.name()) };
     auto intrinsic = impl.intrinsic;
-
-    return make_node<BoundIntrinsicCall>(expr->token(), BinaryOperator_name(expr->op()), intrinsic, BoundExpressions { lhs, rhs }, expr->type() );
+    return process(make_node<BoundIntrinsicCall>(expr->token(), method_descr.declaration(), BoundExpressions { lhs, rhs }, intrinsic), ctx);
 }
 
 std::shared_ptr<MaterializedIdentifier> make_materialized_identifier(std::shared_ptr<BoundIdentifier> const& identifier, std::shared_ptr<VariableAddress> const& address)

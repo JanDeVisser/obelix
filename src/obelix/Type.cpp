@@ -11,6 +11,7 @@
 #include <core/Logging.h>
 #include <core/StringUtil.h>
 #include <obelix/Architecture.h>
+#include <obelix/BoundSyntaxNode.h>
 #include <obelix/Intrinsics.h>
 #include <obelix/Type.h>
 #include <string>
@@ -159,11 +160,22 @@ void MethodDescription::set_implementation(Architecture arch, IntrinsicType intr
     m_implementations[arch] = impl;
 }
 
-void MethodDescription::set_implementation(Architecture arch, std::string const& native_function) 
+void MethodDescription::set_implementation(Architecture arch, std::string const& native_function)
 {
     MethodImpl impl { .is_intrinsic = false, .native_function = native_function };
     m_implementations[arch] = impl;
 }
+
+std::shared_ptr<BoundIntrinsicDecl> MethodDescription::declaration() const
+{
+    auto ident = make_node<BoundIdentifier>(Token {}, std::string(name()), return_type());
+    BoundIdentifiers params;
+    for (auto const& p : parameters()) {
+        params.push_back(make_node<BoundIdentifier>(Token {}, p.name, p.type));
+    }
+    return make_node<BoundIntrinsicDecl>(ident, params);;
+}
+
 
 MethodImpl const& MethodDescription::implementation(Architecture arch) const
 {
@@ -340,9 +352,9 @@ std::vector<std::shared_ptr<ObjectType>> ObjectType::s_template_specializations 
         });
     });
 
-[[maybe_unused]] auto s_string = ObjectType::register_struct_type("string", 
+[[maybe_unused]] auto s_string = ObjectType::register_struct_type("string",
     FieldDefs {
-        FieldDef { std::string("length"), ObjectType::get("u32") }, 
+        FieldDef { std::string("length"), ObjectType::get("u32") },
         FieldDef { std::string("data"), ObjectType::specialize(ObjectType::get(PrimitiveType::Pointer), { ObjectType::get("u8") } ).value() }
     },
     [](ObjectType* type) {
@@ -588,7 +600,46 @@ std::optional<std::shared_ptr<ObjectType>> ObjectType::return_type_of(Operator o
     return {};
 }
 
-std::optional<MethodDescription> ObjectType::get_method(Operator op, ObjectTypes const& argument_types)
+std::optional<MethodDescription> ObjectType::get_method(Operator op) const
+{
+    auto check_operators_of = [&op, this](ObjectType const* type) -> std::optional<MethodDescription> {
+        for (auto& mth : type->m_methods) {
+            if (!mth.is_operator())
+                continue;
+            if (mth.op() != op)
+                continue;
+            if (*(mth.return_type()) == *s_self) {
+                auto ret = mth;
+                ret.set_return_type(ObjectType::get(this));
+                return ret;
+            }
+            return mth;
+        }
+        return {};
+    };
+
+    debug(type, "{}::get_method({})", this->to_string(), op);
+    auto self = get(this);
+    ObjectTypes types { s_any, self };
+    while (!types.empty()) {
+        auto type = types.back();
+        types.pop_back();
+        for (auto& is_a : type->m_is_a) {
+            types.push_back(is_a);
+        }
+        if (type->is_template_specialization())
+            types.push_back(type->specializes_template());
+        debug(type, "Checking operators of type {}", type->to_string());
+        if (auto ret = check_operators_of(type.get()); ret.has_value()) {
+            debug(type, "Return method is {}", ret.value().name());
+            return ret;
+        }
+    }
+    debug(type, "No matching operator found");
+    return {};
+}
+
+std::optional<MethodDescription> ObjectType::get_method(Operator op, ObjectTypes const& argument_types) const
 {
     auto check_operators_of = [&op, &argument_types, this](ObjectType const* type) -> std::optional<MethodDescription> {
         for (auto& mth : type->m_methods) {
@@ -793,7 +844,7 @@ void ObjectType::register_type_in_caches(std::shared_ptr<ObjectType> const& type
 void ObjectType::dump()
 {
     auto dump_type = [](std::shared_ptr<ObjectType> const& type) {
-        return format("to_string: {} name: '{}', primitive type: {}, is_specialization: {}", 
+        return format("to_string: {} name: '{}', primitive type: {}, is_specialization: {}",
             type->to_string(), type->name(), type->type(), type->is_template_specialization());
     };
 

@@ -223,23 +223,19 @@ INTRINSIC(add_str_str)
 {
     ctx.assembly().add_text(
 R"(
-    stp     x20,x21,[sp,#-16]!
-    stp     x22,x23,[sp,#-16]!
-    mov     w20,w0
-    mov     x21,x1
-    mov     w22,w2
-    mov     x23,x3
+    mov     w9,w0
+    mov     x10,x1
+    mov     w11,w2
+    mov     x12,x3
     add     w0,w0,w2
     bl      string_alloc
     cmp     x1,0
     b.eq    __add_str_str_done
-    mov     w0,w20
-    mov     w2,w22
-    mov     x3,x23
+    mov     w0,w9
+    mov     w2,w11
+    mov     x3,x12
     bl      string_concat
 __add_str_str_done:
-    ldp     x22,x23,[sp],#16
-    ldp     x20,x21,[sp],#16
 )");
     return {};
 }

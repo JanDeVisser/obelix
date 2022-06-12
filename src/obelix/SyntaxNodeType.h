@@ -71,6 +71,9 @@ namespace Obelix {
     S(MaterializedMemberAccess)         \
     S(MaterializedArrayAccess)          \
     S(MaterializedStaticVariableAccess) \
+    S(MaterializedFunctionCall)         \
+    S(MaterializedNativeFunctionCall)   \
+    S(MaterializedIntrinsicCall)        \
     S(StatementExecutionResult)         \
     S(BoundExpression)                  \
     S(BoundIdentifier)                  \
