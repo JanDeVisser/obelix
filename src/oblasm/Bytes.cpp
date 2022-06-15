@@ -73,7 +73,7 @@ void Bytes::append(uint32_t dword)
     push_back(dword);
 }
 
-void Bytes::append(uint64_t lword)
+void Bytes::append(unsigned long lword)
 {
     push_back(lword);
 }

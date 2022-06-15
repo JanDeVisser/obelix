@@ -23,8 +23,7 @@ public:
     void append(uint8_t);
     void append(uint16_t);
     void append(uint32_t);
-    void append(uint64_t);
-    void append(unsigned long lword) { append((uint64_t)lword); }
+    void append(unsigned long lword);
     void append(std::string const& data);
     [[nodiscard]] std::string to_string() const override;
     [[nodiscard]] uint16_t size() const override { return m_bytes.size(); }
