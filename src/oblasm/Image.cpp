@@ -16,7 +16,7 @@ namespace Obelix::Assembler {
 std::vector<std::string> bytes_to_strings(std::vector<uint8_t> bytes)
 {
     std::vector<std::string> ret;
-    int ix = 0;
+    unsigned ix = 0;
     std::array<uint8_t, 8> prev_row = {};
     std::array<uint8_t, 8> cur_row = {};
     while (ix < bytes.size()) {

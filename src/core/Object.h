@@ -85,6 +85,8 @@ constexpr const char* ObelixType_name(ObelixType t)
         return #t;
         ENUMERATE_OBELIX_TYPES(__ENUM_OBELIX_TYPE)
 #undef __ENUM_OBELIX_TYPE
+    default:
+        fatal("Unknown ObelixType '{}'", (int) t);
     }
 }
 

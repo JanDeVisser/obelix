@@ -167,7 +167,7 @@ Memory::Memory(word ramStart, word ramSize, word romStart, word romSize)
 
 std::optional<size_t> Memory::findBankForAddress(size_t addr) const
 {
-    for (auto ix = 0; ix < m_banks.size(); ++ix) {
+    for (auto ix = 0u; ix < m_banks.size(); ++ix) {
         auto& bank = m_banks[ix];
         if (bank.mapped(addr))
             return ix;

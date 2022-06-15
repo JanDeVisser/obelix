@@ -219,7 +219,7 @@ SystemError MicroCodeRunner::executeNextStep(int step)
     return {};
 }
 
-bool MicroCodeRunner::hasStep(int step)
+bool MicroCodeRunner::hasStep(unsigned step)
 {
     return m_steps.size() > step;
 }

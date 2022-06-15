@@ -66,6 +66,8 @@ constexpr const char* PrimitiveType_name(PrimitiveType t)
         return str;
         ENUMERATE_PRIMITIVE_TYPES(__ENUM_PRIMITIVE_TYPE)
 #undef __ENUM_PRIMITIVE_TYPE
+    default:
+        fatal("Unknowm PrimitiveType '{}'", (int) t);
     }
 }
 
@@ -296,7 +298,7 @@ public:
     [[nodiscard]] size_t size() const;
     [[nodiscard]] std::vector<std::string> const& aliases() const { return m_aliases; }
     [[nodiscard]] ssize_t offset_of(std::string const&) const;
-    [[nodiscard]] ssize_t offset_of(int) const;
+    [[nodiscard]] ssize_t offset_of(size_t) const;
     [[nodiscard]] TemplateParameters const& template_parameters() const { return m_template_parameters; }
     [[nodiscard]] bool is_template_specialization() const { return m_specializes_template != nullptr; }
     [[nodiscard]] std::shared_ptr<ObjectType> specializes_template() const { return m_specializes_template; }
@@ -307,7 +309,7 @@ public:
     [[nodiscard]] ArgType const& template_argument(std::string const& arg_name) const
     {
         assert(is_template_specialization());
-        for (auto ix = 0; ix < specializes_template()->template_parameters().size(); ++ix) {
+        for (auto ix = 0u; ix < specializes_template()->template_parameters().size(); ++ix) {
             auto const& param = specializes_template()->template_parameters()[ix];
             if (param.name == arg_name) {
                 return template_arguments()[ix].get<ArgType>();

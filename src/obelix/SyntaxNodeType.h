@@ -7,6 +7,7 @@
 #pragma once
 
 #include <core/Format.h>
+#include <core/Logging.h>
 
 namespace Obelix {
 
@@ -123,6 +124,8 @@ constexpr char const* SyntaxNodeType_name(SyntaxNodeType type)
         return #type;
         ENUMERATE_SYNTAXNODETYPES(__SYNTAXNODETYPE)
 #undef __SYNTAXNODETYPE
+    default:
+        fatal("Unknown SyntaxNodeType value '{}'", (int) type);
     }
 }
 

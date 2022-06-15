@@ -22,12 +22,15 @@ public:
     {
         for (auto& component : m_slots) {
             auto& c = *component;
-            if ((typeid(c) == typeid(ComponentType&)) && (component->address() == address))
-                return std::dynamic_pointer_cast<ComponentType>(component);
+            if (component->address() == address) {
+                if ((typeid(c) == typeid(ComponentType&)) || (typeid(ComponentType&) == typeid(ConnectedComponent&)))
+                    return std::dynamic_pointer_cast<ComponentType>(component);
+            }
         }
         return nullptr;
     }
 
+/*
     template<>
     [[nodiscard]] std::shared_ptr<ConnectedComponent> component(int address) const
     {
@@ -37,6 +40,7 @@ public:
         }
         return nullptr;
     }
+*/
 
     template<class ComponentType>
     [[nodiscard]] std::shared_ptr<ComponentType> component() const

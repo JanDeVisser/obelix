@@ -59,7 +59,7 @@ public:
             auto parts = split(strip(line), ' ');
             m_code += '\t' + parts[0];
             if (parts.size() > 1) {
-                for (int ix = 1; ix < parts.size(); ++ix) {
+                for (auto ix = 1u; ix < parts.size(); ++ix) {
                     if (parts[ix].empty())
                         continue;
                     m_code += '\t' + parts[ix];

@@ -9,6 +9,7 @@
 #include <optional>
 
 #include <core/Format.h>
+#include <core/Logging.h>
 
 namespace Obelix {
 
@@ -84,6 +85,8 @@ constexpr char const* Operator_name(Operator op)
         return #op;
         ENUMERATE_UNARY_OPERATORS(__UNARY_OPERATOR)
 #undef __UNARY_OPERATOR
+    default:
+        fatal("Unknowm Operator '{}'", (int) op);
     }
 }
 
@@ -139,6 +142,8 @@ constexpr char const* BinaryOperator_name(BinaryOperator op)
         return #op;
         ENUMERATE_BINARY_OPERATORS(__BINARY_OPERATOR)
 #undef __BINARY_OPERATOR
+    default:
+        fatal("Unknowm BinaryOperator '{}'", (int) op);
     }
 }
 
@@ -151,6 +156,8 @@ constexpr bool BinaryOperator_is_assignment(BinaryOperator op)
         return assignment_op;
         ENUMERATE_BINARY_OPERATORS(__BINARY_OPERATOR)
 #undef __BINARY_OPERATOR
+    default:
+        fatal("Unknowm BinaryOperator '{}'", (int) op);
     }
 }
 
@@ -185,6 +192,8 @@ constexpr int BinaryOperator_precedence(BinaryOperator op)
         return precedence;
         ENUMERATE_BINARY_OPERATORS(__BINARY_OPERATOR)
 #undef __BINARY_OPERATOR
+    default:
+        fatal("Unknowm BinaryOperator '{}'", (int) op);
     }
 }
 
@@ -240,6 +249,8 @@ constexpr char const* UnaryOperator_name(UnaryOperator op)
         return #op;
         ENUMERATE_UNARY_OPERATORS(__UNARY_OPERATOR)
 #undef __UNARY_OPERATOR
+    default:
+        fatal("Unknowm UnaryOperator '{}'", (int) op);
     }
 }
 

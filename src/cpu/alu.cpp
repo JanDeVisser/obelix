@@ -109,7 +109,7 @@ void ALU::setOverflow(word result)
     auto s2 = (bool)(this->getValue() & 0x80);
     auto sr = (bool)(result & 0x0080);
     if ((bus()->opflags() == ADD) || (bus()->opflags() == ADC)) {
-        bus()->setFlag(SystemBus::V, !(s1 ^ s2) & (sr ^ s1));
+        bus()->setFlag(SystemBus::V, !((s1 ^ s2) & (sr ^ s1)));
     } else if ((bus()->opflags() == SUB) || (bus()->opflags() == SBB)) {
         bus()->setFlag(SystemBus::V, (s1 ^ s2) & (sr ^ s1));
     }

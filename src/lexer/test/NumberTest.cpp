@@ -26,7 +26,7 @@ public:
             Obelix::TokenCode::Whitespace,
             code,
             Obelix::TokenCode::EndOfFile);
-        EXPECT_EQ(tokens[4].token_value<T>(), out);
+        EXPECT_EQ(token_value<T>(tokens[4]), out);
     }
 
     bool debugOn() override

@@ -123,6 +123,8 @@ constexpr inline char const* Mnemonic_name(Mnemonic mnemonic)
         return #value;
         ENUM_Mnemonic(__Mnemonic)
 #undef __Mnemonic
+    default:
+        fatal("Unknown mnemonic value '{}' in Mnemonic_name", (int) mnemonic);
     }
 }
 

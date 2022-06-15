@@ -342,7 +342,7 @@ public:
     explicit BoundIntLiteral(std::shared_ptr<IntLiteral> const& literal)
         : BoundLiteral(literal->token(), get_type<int>())
     {
-        m_int = token().token_value<long>();
+        m_int = token_value<long>(token());
     }
 
     template <typename IntType=int>
@@ -398,7 +398,7 @@ private:
 class BoundBooleanLiteral : public BoundLiteral {
 public:
     explicit BoundBooleanLiteral(std::shared_ptr<BooleanLiteral> const& literal)
-        : BoundBooleanLiteral(literal->token(), literal->token().token_value<bool>())
+        : BoundBooleanLiteral(literal->token(), token_value<bool>(literal->token()))
     {
     }
 

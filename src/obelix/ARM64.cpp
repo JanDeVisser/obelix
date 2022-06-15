@@ -142,7 +142,7 @@ ErrorOr<void, SyntaxError> evaluate_arguments(ARM64Context& ctx, std::shared_ptr
                         auto size_in_double_words = param_defs[param_ix]->type()->size() / 8;
                         if (param_defs[param_ix]->type()->size() % 8 != 0)
                             size_in_double_words++;
-                        for (auto reg = 0; reg < size_in_double_words; ++reg)
+                        for (auto reg = 0u; reg < size_in_double_words; ++reg)
                             push(ctx, format("x{}", reg));
                         break;
                     }

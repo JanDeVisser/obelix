@@ -10,6 +10,7 @@
 
 #include <cassert>
 #include <cctype>
+#include <cstring>
 
 #include <core/StringUtil.h>
 

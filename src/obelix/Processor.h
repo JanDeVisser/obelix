@@ -491,6 +491,8 @@ ErrorOrNode process(std::shared_ptr<SyntaxNode> const& tree, Ctx& ctx)
     }
         ENUMERATE_SYNTAXNODETYPES(__SYNTAXNODETYPE)
 #undef __SYNTAXNODETYPE
+    default:
+        fatal("Unkown SyntaxNodeType '{}'", (int) tree->node_type());
     }
 }
 

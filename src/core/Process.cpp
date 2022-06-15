@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
+#include <cstring>
 #include <iostream>
 #include <sys/fcntl.h>
 #include <sys/wait.h>
@@ -32,7 +33,7 @@ ErrorOr<int> Process::execute()
     char** argv = new char*[sz + 2];
     argv[0] = new char[m_command.length() + 1];
     strcpy(argv[0], m_command.c_str());
-    for (int ix = 0; ix < sz; ++ix) {
+    for (auto ix = 0u; ix < sz; ++ix) {
         argv[ix + 1] = new char[m_arguments[ix].length() + 1];
         strcpy(argv[ix + 1], m_arguments[ix].c_str());
     }
@@ -40,7 +41,7 @@ ErrorOr<int> Process::execute()
     std::cout << format("[CMD] {} {}", m_command, join(m_arguments, ' ')) << '\n';
 
     ScopeGuard sg([&argv, &sz]() {
-        for (auto ix = 0; ix < sz; ++ix)
+        for (auto ix = 0u; ix < sz; ++ix)
             delete[] argv[ix];
         delete[] argv;
     });
