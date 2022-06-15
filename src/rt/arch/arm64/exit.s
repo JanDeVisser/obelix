@@ -1,4 +1,4 @@
-.include "rt/syscalls.inc"
+.include "rt/arch/arm64/syscalls.inc"
 
 exit:
         mov     x16, syscall_exit

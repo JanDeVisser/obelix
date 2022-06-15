@@ -1,4 +1,4 @@
-.include "rt/syscalls.inc"
+.include "rt/arch/arm64/syscalls.inc"
 .align 4
 
 ; In:

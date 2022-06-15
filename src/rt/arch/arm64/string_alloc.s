@@ -1,4 +1,4 @@
-.include "rt/string.inc"
+.include "rt/arch/arm64/string.inc"
 
 ; string_alloc - Allocate a new stringbuffer and copy the passed in
 ;                string into it.

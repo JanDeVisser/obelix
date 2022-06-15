@@ -1,4 +1,4 @@
-.include "rt/syscalls.inc"
+.include "rt/arch/arm64/syscalls.inc"
 
 ; In
 fd .req w0 ; fd of the file to close

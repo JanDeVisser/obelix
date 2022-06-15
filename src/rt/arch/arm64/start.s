@@ -1,6 +1,6 @@
 .global _start
 
-.include "rt/string.inc"
+.include "rt/arch/arm64/string.inc"
 
 .align 2
 _start:

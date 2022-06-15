@@ -1,4 +1,4 @@
-.include "rt/string.inc"
+.include "rt/arch/arm64/string.inc"
 
 ; In:
 len1    .req w0
