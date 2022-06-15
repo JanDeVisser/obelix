@@ -101,22 +101,22 @@ private:
     ErrorOr<std::shared_ptr<SyntaxNode>, SyntaxError> evaluate_tree(std::shared_ptr<SyntaxNode> const& tree, std::string file_name = "")
     {
         if (tree) {
-            if (config().show_tree)
+            if (config().cmdline_flag("show-tree"))
                 std::cout << "\n\nOriginal:\n" << tree->to_xml() << "\n";
             if (!m_config.bind)
                 return tree;
             auto transformed = TRY(bind_types(tree));
-            if (config().show_tree)
+            if (config().cmdline_flag("show-tree"))
                 std::cout << "\n\nTypes bound:\n" << transformed->to_xml() << "\n";
             if (!m_config.lower)
                 return transformed;
             transformed = TRY(lower(transformed));
-            if (config().show_tree)
+            if (config().cmdline_flag("show-tree"))
                 std::cout << "\n\nFlattened:\n" << transformed->to_xml() << "\n";
             if (!m_config.fold_constants)
                 return transformed;
             transformed = TRY(fold_constants(transformed));
-            if (config().show_tree)
+            if (config().cmdline_flag("show-tree"))
                 std::cout << "\n\nConstants folded:\n" << transformed->to_xml() << "\n";
             if (!m_config.compile)
                 return transformed;
@@ -166,49 +166,18 @@ void usage()
     exit(1);
 }
 
-int main(int argc, char** argv)
+int main(int argc, char const** argv)
 {
     std::string file_name;
-    Obelix::Config config;
-    for (int ix = 1; ix < argc; ++ix) {
-        if (!strcmp(argv[ix], "--help")) {
-            usage();
-        } else if (!strncmp(argv[ix], "--debug", 7)) {
-            if (argv[ix][7] == '=') {
-                Obelix::Logger::get_logger().enable(argv[ix] + 8);
-            } else {
-                Obelix::Logger::get_logger().enable("all");
-            }
-        } else if (!strcmp(argv[ix], "--show-tree")) {
-            config.show_tree = true;
-        } else if (!strcmp(argv[ix], "--parse")) {
-            config.bind = false;
-        } else if (!strcmp(argv[ix], "--bind")) {
-            config.lower = false;
-        } else if (!strcmp(argv[ix], "--lower")) {
-            config.fold_constants = false;
-        } else if (!strcmp(argv[ix], "--fold")) {
-            config.materialize = false;
-        } else if (!strcmp(argv[ix], "--materialize")) {
-            config.compile = false;
-        } else if (!strcmp(argv[ix], "--run") || !strcmp(argv[ix], "-r")) {
-            config.run = true;
-        } else if (!strcmp(argv[ix], "--no-root")) {
-            config.import_root = false;
-        } else if (!strncmp(argv[ix], "--", 2) && (strlen(argv[ix]) > 2)) {
-            printf("ERROR: Unknown command line argument '%s'", argv[ix]);
-            exit(-1);
-        } else if (file_name == "") {
-            file_name = argv[ix];
-        } else {
-            printf("ERROR: Unknown command line argument '%s'", argv[ix]);
-            exit(-1);
-        }
+    Obelix::Config config(argc, argv);
+    if (config.help) {
+        usage();
+        exit(-1);
     }
 
     Obelix::Repl repl(config);
 
-    if (file_name.empty()) {
+    if (config.filename.empty()) {
         auto ret_or_error = repl.repl();
         if (ret_or_error.is_error()) {
             printf("ERROR: %s\n", ret_or_error.error().message().c_str());
@@ -217,7 +186,7 @@ int main(int argc, char** argv)
         return ret_or_error.value();
     }
 
-    auto ret_or_error = repl.run(file_name);
+    auto ret_or_error = repl.run(config.filename);
     if (ret_or_error.is_error()) {
         printf("ERROR: %s\n", ret_or_error.error().message().c_str());
         return -1;

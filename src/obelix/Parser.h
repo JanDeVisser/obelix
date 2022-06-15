@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <unordered_map>
 #include <unordered_set>
 
 #include <lexer/BasicParser.h>
@@ -16,6 +17,11 @@
 namespace Obelix {
 
 struct Config {
+public:
+    Config(int argc, char const** argv);
+
+    std::string filename { "" };
+    bool help { false };
     bool show_tree { false };
     bool import_root { true };
     bool lex { true };
@@ -25,6 +31,10 @@ struct Config {
     bool materialize { true };
     bool compile { true };
     bool run { false };
+    bool cmdline_flag(std::string const& flag) const;
+
+private:
+    std::unordered_map<std::string, bool> m_cmdline_flags;
 };
 
 class Parser : public BasicParser {
