@@ -55,9 +55,9 @@ NODE_PROCESSOR(BoundBinaryExpression)
     // rhs of that binary is constant, we can fold as follows:
     //
     //     +                     +
-    //    / \                 /     \
+    //    / \                 /     \.
     //   c1   +      =====> c1+c2    x
-    //       / \
+    //       / \.
     //     c2   x
     //
     // And similarly when rhs is constant, lhs is binary, and rhs of lhs is constant.

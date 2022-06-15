@@ -81,7 +81,7 @@ class MicroCodeRunner {
 public:
     MicroCodeRunner(class Controller&, SystemBus&, const MicroCode*);
     SystemError executeNextStep(int step);
-    bool hasStep(int step);
+    bool hasStep(unsigned step);
     bool grabConstant(int step);
     [[nodiscard]] std::string instruction() const;
     [[nodiscard]] word constant() const;

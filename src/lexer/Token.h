@@ -10,7 +10,8 @@
 
 #pragma once
 
-#include "core/StringUtil.h"
+#include <cstring>
+
 #include <core/Object.h>
 #include <optional>
 #include <string>
@@ -147,12 +148,14 @@ enum class TokenCode {
 constexpr TokenCode TokenCode_by_char(int ch)
 {
 #undef __ENUMERATE_TOKEN_CODE
-#define __ENUMERATE_TOKEN_CODE(code, c, str)                                \
-    {                                                                       \
-        auto c_str = static_cast<char const*>(c);                           \
-        if ((c_str != nullptr) && (ch == c_str[0]) && (c_str[1] == '\0')) { \
-            return TokenCode::code;                                         \
-        }                                                                   \
+#define __ENUMERATE_TOKEN_CODE(code, c, str)                                    \
+    {                                                                           \
+        if (c != nullptr) {                                                     \
+            char const* c_str = c;                                              \
+            if ((c_str != nullptr) && (ch == c_str[0]) && (c_str[1] == '\0')) { \
+                return TokenCode::code;                                         \
+            }                                                                   \
+        }                                                                       \
     }
     ENUMERATE_TOKEN_CODES(__ENUMERATE_TOKEN_CODE)
 #undef __ENUMERATE_TOKEN_CODE
@@ -162,12 +165,15 @@ constexpr TokenCode TokenCode_by_char(int ch)
 inline TokenCode TokenCode_by_string(char const* str)
 {
 #undef __ENUMERATE_TOKEN_CODE
-#define __ENUMERATE_TOKEN_CODE(code, c, str)                   \
-    {                                                          \
-        auto c_str = static_cast<char const*>(c);              \
-        if ((c_str != nullptr) && (strcmp(str, c_str) == 0)) { \
-            return TokenCode::code;                            \
-        }                                                      \
+#define __ENUMERATE_TOKEN_CODE(code, c, s)      \
+    {                                           \
+        if (c != nullptr) {                     \
+            char const* c_str = c;              \
+            if (str != nullptr) {               \
+                if (strcmp(str, c_str) == 0)    \
+                    return TokenCode::code;     \
+            }                                   \
+        }                                       \
     }
     ENUMERATE_TOKEN_CODES(__ENUMERATE_TOKEN_CODE)
 #undef __ENUMERATE_TOKEN_CODE
@@ -246,54 +252,54 @@ public:
     [[nodiscard]] int compare(Token const& other) const;
     [[nodiscard]] bool is_whitespace() const;
 
-    template <typename T>
-    T token_value() const
-    {
-        fatal("Specialize Token::token_value for type '{}'", typeid(T).name());
-    }
-
-    template <>
-    std::string const& token_value() const
-    {
-        return m_value;
-    }
-
-    template <>
-    int token_value() const
-    {
-        assert(m_code == TokenCode::Float || m_code == TokenCode::Integer || m_code == TokenCode::HexNumber);
-        return to_long_unconditional(m_value);
-    }
-
-    template <>
-    long token_value() const
-    {
-        assert(m_code == TokenCode::Float || m_code == TokenCode::Integer || m_code == TokenCode::HexNumber);
-        return to_long_unconditional(m_value);
-    }
-
-    template <>
-    double token_value() const
-    {
-        assert(m_code == TokenCode::Float || m_code == TokenCode::Integer || m_code == TokenCode::HexNumber);
-        return to_long_unconditional(m_value);
-    }
-
-    template <>
-    bool token_value() const
-    {
-        auto number_maybe = to_long();
-        if (number_maybe.has_value())
-            return number_maybe.value() != 0;
-        return Obelix::to_bool_unconditional(m_value);
-    }
-
     Span location { 0, 0, 0, 0 };
 
 private:
     TokenCode m_code { TokenCode::Unknown };
     std::string m_value {};
 };
+
+template <typename T>
+inline T token_value(Token const& token)
+{
+    fatal("Specialize token_value(Token const&) for type '{}'", typeid(T).name());
+}
+
+template <>
+inline std::string const& token_value(Token const& token)
+{
+    return token.value();
+}
+
+template <>
+inline int token_value(Token const& token)
+{
+    assert(token.code() == TokenCode::Float || token.code() == TokenCode::Integer || token.code() == TokenCode::HexNumber);
+    return to_long_unconditional(token.value());
+}
+
+template <>
+inline long token_value(Token const& token)
+{
+    assert(token.code() == TokenCode::Float || token.code() == TokenCode::Integer || token.code() == TokenCode::HexNumber);
+    return to_long_unconditional(token.value());
+}
+
+template <>
+inline double token_value(Token const& token)
+{
+    assert(token.code() == TokenCode::Float || token.code() == TokenCode::Integer || token.code() == TokenCode::HexNumber);
+    return to_long_unconditional(token.value());
+}
+
+template <>
+inline bool token_value(Token const& token)
+{
+    auto number_maybe = token.to_long();
+    if (number_maybe.has_value())
+        return number_maybe.value() != 0;
+    return Obelix::to_bool_unconditional(token.value());
+}
 
 template<>
 struct Converter<Token> {

@@ -446,7 +446,7 @@ NODE_PROCESSOR(FunctionCall)
     if (args.size() != func_decl->parameters().size())
         return SyntaxError { ErrorCode::ArgumentCountMismatch, func_call->token(), func_call->name(), func_call->arguments().size() };
 
-    for (auto ix = 0; ix < args.size(); ix++) {
+    for (auto ix = 0u; ix < args.size(); ix++) {
         auto& arg = args.at(ix);
         auto& param = func_decl->parameters().at(ix);
         if (!arg->type()->is_assignable_to(param->type()))

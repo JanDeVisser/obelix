@@ -24,6 +24,8 @@ public:
             return "ascii";
         case Type::ASCIZ:
             return "asciz";
+        default:
+            fatal("Unknown String::Type value '{}' in Type_name", (int) type);
         }
     }
 

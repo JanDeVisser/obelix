@@ -64,6 +64,8 @@ std::string TemplateArgument::to_string() const
             return std::get<std::string>(value);
         case TemplateParameterType::Boolean:
             return Obelix::to_string(std::get<bool>(value));
+        default:
+            fatal("Unknown parameter type '{}'", (int) parameter_type);
     }
 }
 
@@ -80,6 +82,8 @@ bool TemplateArgument::operator==(TemplateArgument const& other) const
             return std::get<std::string>(value) == std::get<std::string>(other.value);
         case TemplateParameterType::Boolean:
             return std::get<bool>(value) == std::get<bool>(other.value);
+        default:
+            fatal("Unknown parameter type '{}'", (int) parameter_type);
     }
 }
 
@@ -400,7 +404,7 @@ bool ObjectType::operator==(ObjectType const& other) const
         return false;
     if (template_arguments().size() != other.template_arguments().size())
         return false;
-    for (auto ix = 0; ix < template_arguments().size(); ++ix) {
+    for (auto ix = 0u; ix < template_arguments().size(); ++ix) {
         if (template_arguments()[ix] != other.template_arguments()[ix])
             return false;
     }
@@ -446,12 +450,12 @@ ssize_t ObjectType::offset_of(std::string const& name) const
     return (size_t) -1;
 }
 
-ssize_t ObjectType::offset_of(int field) const
+ssize_t ObjectType::offset_of(size_t field) const
 {
     if ((field < 0) || (field >= m_fields.size()))
         return (size_t) -1;
     size_t ret = 0;
-    for (auto ix = 0; ix < field; ix++) {
+    for (auto ix = 0u; ix < field; ix++) {
         ret += m_fields[ix].type->size();
     }
     return ret;
@@ -480,7 +484,7 @@ bool ObjectType::has_template_argument(std::string const& arg) const
 {
     if (!is_template_specialization())
         return false;
-    for (auto ix = 0; ix < m_specializes_template->template_parameters().size(); ++ix) {
+    for (auto ix = 0u; ix < m_specializes_template->template_parameters().size(); ++ix) {
         auto param = m_specializes_template->template_parameters()[ix];
         if (param.name == arg)
             return true;
@@ -492,7 +496,7 @@ bool ObjectType::is_compatible(MethodDescription const& mth, ObjectTypes const& 
 {
     if (mth.parameters().size() != argument_types.size())
         return false;
-    auto ix = 0;
+    auto ix = 0u;
     for (; ix < mth.parameters().size(); ++ix) {
         auto& param = mth.parameters()[ix];
         auto arg_type = argument_types[ix];
@@ -808,7 +812,7 @@ ErrorOr<std::shared_ptr<ObjectType>> ObjectType::make_struct_type(std::string na
             return Error<int> { ErrorCode::DuplicateTypeName, name };
         if (existing->fields().size() != fields.size())
             return Error<int> { ErrorCode::DuplicateTypeName, name };
-        for (auto ix = 0; ix < fields.size(); ++ix) {
+        for (auto ix = 0u; ix < fields.size(); ++ix) {
             auto existing_field = existing->fields()[ix];
             auto new_field = fields[ix];
             if (*existing_field.type != *new_field.type || existing_field.name != new_field.name)

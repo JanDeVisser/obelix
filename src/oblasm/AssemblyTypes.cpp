@@ -333,7 +333,7 @@ OpcodeDefinition opcode_definitions[256] = {
 
 std::optional<OpcodeDefinition> get_opcode_definition(Mnemonic m, Argument const& target, Argument const& source)
 {
-    for (int ix = 0; ix < sizeof(opcode_definitions); ++ix) {
+    for (auto ix = 0u; ix < sizeof(opcode_definitions); ++ix) {
         if (opcode_definitions[ix].mnemonic != m)
             continue;
         if ((opcode_definitions[ix].am_source != source.addressing_mode) || (opcode_definitions[ix].am_target != target.addressing_mode))

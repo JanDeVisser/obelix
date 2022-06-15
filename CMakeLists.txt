@@ -35,6 +35,9 @@ FetchContent_Declare(
 set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
 FetchContent_MakeAvailable(googletest)
 
+
+message("Arch: ${CMAKE_SYSTEM_PROCESSOR}")
+
 enable_testing()
 add_test(NAME CoreTest COMMAND CoreTest)
 add_test(NAME LexerTest COMMAND LexerTest)

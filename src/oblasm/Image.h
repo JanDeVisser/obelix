@@ -26,6 +26,7 @@ public:
     void add(std::shared_ptr<Label> const& label);
     void add(Segment&, std::shared_ptr<Label> const&);
     void add(std::shared_ptr<Segment> const&);
+    [[nodiscard]] uint16_t size() const { return m_size; }
     [[nodiscard]] std::shared_ptr<Segment> get_segment(int ix) { return m_segments.at(ix); }
     [[nodiscard]] bool has_label(std::string const&) const;
     [[nodiscard]] std::shared_ptr<Label> const& label(std::string const&) const;
@@ -49,7 +50,7 @@ public:
     void dump();
 
 private:
-    [[maybe_unused]] uint16_t m_size;
+    uint16_t m_size;
     std::vector<std::shared_ptr<Segment>> m_segments;
     std::shared_ptr<Segment> m_current;
     std::unordered_map<std::string, std::shared_ptr<Label>> m_labels {};
