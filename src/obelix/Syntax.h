@@ -457,14 +457,34 @@ public:
         return ret;
     }
 
+    [[nodiscard]] std::string root_to_xml() const
+    {
+        auto indent = 0u;
+        auto ret = format("<{}", node_type());
+        auto attrs = Module::attributes();
+        auto child_nodes = Module::children();
+        auto text = Module::text_contents();
+        if (!attrs.empty()) {
+            ret += " " + attrs;
+        }
+        if (text.empty() && child_nodes.empty())
+            return ret + "/>";
+        ret += ">\n";
+        for (auto& child : child_nodes) {
+            ret += child->to_xml(indent + 2);
+            ret += "\n";
+        }
+        return ret + format("{}</{}>", text, node_type());
+    }
+
 private:
     Modules m_modules;
 };
 
-class FunctionDecl : public SyntaxNode {
+class FunctionDecl : public Statement {
 public:
     explicit FunctionDecl(Token token, std::shared_ptr<Identifier> identifier, Identifiers parameters)
-        : SyntaxNode(std::move(token))
+        : Statement(std::move(token))
         , m_identifier(move(identifier))
         , m_parameters(move(parameters))
     {

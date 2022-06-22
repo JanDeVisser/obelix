@@ -136,6 +136,14 @@ public:
     [[nodiscard]] MethodParameters const& parameters() const { return m_parameters; }
     [[nodiscard]] bool is_operator() const { return m_is_operator; }
     [[nodiscard]] std::shared_ptr<class BoundIntrinsicDecl> declaration() const;
+    [[nodiscard]] std::shared_ptr<ObjectType> const& method_of() const { return m_method_of; }
+
+protected:
+    void set_method_of(std::shared_ptr<ObjectType> method_of)
+    {
+        m_method_of = move(method_of);
+    }
+    friend class ObjectType;
 
 private:
     union {
@@ -148,6 +156,7 @@ private:
     MethodParameters m_parameters {};
     MethodImpl m_default_implementation { true, IntrinsicType::NotIntrinsic, "" };
     std::unordered_map<Architecture,MethodImpl> m_implementations {};
+    std::shared_ptr<ObjectType> m_method_of;
 };
 
 using MethodDescriptions = std::vector<MethodDescription>;
@@ -162,7 +171,7 @@ struct FieldDef {
 
 using FieldDefs = std::vector<FieldDef>;
 
-using ObjectTypeBuilder = std::function<void(ObjectType*)>;
+using ObjectTypeBuilder = std::function<void(std::shared_ptr<ObjectType>)>;
 
 enum class TemplateParameterType {
     Type,
@@ -268,31 +277,20 @@ public:
     {
     }
 
-    ObjectType(PrimitiveType type, ObjectTypeBuilder const& builder = nullptr) noexcept
-        : m_type(type)
-    {
-        m_name_str = std::string(PrimitiveType_name(type));
-        if (builder)
-            builder(this);
-    }
-
-    ObjectType(PrimitiveType type, char const* name, ObjectTypeBuilder const& builder) noexcept
-        : ObjectType(type, name)
-    {
-        if (builder)
-            builder(this);
-    }
-
     [[nodiscard]] PrimitiveType type() const { return m_type; }
     [[nodiscard]] std::string const& name() const { return m_name_str; }
     [[nodiscard]] std::string to_string() const;
 
-    MethodDescription& add_method(MethodDescription const&);
+    MethodDescription& add_method(MethodDescription);
     void will_be_a(std::shared_ptr<ObjectType> type) { m_is_a.push_back(type); }
     void has_template_parameter(TemplateParameter const& parameter) { m_template_parameters.push_back(parameter); }
     void has_size(size_t sz) { m_size = sz; }
     void has_template_stamp(ObjectTypeBuilder const& stamp) { m_stamp = stamp; }
-    void has_alias(std::string const& alias) { m_aliases.emplace_back(alias); }
+    void has_alias(std::string const& alias)
+    {
+        m_aliases.emplace_back(alias);
+        s_types_by_name[alias] = ObjectType::get(this);
+    }
 
     [[nodiscard]] bool is_parameterized() const { return !m_template_parameters.empty(); }
     [[nodiscard]] size_t size() const;

@@ -149,10 +149,10 @@ ErrorOrNode process_tree(std::shared_ptr<SyntaxNode> const& tree, Context& ctx, 
     case SyntaxNodeType::BoundNativeFunctionDecl:
     case SyntaxNodeType::BoundIntrinsicDecl: {
         auto func_decl = std::dynamic_pointer_cast<BoundFunctionDecl>(tree);
-        auto identifier = TRY_AND_CAST(BoundIdentifier, processor(func_decl->identifier(), ctx));
+        auto identifier = std::dynamic_pointer_cast<BoundIdentifier>(func_decl->identifier());
         BoundIdentifiers parameters;
         for (auto& param : func_decl->parameters()) {
-            auto processed_param = TRY_AND_CAST(BoundIdentifier, processor(param, ctx));
+            auto processed_param = std::dynamic_pointer_cast<BoundIdentifier>(param);
             parameters.push_back(processed_param);
         }
         switch (func_decl->node_type()) {

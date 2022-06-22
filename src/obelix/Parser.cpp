@@ -288,7 +288,7 @@ std::shared_ptr<FunctionCall> Parser::parse_function_call(std::shared_ptr<Expres
     return make_node<FunctionCall>(ident->token(), ident->name(), args);
 }
 
-std::shared_ptr<FunctionDef> Parser::parse_function_definition(Token const& func_token)
+std::shared_ptr<Statement> Parser::parse_function_definition(Token const& func_token)
 {
     auto name_maybe = match(TokenCode::Identifier);
     if (!name_maybe.has_value()) {
@@ -345,15 +345,14 @@ std::shared_ptr<FunctionDef> Parser::parse_function_definition(Token const& func
     if (current_code() == KeywordLink) {
         lex();
         if (auto link_target_maybe = match(TokenCode::DoubleQuotedString, "after '->'"); link_target_maybe.has_value()) {
-            func_decl = std::make_shared<NativeFunctionDecl>(name, func_ident, params, link_target_maybe.value().value());
             expect(TokenCode::SemiColon);
-            return make_node<FunctionDef>(func_token, func_decl);
+            return make_node<NativeFunctionDecl>(name, func_ident, params, link_target_maybe.value().value());
         }
         return nullptr;
     }
     if (func_token.code() == KeywordIntrinsic) {
-        func_decl = std::make_shared<IntrinsicDecl>(name, func_ident, params);
-        return make_node<FunctionDef>(func_token, func_decl, nullptr);
+        expect(TokenCode::SemiColon);
+        return make_node<IntrinsicDecl>(name, func_ident, params);
     }
     func_decl = std::make_shared<FunctionDecl>(name, func_ident, params);
     auto stmt = parse_statement();

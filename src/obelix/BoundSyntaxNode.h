@@ -139,17 +139,17 @@ private:
     std::shared_ptr<BoundExpression> m_index;
 };
 
-class BoundFunctionDecl : public SyntaxNode {
+class BoundFunctionDecl : public Statement {
 public:
     explicit BoundFunctionDecl(std::shared_ptr<SyntaxNode> const& decl, std::shared_ptr<BoundIdentifier> identifier, BoundIdentifiers parameters)
-        : SyntaxNode(decl->token())
+        : Statement(decl->token())
         , m_identifier(move(identifier))
         , m_parameters(move(parameters))
     {
     }
 
     explicit BoundFunctionDecl(std::shared_ptr<BoundFunctionDecl> const& decl)
-        : SyntaxNode(decl->token())
+        : Statement(decl->token())
         , m_identifier(decl->identifier())
         , m_parameters(decl->parameters())
     {
@@ -188,7 +188,7 @@ public:
 
 protected:
     explicit BoundFunctionDecl(std::shared_ptr<BoundIdentifier> identifier, BoundIdentifiers parameters)
-        : SyntaxNode(Token {})
+        : Statement(Token {})
         , m_identifier(move(identifier))
         , m_parameters(move(parameters))
     {

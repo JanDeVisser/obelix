@@ -6,7 +6,6 @@
 
 #pragma once
 
-#include "obelix/Intrinsics.h"
 #include <memory>
 #include <string>
 
@@ -209,22 +208,16 @@ private:
 
 using MaterializedFunctionParameters = std::vector<std::shared_ptr<MaterializedFunctionParameter>>;
 
-class MaterializedFunctionDecl : public SyntaxNode {
+class MaterializedFunctionDecl : public Statement {
 public:
-    explicit MaterializedFunctionDecl(std::shared_ptr<BoundFunctionDecl> const& decl, MaterializedFunctionParameters parameters, int nsaa, int stack_depth)
-        : SyntaxNode(decl->token())
-        , m_identifier(decl->identifier())
-        , m_nsaa(nsaa)
-        , m_stack_depth(stack_depth)
-    {
-    }
-
     explicit MaterializedFunctionDecl(std::shared_ptr<BoundFunctionDecl> const& decl, MaterializedFunctionParameters parameters, int nsaa)
-        : SyntaxNode(decl->token())
+        : Statement(decl->token())
         , m_identifier(decl->identifier())
         , m_parameters(move(parameters))
         , m_nsaa(nsaa)
     {
+        if (m_nsaa % 16)
+            m_nsaa += 16 - (m_nsaa % 16);
     }
 
     [[nodiscard]] SyntaxNodeType node_type() const override { return SyntaxNodeType::MaterializedFunctionDecl; }
@@ -232,12 +225,11 @@ public:
     [[nodiscard]] std::string const& name() const { return identifier()->name(); }
     [[nodiscard]] std::shared_ptr<ObjectType> type() const { return identifier()->type(); }
     [[nodiscard]] MaterializedFunctionParameters const& parameters() const { return m_parameters; }
-    [[nodiscard]] int stack_depth() const { return m_stack_depth; }
     [[nodiscard]] int nsaa() const { return m_nsaa; }
 
     [[nodiscard]] std::string attributes() const override
     {
-        return format(R"(name="{}" return_type="{}" nsaa="{}" stack_depth="{}")", name(), type(), nsaa(), stack_depth());
+        return format(R"(name="{}" return_type="{}" nsaa="{}")", name(), type(), nsaa());
     }
 
     [[nodiscard]] Nodes children() const override
@@ -251,7 +243,7 @@ public:
 
     [[nodiscard]] std::string to_string() const override
     {
-        return format("func {}({}): {} [{}/{}]", name(), parameters_to_string(), type(), nsaa(), stack_depth());
+        return format("func {}({}): {} [{}/{}]", name(), parameters_to_string(), type(), nsaa());
     }
 
 protected:
@@ -272,7 +264,6 @@ private:
     std::shared_ptr<BoundIdentifier> m_identifier;
     MaterializedFunctionParameters m_parameters;
     int m_nsaa;
-    int m_stack_depth;
 };
 
 class MaterializedNativeFunctionDecl : public MaterializedFunctionDecl {
@@ -310,11 +301,14 @@ public:
 
 class MaterializedFunctionDef : public Statement {
 public:
-    MaterializedFunctionDef(std::shared_ptr<BoundFunctionDef> const& bound_def, std::shared_ptr<MaterializedFunctionDecl> func_decl, std::shared_ptr<Statement> statement)
+    MaterializedFunctionDef(std::shared_ptr<BoundFunctionDef> const& bound_def, std::shared_ptr<MaterializedFunctionDecl> func_decl, std::shared_ptr<Statement> statement, int stack_depth)
         : Statement(bound_def->token())
         , m_function_decl(move(func_decl))
         , m_statement(move(statement))
+        , m_stack_depth(stack_depth)
     {
+        if (m_stack_depth % 16)
+            m_stack_depth += 16 - (m_stack_depth % 16);
     }
 
     [[nodiscard]] SyntaxNodeType node_type() const override { return SyntaxNodeType::MaterializedFunctionDef; }
@@ -324,6 +318,7 @@ public:
     [[nodiscard]] std::shared_ptr<ObjectType> const& type() const { return identifier()->type(); }
     [[nodiscard]] MaterializedFunctionParameters const& parameters() const { return m_function_decl->parameters(); }
     [[nodiscard]] std::shared_ptr<Statement> const& statement() const { return m_statement; }
+    [[nodiscard]] int stack_depth() const { return m_stack_depth; }
     [[nodiscard]] std::string to_string() const override
     {
         if (m_statement != nullptr)
@@ -343,6 +338,7 @@ public:
 protected:
     std::shared_ptr<MaterializedFunctionDecl> m_function_decl;
     std::shared_ptr<Statement> m_statement;
+    int m_stack_depth { 0 };
 };
 
 class MaterializedFunctionCall : public BoundExpression {

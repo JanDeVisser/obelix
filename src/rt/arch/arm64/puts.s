@@ -6,8 +6,8 @@
 ; puts - Print string
 ;
 ; In:
-len     .req w0     ; Length of the string
-buffer  .req x1     ; Pointer to the string buffer
+;   x0: String length
+;   x1: Pointer to string buffer
 
 ; Out:
 ;   x0: Number of characters printed.
@@ -24,8 +24,8 @@ puts:
 
     ; Print '[[null]]' if the buffer is the null pointer:
     adr     x1,__str_nullptr
-    adr     x8,__str_nullptr_len
-    ldr     x0,[x8]
+    adr     x9,__str_nullptr_len
+    ldr     x2,[x9]
 
     ; Print the string we generated using to_string:
 __puts_print:
@@ -37,8 +37,8 @@ __puts_print:
     ret
 
 __str_nullptr:
-        .string "[[null]]"
+    .string "[[null]]"
 
 .align 4
 __str_nullptr_len:
-        .int    9
+    .int    9

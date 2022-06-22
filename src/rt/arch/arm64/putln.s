@@ -28,4 +28,4 @@ putln:
     ret
 
 __str_newline:
-        .string "\n"
+    .string "\n"

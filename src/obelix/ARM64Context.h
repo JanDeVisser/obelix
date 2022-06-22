@@ -177,11 +177,17 @@ public:
     void reserve_on_stack(size_t);
     void release_stack();
 
+    [[nodiscard]] static unsigned long counter()
+    { 
+        return s_counter++; 
+    }
+
 private:
     Assembly* m_assembly { nullptr };
     size_t m_stack_allocated { 0 };
     static std::vector<std::shared_ptr<MaterializedFunctionDef>> s_function_stack;
     static std::unordered_map<std::string, Assembly> s_assemblies;
+    static unsigned long s_counter;
 };
 
 template<typename T = long>

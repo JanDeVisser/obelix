@@ -4,7 +4,6 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
-#include "obelix/Type.h"
 #include <memory>
 
 #include <obelix/ARM64.h>
@@ -13,6 +12,7 @@
 #include <obelix/MaterializedSyntaxNode.h>
 #include <obelix/Processor.h>
 #include <obelix/Syntax.h>
+#include <utility>
 
 namespace Obelix {
 
@@ -90,87 +90,111 @@ private:
 
 INIT_NODE_PROCESSOR(MaterializeContext);
 
-NODE_PROCESSOR(BoundFunctionDef)
-{
-    auto func_def = std::dynamic_pointer_cast<BoundFunctionDef>(tree);
-    auto func_decl = func_def->declaration();
-    MaterializeContext func_ctx(ctx);
-    int offset = 16;
+struct ParameterMaterializations {
     MaterializedFunctionParameters function_parameters;
+    int offset { 16};
+    int ngrn { 0 };
+    int nsaa { 0 };
+};
 
-    auto ngrn = 0;
-    auto nsaa = 0;
-    for (auto& parameter : func_decl->parameters()) {
+ParameterMaterializations make_materialized_parameters(std::shared_ptr<BoundFunctionDecl> func_decl)
+{
+    ParameterMaterializations ret;
+    for (auto const& parameter : func_decl->parameters()) {
         MaterializedFunctionParameter::ParameterPassingMethod method;
         int where;
-        switch (parameter->type()->type()) {
+        auto primitive_type = parameter->type()->type();
+        if (primitive_type == PrimitiveType::Compatible)
+            primitive_type = func_decl->parameter_types()[0]->type();
+        switch (primitive_type) {
             case PrimitiveType::IntegerNumber:
             case PrimitiveType::SignedIntegerNumber:
             case PrimitiveType::Pointer:
-                if (ngrn < 8) {
+                if (ret.ngrn < 8) {
                     method = MaterializedFunctionParameter::ParameterPassingMethod::Register;
-                    where = ngrn++;
+                    where = ret.ngrn++;
                     break;
                 }
                 method = MaterializedFunctionParameter::ParameterPassingMethod::Stack;
-                where = nsaa;
-                nsaa += 8;
+                where = ret.nsaa;
+                ret.nsaa += 8;
                 break;
             case PrimitiveType::Struct: {
                 auto size_in_double_words = parameter->type()->size() / 8;
-                if (parameter->type()->size() % 8 != 0)
+                if (parameter->type()->size() % 8)
                     size_in_double_words++;
-                if (ngrn + size_in_double_words <= 8) {
+                if (ret.ngrn + size_in_double_words <= 8) {
                     method = MaterializedFunctionParameter::ParameterPassingMethod::Register;
-                    where = ngrn;
-                    ngrn += size_in_double_words;
+                    where = ret.ngrn;
+                    ret.ngrn += size_in_double_words;
+                    break;
                 }
                 method = MaterializedFunctionParameter::ParameterPassingMethod::Stack;
-                where = nsaa;
-                nsaa += parameter->type()->size();
+                where = ret.nsaa;
+                ret.nsaa += parameter->type()->size();
                 break;
             }
             default:
-                fatal("Not yet implemented in materialize BoundFunctionDef");
+                fatal("Type '{}' Not yet implemented in make_materialized_parameters", parameter->type());
         }
-
-        auto materialized_parameter = make_node<MaterializedFunctionParameter>(parameter, std::make_shared<StackVariableAddress>(offset), method, where);
-        func_ctx.declare(materialized_parameter->name(), materialized_parameter);
-        function_parameters.push_back(materialized_parameter);
-        offset += parameter->type()->size();
-        if (offset % 8)
-            offset += 8 - (offset % 8);
+    
+        auto materialized_parameter = make_node<MaterializedFunctionParameter>(parameter, std::make_shared<StackVariableAddress>(ret.offset), method, where);
+        ret.function_parameters.push_back(materialized_parameter);
+        ret.offset += parameter->type()->size();
+        if (ret.offset % 16)
+            ret.offset += 16 - (ret.offset % 16);
     }
+    return ret;
+}
 
-    std::shared_ptr<MaterializedFunctionDecl> materialized_function_decl;
+NODE_PROCESSOR(BoundFunctionDecl)
+{
+    auto func_decl = std::dynamic_pointer_cast<BoundFunctionDecl>(tree);
+    auto materialized_parameters = make_materialized_parameters(func_decl);
+    auto ret = make_node<MaterializedFunctionDecl>(func_decl, 
+        materialized_parameters.function_parameters, materialized_parameters.nsaa);
+    ctx.declare(func_decl->name(), ret);
+    ctx.add_declared_function(func_decl->name(), ret);
+    return ret;
+}
+
+NODE_PROCESSOR(BoundNativeFunctionDecl)
+{
+    auto func_decl = std::dynamic_pointer_cast<BoundNativeFunctionDecl>(tree);
+    auto materialized_parameters = make_materialized_parameters(func_decl);
+    auto ret = make_node<MaterializedNativeFunctionDecl>(func_decl, 
+        materialized_parameters.function_parameters, materialized_parameters.nsaa);
+    ctx.declare(func_decl->name(), ret);
+    ctx.add_declared_function(func_decl->name(), ret);
+    return ret;
+}
+
+NODE_PROCESSOR(BoundIntrinsicDecl)
+{
+    auto func_decl = std::dynamic_pointer_cast<BoundIntrinsicDecl>(tree);
+    auto materialized_parameters = make_materialized_parameters(func_decl);
+    auto ret = make_node<MaterializedIntrinsicDecl>(func_decl, 
+        materialized_parameters.function_parameters, materialized_parameters.nsaa);
+    ctx.declare(func_decl->name(), ret);
+    ctx.add_declared_function(func_decl->name(), ret);
+    return ret;
+}
+
+NODE_PROCESSOR(BoundFunctionDef)
+{
+    auto func_def = std::dynamic_pointer_cast<BoundFunctionDef>(tree);
+    auto func_decl = TRY_AND_CAST(MaterializedFunctionDecl, process(func_def->declaration(), ctx));
     std::shared_ptr<MaterializedFunctionDef> ret;
-    switch (func_decl->node_type()) {
-    case SyntaxNodeType::BoundNativeFunctionDecl: {
-        auto native_decl = std::dynamic_pointer_cast<BoundNativeFunctionDecl>(func_decl);
-        materialized_function_decl = make_node<MaterializedNativeFunctionDecl>(native_decl, function_parameters, nsaa);
-        ret = make_node<MaterializedFunctionDef>(func_def, materialized_function_decl, nullptr);
-        break;
+
+    MaterializeContext func_ctx(ctx);
+    func_ctx.offset = 0;
+    for (auto const& param : func_decl->parameters()) {
+        func_ctx.declare(param->name(), param);
     }
-    case SyntaxNodeType::BoundIntrinsicDecl: {
-        auto intrinsic_decl = std::dynamic_pointer_cast<BoundIntrinsicDecl>(func_decl);
-        materialized_function_decl = make_node<MaterializedIntrinsicDecl>(intrinsic_decl, function_parameters, nsaa);
-        ret = make_node<MaterializedFunctionDef>(func_def, materialized_function_decl, nullptr);
-        break;
-    }
-    case SyntaxNodeType::BoundFunctionDecl: {
-        func_ctx.offset = offset;
-        std::shared_ptr<Block> block;
-        assert(func_def->statement()->node_type() == SyntaxNodeType::FunctionBlock);
-        block = TRY_AND_CAST(FunctionBlock, process(func_def->statement(), func_ctx));
-        materialized_function_decl = make_node<MaterializedFunctionDecl>(func_decl, function_parameters, nsaa, offset);
-        ret = make_node<MaterializedFunctionDef>(func_def, materialized_function_decl, block);
-        break;
-    }
-    default:
-        fatal("Unreachable");
-    }
-    ctx.declare(materialized_function_decl->name(), materialized_function_decl);
-    ctx.add_declared_function(materialized_function_decl->name(), materialized_function_decl);
+    std::shared_ptr<Block> block;
+    assert(func_def->statement()->node_type() == SyntaxNodeType::FunctionBlock);
+    block = TRY_AND_CAST(FunctionBlock, process(func_def->statement(), func_ctx));
+    ret = make_node<MaterializedFunctionDef>(func_def, func_decl, block, func_ctx.offset);
     return ret;
 }
 
@@ -190,11 +214,11 @@ NODE_PROCESSOR(BoundVariableDeclaration)
     auto var_decl = std::dynamic_pointer_cast<BoundVariableDeclaration>(tree);
     auto offset = ctx.offset;
     auto expression = TRY_AND_CAST(BoundExpression, process(var_decl->expression(), ctx));
+    offset += var_decl->type()->size();
+    if (offset % 16)
+        offset += 16 - (offset % 16);
     auto ret = make_node<MaterializedVariableDecl>(var_decl, std::make_shared<StackVariableAddress>(offset), expression);
     ctx.declare(var_decl->name(), ret);
-    offset += var_decl->type()->size();
-    if (offset % 8)
-        offset += 8 - (offset % 8);
     ctx.offset = offset;
     return ret;
 }

@@ -4,7 +4,6 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
-#include "obelix/Type.h"
 #include <filesystem>
 #include <memory>
 #include <optional>
@@ -122,36 +121,44 @@ NODE_PROCESSOR(MaterializedFunctionDef)
 
 ErrorOr<void, SyntaxError> evaluate_arguments(ARM64Context& ctx, std::shared_ptr<MaterializedFunctionDecl> const& decl, BoundExpressions const& arguments)
 {
-    if (decl->nsaa() > 0) {
-        ctx.assembly().add_instruction("mov", "x10,sp");
-        ctx.assembly().add_instruction("add", "sp,sp,#-{}", decl->nsaa());
+    int nsaa = decl->nsaa();
+    if (nsaa > 0) {
+        ctx.assembly().add_instruction("stp", "fp,lr,[sp,#-16]!");
+        ctx.assembly().add_instruction("mov", "fp,sp");
+        ctx.assembly().add_instruction("sub", "sp,sp,#{}", nsaa);
     }
     auto param_defs = decl->parameters();
     int param_ix = 0;
     for (auto const& arg : arguments) {
         TRY_RETURN(process(arg, ctx));
+        auto type = param_defs[param_ix]->type();
+        auto t = type->type();
+        if (t == PrimitiveType::Compatible)
+            t = param_defs[0]->type()->type();
         switch (param_defs[param_ix]->method()) {
             case MaterializedFunctionParameter::ParameterPassingMethod::Register:
-                switch (param_defs[param_ix]->type()->type()) {
+                switch (t) {
                     case PrimitiveType::IntegerNumber:
                     case PrimitiveType::SignedIntegerNumber:
                     case PrimitiveType::Pointer:
                         push(ctx, "x0");
                         break;
                     case PrimitiveType::Struct: {
-                        auto size_in_double_words = param_defs[param_ix]->type()->size() / 8;
-                        if (param_defs[param_ix]->type()->size() % 8 != 0)
-                            size_in_double_words++;
-                        for (auto reg = 0u; reg < size_in_double_words; ++reg)
-                            push(ctx, format("x{}", reg));
+                        for (auto const& field : param_defs[param_ix]->type()->fields()) {
+                            std::string width = "w";
+                            if (field.type->size() == 8)
+                                width = "x";
+                            ctx.assembly().add_instruction("ldr", "{}9,[x0,#{}]", width, type->offset_of(field.name));
+                            push(ctx, "x9");
+                        }
                         break;
                     }
                     default:
-                        fatal("Not yet implemented in materialize BoundFunctionDef");
+                        fatal("Type '{}' cannot passed in a register in {}", param_defs[param_ix]->type(), __func__);
                 }
                 break;
             case MaterializedFunctionParameter::ParameterPassingMethod::Stack:
-                switch (param_defs[param_ix]->type()->type()) {
+                switch (t) {
                     case PrimitiveType::IntegerNumber:
                     case PrimitiveType::SignedIntegerNumber:
                     case PrimitiveType::Pointer:
@@ -159,7 +166,12 @@ ErrorOr<void, SyntaxError> evaluate_arguments(ARM64Context& ctx, std::shared_ptr
                         break;
                     case PrimitiveType::Struct:
                     default:
-                        fatal("Not yet implemented in evaluate_arguments");
+                        ctx.assembly().add_text(
+                        R"(
+
+                        )"
+                        );
+                        fatal("Type '{}' cannot passed on the stack in {}", param_defs[param_ix]->type(), __func__);
                 }
                 break;
         }
@@ -172,7 +184,7 @@ ErrorOr<void, SyntaxError> evaluate_arguments(ARM64Context& ctx, std::shared_ptr
         auto size_in_double_words = param->type()->size() / 8;
         if (param->type()->size() % 8 != 0)
             size_in_double_words++;
-        for (auto reg = size_in_double_words - 1; reg >= 0; --reg) {
+        for (int reg = (int) (size_in_double_words - 1); reg >= 0; --reg) {
             pop(ctx, format("x{}", param->where() + reg));
         }
     }
@@ -185,19 +197,21 @@ NODE_PROCESSOR(MaterializedFunctionCall)
     TRY_RETURN(evaluate_arguments(ctx, call->declaration(), call->arguments()));
     ctx.assembly().add_instruction("bl", call->name());
     if (call->declaration()->nsaa() > 0) {
-        ctx.assembly().add_instruction("add", "sp,sp,#{}", call->declaration()->nsaa());
+        ctx.assembly().add_instruction("add", "sp,fp,16");
+        ctx.assembly().add_instruction("ldp", "fp,lr,[sp]");
     }
     return tree;
 }
 
-NODE_PROCESSOR(BoundNativeFunctionCall)
+NODE_PROCESSOR(MaterializedNativeFunctionCall)
 {
     auto native_func_call = std::dynamic_pointer_cast<MaterializedNativeFunctionCall>(tree);
     auto func_decl = std::dynamic_pointer_cast<MaterializedNativeFunctionDecl>(native_func_call->declaration());
     TRY_RETURN(evaluate_arguments(ctx, func_decl, native_func_call->arguments()));
     ctx.assembly().add_instruction("bl", func_decl->native_function_name());
-    if (native_func_call->declaration()->nsaa() > 0) {
-        ctx.assembly().add_instruction("add", "sp,sp,#{}", native_func_call->declaration()->nsaa());
+    if (func_decl->nsaa() > 0) {
+        ctx.assembly().add_instruction("add", "sp,fp,16");
+        ctx.assembly().add_instruction("ldp", "fp,lr,[sp]");
     }
     return tree;
 }
@@ -214,7 +228,8 @@ NODE_PROCESSOR(MaterializedIntrinsicCall)
     if (ret.is_error())
         return ret.error();
     if (call->declaration()->nsaa() > 0) {
-        ctx.assembly().add_instruction("add", "sp,sp,#{}", call->declaration()->nsaa());
+        ctx.assembly().add_instruction("add", "sp,fp,16");
+        ctx.assembly().add_instruction("ldp", "fp,lr,[sp]");
     }
     return tree;
 }
@@ -233,12 +248,15 @@ NODE_PROCESSOR(BoundIntLiteral)
 
 ErrorOr<void, SyntaxError> StackVariableAddress::load_variable(std::shared_ptr<ObjectType> type, ARM64Context& ctx, int target) const
 {
-    auto mm = get_type_mnemonic_map(type);
-    if (mm == nullptr)
-        return SyntaxError { ErrorCode::NotYetImplemented, Token {},
-            format("Cannot push values of variables of type {} yet", type) };
-
-    ctx.assembly().add_instruction(mm->load_mnemonic, "{}{},[fp,#{}]", mm->reg_width, target, offset());
+    if (type->type() != PrimitiveType::Struct) {
+        auto mm = get_type_mnemonic_map(type);
+        if (mm == nullptr)
+            return SyntaxError { ErrorCode::NotYetImplemented, Token {},
+                format("Cannot load values of variables of type {} yet", type) };
+        ctx.assembly().add_instruction(mm->load_mnemonic, "{}{},[fp,#-{}]", mm->reg_width, target, offset());
+        return {};
+    }
+    ctx.assembly().add_instruction("sub", "x{},fp,#{}", target, offset());
     return {};
 }
 
@@ -248,13 +266,13 @@ ErrorOr<void, SyntaxError> StackVariableAddress::store_variable(std::shared_ptr<
     if (mm == nullptr)
         return SyntaxError { ErrorCode::NotYetImplemented, Token {},
             format("Cannot store values type {} yet", type) };
-    ctx.assembly().add_instruction(mm->store_mnemonic, "{}{},[fp,#{}]", mm->reg_width, from, offset());
+    ctx.assembly().add_instruction(mm->store_mnemonic, "{}{},[fp,#-{}]", mm->reg_width, from, offset());
     return {};
 }
 
 ErrorOr<void, SyntaxError> StackVariableAddress::prepare_pointer(ARM64Context& ctx) const
 {
-    ctx.assembly().add_instruction("add", "x8,fp,#{}", offset());
+    ctx.assembly().add_instruction("add", "x8,fp,#-{}", offset());
     return {};
 }
 
@@ -269,7 +287,7 @@ ErrorOr<void, SyntaxError> StructMemberAddress::load_variable(std::shared_ptr<Ob
         return error_maybe.error();
     }
     if (offset() > 0)
-        ctx.assembly().add_instruction("add", "x8,x8,#{}", offset());
+        ctx.assembly().add_instruction("sub", "x8,x8,#{}", offset());
     ctx.assembly().add_instruction(mm->load_mnemonic, "{}{},[x8]", mm->reg_width, target);
     return {};
 }
@@ -384,8 +402,10 @@ NODE_PROCESSOR(BoundStringLiteral)
 {
     auto literal = std::dynamic_pointer_cast<BoundStringLiteral>(tree);
     auto str_id = ctx.assembly().add_string(literal->value());
-    ctx.assembly().add_instruction("mov", "w0,#{}", literal->value().length());
-    ctx.assembly().add_instruction("adr", "x1,str_{}", str_id);
+    ctx.assembly().add_instruction("mov", "w9,#{}", literal->value().length());
+    ctx.assembly().add_instruction("str", "w9,[x8,#{}]", literal->type()->offset_of(0));
+    ctx.assembly().add_instruction("adr", "x9,str_{}", str_id);
+    ctx.assembly().add_instruction("str", "x9,[x8,#{}]", literal->type()->offset_of(1));
     return tree;
 }
 
@@ -471,11 +491,16 @@ NODE_PROCESSOR(MaterializedVariableDecl)
     }
 
     if (var_decl->expression() != nullptr) {
+        if (var_decl->type()->type() == PrimitiveType::Struct)
+            ctx.assembly().add_instruction("sub", "x8,fp,#{}", 
+                std::dynamic_pointer_cast<StackVariableAddress>(var_decl->address())->offset());
         TRY_RETURN(process(var_decl->expression(), ctx));
-        auto error_maybe = var_decl->address()->store_variable(var_decl->type(), ctx, 0);
-        if (error_maybe.is_error()) {
-            ctx.add_error(error_maybe.error());
-            return error_maybe.error();
+        if (var_decl->type()->type() != PrimitiveType::Struct) {
+            auto error_maybe = var_decl->address()->store_variable(var_decl->type(), ctx, 0);
+            if (error_maybe.is_error()) {
+                ctx.add_error(error_maybe.error());
+                return error_maybe.error();
+            }
         }
     } else {
         auto stack_address = std::dynamic_pointer_cast<StackVariableAddress>(var_decl->address());
@@ -554,7 +579,11 @@ ErrorOrNode output_arm64(std::shared_ptr<SyntaxNode> const& tree, Config const& 
 {
     auto processed = TRY(materialize_arm64(tree));
     if (config.cmdline_flag("show-tree"))
-        std::cout << "\n\nMaterialized:\n" << processed->to_xml() << "\n";
+        std::cout << "\n\nMaterialized:\n" 
+            << std::dynamic_pointer_cast<Compilation>(processed)->root_to_xml()
+            << "\n"
+            << processed->to_xml() 
+            << "\n";
     if (!config.compile)
         return processed;
 

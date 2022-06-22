@@ -4,8 +4,6 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
-#include "obelix/MaterializedSyntaxNode.h"
-#include "obelix/Type.h"
 #include <memory>
 #include <obelix/ARM64Context.h>
 
@@ -13,6 +11,7 @@ namespace Obelix {
 
 std::vector<std::shared_ptr<MaterializedFunctionDef>> ARM64Context::s_function_stack {};
 std::unordered_map<std::string, Assembly> ARM64Context::s_assemblies {};
+unsigned long ARM64Context::s_counter { 0 };
 
 ARM64Context::ARM64Context(ARM64Context& parent)
     : Context<int>(parent)
@@ -47,16 +46,7 @@ void ARM64Context::enter_function(std::shared_ptr<MaterializedFunctionDef> const
     assembly().add_directive(".global", func->name());
     assembly().add_label(func->name());
 
-    // Save fp and lr:
-    int depth = func->declaration()->stack_depth();
-    if (depth % 16) {
-        depth += (16 - (depth % 16));
-    }
-    assembly().add_instruction("stp", "fp,lr,[sp,#-{}]!", depth);
-
-    // Set fp to the current sp. Now a return is setting sp back to fp,
-    // and popping lr followed by ret.
-    assembly().add_instruction("mov", "fp,sp");
+    // fp, lr, and sp have been set be the calling function
 
     // Copy parameters from registers to their spot in the stack.
     // @improve Do this lazily, i.e. when we need the registers
@@ -73,11 +63,24 @@ void ARM64Context::enter_function(std::shared_ptr<MaterializedFunctionDef> const
                         assembly().add_instruction("str", "x9,[fp,#{}]", std::dynamic_pointer_cast<StackVariableAddress>(param->address())->offset());
                         break;
                 }
+                break;
             case PrimitiveType::Struct:
+                switch (param->method()) {
+                    case MaterializedFunctionParameter::ParameterPassingMethod::Register:
+                        assembly().add_instruction("str", "x{},[fp,#{}]", param->where(), std::dynamic_pointer_cast<StackVariableAddress>(param->address())->offset());
+                        return;
+                    case MaterializedFunctionParameter::ParameterPassingMethod::Stack:
+                        break;
+                }
+                // Fall through:
             default:
-                fatal("Not yet implemented in {}", __func__);
+                fatal("Type '{}' not yet implemented in {}", param->type(), __func__);
         }
     }
+    assembly().add_instruction("stp", "fp,lr,[sp,#-16]!");
+    assembly().add_instruction("mov", "fp,sp");
+    if (func->stack_depth())
+        assembly().add_instruction("sub", "sp,sp,#{}", func->stack_depth());
 }
 
 void ARM64Context::function_return() const
@@ -92,11 +95,8 @@ void ARM64Context::leave_function() const
     assert(!s_function_stack.empty());
     auto func_def = s_function_stack.back();
     assembly().add_label(format("__{}_return", func_def->name()));
-    int depth = func_def->declaration()->stack_depth();
-    if (depth % 16) {
-        depth += (16 - (depth % 16));
-    }
-    assembly().add_instruction("ldp", "fp,lr,[sp],#{}", depth);
+    assembly().add_instruction("mov", "sp,fp");
+    assembly().add_instruction("ldp", "fp,lr,[sp],16");
     assembly().add_instruction("ret");
     s_function_stack.pop_back();
 }
