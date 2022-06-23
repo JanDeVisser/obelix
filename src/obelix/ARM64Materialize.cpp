@@ -116,8 +116,8 @@ ParameterMaterializations make_materialized_parameters(std::shared_ptr<BoundFunc
                     break;
                 }
                 method = MaterializedFunctionParameter::ParameterPassingMethod::Stack;
-                where = ret.nsaa;
                 ret.nsaa += 8;
+                where = ret.nsaa;
                 break;
             case PrimitiveType::Struct: {
                 auto size_in_double_words = parameter->type()->size() / 8;
@@ -130,8 +130,8 @@ ParameterMaterializations make_materialized_parameters(std::shared_ptr<BoundFunc
                     break;
                 }
                 method = MaterializedFunctionParameter::ParameterPassingMethod::Stack;
-                where = ret.nsaa;
                 ret.nsaa += parameter->type()->size();
+                where = ret.nsaa;
                 break;
             }
             default:

@@ -124,8 +124,8 @@ ErrorOr<void, SyntaxError> evaluate_arguments(ARM64Context& ctx, std::shared_ptr
 {
     int nsaa = decl->nsaa();
     if (nsaa > 0) {
-        ctx.assembly().add_instruction("stp", "fp,lr,[sp,#-16]!");
-        ctx.assembly().add_instruction("mov", "fp,sp");
+        push(ctx, "x10");
+        ctx.assembly().add_instruction("mov", "x10,sp");
         ctx.assembly().add_instruction("sub", "sp,sp,#{}", nsaa);
     }
     auto param_defs = decl->parameters();
@@ -203,15 +203,20 @@ ErrorOr<void, SyntaxError> evaluate_arguments(ARM64Context& ctx, std::shared_ptr
     return {};
 }
 
+void reset_sp_after_call(ARM64Context& ctx, std::shared_ptr<MaterializedFunctionDecl> const& decl)
+{
+    if (decl->nsaa() > 0) {
+        ctx.assembly().add_instruction("mov", "sp,x10");
+        pop(ctx, "x10");
+    }
+}
+
 NODE_PROCESSOR(MaterializedFunctionCall)
 {
     auto call = std::dynamic_pointer_cast<MaterializedFunctionCall>(tree);
     TRY_RETURN(evaluate_arguments(ctx, call->declaration(), call->arguments()));
     ctx.assembly().add_instruction("bl", call->name());
-    if (call->declaration()->nsaa() > 0) {
-        ctx.assembly().add_instruction("add", "sp,fp,16");
-        ctx.assembly().add_instruction("ldp", "fp,lr,[sp]");
-    }
+    reset_sp_after_call(ctx, call->declaration());
     return tree;
 }
 
@@ -221,10 +226,7 @@ NODE_PROCESSOR(MaterializedNativeFunctionCall)
     auto func_decl = std::dynamic_pointer_cast<MaterializedNativeFunctionDecl>(native_func_call->declaration());
     TRY_RETURN(evaluate_arguments(ctx, func_decl, native_func_call->arguments()));
     ctx.assembly().add_instruction("bl", func_decl->native_function_name());
-    if (func_decl->nsaa() > 0) {
-        ctx.assembly().add_instruction("add", "sp,fp,16");
-        ctx.assembly().add_instruction("ldp", "fp,lr,[sp]");
-    }
+    reset_sp_after_call(ctx, func_decl);
     return tree;
 }
 
@@ -239,10 +241,7 @@ NODE_PROCESSOR(MaterializedIntrinsicCall)
     auto ret = impl(ctx);
     if (ret.is_error())
         return ret.error();
-    if (call->declaration()->nsaa() > 0) {
-        ctx.assembly().add_instruction("add", "sp,fp,16");
-        ctx.assembly().add_instruction("ldp", "fp,lr,[sp]");
-    }
+    reset_sp_after_call(ctx, call->declaration());
     return tree;
 }
 
