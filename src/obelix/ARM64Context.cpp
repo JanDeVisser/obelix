@@ -50,25 +50,37 @@ void ARM64Context::enter_function(std::shared_ptr<MaterializedFunctionDef> const
 
     // Copy parameters from registers to their spot in the stack.
     // @improve Do this lazily, i.e. when we need the registers
+    if (func->declaration()->nsaa())
+        assembly().add_instruction("mov", "x10,fp");
+    assembly().add_instruction("stp", "fp,lr,[sp,#-16]!");
+    assembly().add_instruction("mov", "fp,sp");
     for (auto& param : func->declaration()->parameters()) {
         switch (param->type()->type()) {
             case PrimitiveType::IntegerNumber:
             case PrimitiveType::SignedIntegerNumber:
                 switch (param->method()) {
                     case MaterializedFunctionParameter::ParameterPassingMethod::Register:
-                        assembly().add_instruction("str", "x{},[fp,#{}]", param->where(), std::dynamic_pointer_cast<StackVariableAddress>(param->address())->offset());
+                        assembly().add_instruction("str", "x{},[fp,#-{}]", param->where(), std::dynamic_pointer_cast<StackVariableAddress>(param->address())->offset());
                         break;
                     case MaterializedFunctionParameter::ParameterPassingMethod::Stack:
-                        assembly().add_instruction("ldr", "x9,[fp,#{}]", param->where() - (func->declaration()->nsaa()+16));
-                        assembly().add_instruction("str", "x9,[fp,#{}]", std::dynamic_pointer_cast<StackVariableAddress>(param->address())->offset());
+                        assembly().add_instruction("ldr", "x9,[x10,#{}]", param->where());
+                        assembly().add_instruction("str", "x9,[fp,#-{}]", std::dynamic_pointer_cast<StackVariableAddress>(param->address())->offset());
                         break;
                 }
                 break;
             case PrimitiveType::Struct:
                 switch (param->method()) {
-                    case MaterializedFunctionParameter::ParameterPassingMethod::Register:
-                        assembly().add_instruction("str", "x{},[fp,#{}]", param->where(), std::dynamic_pointer_cast<StackVariableAddress>(param->address())->offset());
-                        return;
+                    case MaterializedFunctionParameter::ParameterPassingMethod::Register: {
+                        int reg = param->where();
+                        for (auto const& field : param->type()->fields()) {
+                            std::string width = "w";
+                            if (field.type->size() == 8)
+                                width = "x";
+                            assembly().add_instruction("str", "{}{},[fp,#-{}]", width, reg++,
+                                std::dynamic_pointer_cast<StackVariableAddress>(param->address())->offset() + param->type()->offset_of(field.name));
+                        }
+                        break;
+                    }
                     case MaterializedFunctionParameter::ParameterPassingMethod::Stack:
                         break;
                 }
@@ -77,8 +89,6 @@ void ARM64Context::enter_function(std::shared_ptr<MaterializedFunctionDef> const
                 fatal("Type '{}' not yet implemented in {}", param->type(), __func__);
         }
     }
-    assembly().add_instruction("stp", "fp,lr,[sp,#-16]!");
-    assembly().add_instruction("mov", "fp,sp");
     if (func->stack_depth())
         assembly().add_instruction("sub", "sp,sp,#{}", func->stack_depth());
 }

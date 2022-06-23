@@ -210,11 +210,12 @@ using MaterializedFunctionParameters = std::vector<std::shared_ptr<MaterializedF
 
 class MaterializedFunctionDecl : public Statement {
 public:
-    explicit MaterializedFunctionDecl(std::shared_ptr<BoundFunctionDecl> const& decl, MaterializedFunctionParameters parameters, int nsaa)
+    explicit MaterializedFunctionDecl(std::shared_ptr<BoundFunctionDecl> const& decl, MaterializedFunctionParameters parameters, int nsaa, int stack_depth)
         : Statement(decl->token())
         , m_identifier(decl->identifier())
         , m_parameters(move(parameters))
         , m_nsaa(nsaa)
+        , m_stack_depth(stack_depth)
     {
         if (m_nsaa % 16)
             m_nsaa += 16 - (m_nsaa % 16);
@@ -226,6 +227,7 @@ public:
     [[nodiscard]] std::shared_ptr<ObjectType> type() const { return identifier()->type(); }
     [[nodiscard]] MaterializedFunctionParameters const& parameters() const { return m_parameters; }
     [[nodiscard]] int nsaa() const { return m_nsaa; }
+    [[nodiscard]] int stack_depth() const { return m_stack_depth; }
 
     [[nodiscard]] std::string attributes() const override
     {
@@ -264,12 +266,13 @@ private:
     std::shared_ptr<BoundIdentifier> m_identifier;
     MaterializedFunctionParameters m_parameters;
     int m_nsaa;
+    int m_stack_depth;
 };
 
 class MaterializedNativeFunctionDecl : public MaterializedFunctionDecl {
 public:
     explicit MaterializedNativeFunctionDecl(std::shared_ptr<BoundNativeFunctionDecl> const& func_decl, MaterializedFunctionParameters parameters, int nsaa)
-        : MaterializedFunctionDecl(func_decl, parameters, nsaa)
+        : MaterializedFunctionDecl(func_decl, parameters, nsaa, 0)
         , m_native_function_name(func_decl->native_function_name())
     {
     }
@@ -288,7 +291,7 @@ private:
 class MaterializedIntrinsicDecl : public MaterializedFunctionDecl {
 public:
     explicit MaterializedIntrinsicDecl(std::shared_ptr<BoundIntrinsicDecl> const& decl, MaterializedFunctionParameters parameters, int nsaa)
-        : MaterializedFunctionDecl(decl, parameters, nsaa)
+        : MaterializedFunctionDecl(decl, parameters, nsaa, 0)
     {
     }
 

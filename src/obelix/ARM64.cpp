@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
+#include "obelix/Type.h"
 #include <filesystem>
 #include <memory>
 #include <optional>
@@ -130,6 +131,13 @@ ErrorOr<void, SyntaxError> evaluate_arguments(ARM64Context& ctx, std::shared_ptr
     auto param_defs = decl->parameters();
     int param_ix = 0;
     for (auto const& arg : arguments) {
+        auto sz = arg->type()->size();
+        if (arg->type()->type() == PrimitiveType::Struct) {
+            if (sz % 16)
+                sz = ((sz/16)+1)*16;
+            ctx.assembly().add_instruction("sub", "sp,sp,#{}", sz);
+            ctx.assembly().add_instruction("mov", "x8,sp");
+        }
         TRY_RETURN(process(arg, ctx));
         auto type = param_defs[param_ix]->type();
         auto t = type->type();
@@ -144,12 +152,16 @@ ErrorOr<void, SyntaxError> evaluate_arguments(ARM64Context& ctx, std::shared_ptr
                         push(ctx, "x0");
                         break;
                     case PrimitiveType::Struct: {
+                        int reg = 0;
                         for (auto const& field : param_defs[param_ix]->type()->fields()) {
                             std::string width = "w";
                             if (field.type->size() == 8)
                                 width = "x";
-                            ctx.assembly().add_instruction("ldr", "{}9,[x0,#{}]", width, type->offset_of(field.name));
-                            push(ctx, "x9");
+                            ctx.assembly().add_instruction("ldr", "{}{},[x8,#{}]", width, reg++, type->offset_of(field.name));
+                        }
+                        ctx.assembly().add_instruction("add", "sp,sp,#{}", sz);
+                        for (auto r = 0u; r < reg; ++r) {
+                            push(ctx, format("x{}", r));
                         }
                         break;
                     }
@@ -514,7 +526,14 @@ NODE_PROCESSOR(BoundExpressionStatement)
     auto expr_stmt = std::dynamic_pointer_cast<BoundExpressionStatement>(tree);
     debug(parser, "{}", expr_stmt->to_string());
     ctx.assembly().add_comment(expr_stmt->to_string());
+    if (expr_stmt->expression()->type()->type() == PrimitiveType::Struct) {
+        ctx.assembly().add_instruction("sub", "sp,sp,#{}", expr_stmt->expression()->type()->size());
+        ctx.assembly().add_instruction("mov", "x8,sp");
+    }
     TRY_RETURN(process(expr_stmt->expression(), ctx));
+    if (expr_stmt->expression()->type()->type() == PrimitiveType::Struct) {
+        ctx.assembly().add_instruction("add", "sp,sp,#{}", expr_stmt->expression()->type()->size());
+    }
     return tree;
 }
 

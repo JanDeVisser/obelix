@@ -1,0 +1,11 @@
+func f(p1: s32, p2: s32) : s32
+{
+    return p1 + p2;
+}
+
+func main() : s32
+{
+    puti(f(1,2));
+    putln("");
+    return 0;
+}

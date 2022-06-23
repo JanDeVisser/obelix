@@ -92,7 +92,7 @@ INIT_NODE_PROCESSOR(MaterializeContext);
 
 struct ParameterMaterializations {
     MaterializedFunctionParameters function_parameters;
-    int offset { 16};
+    int offset { 0 };
     int ngrn { 0 };
     int nsaa { 0 };
 };
@@ -138,11 +138,11 @@ ParameterMaterializations make_materialized_parameters(std::shared_ptr<BoundFunc
                 fatal("Type '{}' Not yet implemented in make_materialized_parameters", parameter->type());
         }
     
-        auto materialized_parameter = make_node<MaterializedFunctionParameter>(parameter, std::make_shared<StackVariableAddress>(ret.offset), method, where);
-        ret.function_parameters.push_back(materialized_parameter);
         ret.offset += parameter->type()->size();
         if (ret.offset % 16)
             ret.offset += 16 - (ret.offset % 16);
+        auto materialized_parameter = make_node<MaterializedFunctionParameter>(parameter, std::make_shared<StackVariableAddress>(ret.offset), method, where);
+        ret.function_parameters.push_back(materialized_parameter);
     }
     return ret;
 }
@@ -152,7 +152,7 @@ NODE_PROCESSOR(BoundFunctionDecl)
     auto func_decl = std::dynamic_pointer_cast<BoundFunctionDecl>(tree);
     auto materialized_parameters = make_materialized_parameters(func_decl);
     auto ret = make_node<MaterializedFunctionDecl>(func_decl, 
-        materialized_parameters.function_parameters, materialized_parameters.nsaa);
+        materialized_parameters.function_parameters, materialized_parameters.nsaa, materialized_parameters.offset);
     ctx.declare(func_decl->name(), ret);
     ctx.add_declared_function(func_decl->name(), ret);
     return ret;
@@ -184,18 +184,16 @@ NODE_PROCESSOR(BoundFunctionDef)
 {
     auto func_def = std::dynamic_pointer_cast<BoundFunctionDef>(tree);
     auto func_decl = TRY_AND_CAST(MaterializedFunctionDecl, process(func_def->declaration(), ctx));
-    std::shared_ptr<MaterializedFunctionDef> ret;
 
     MaterializeContext func_ctx(ctx);
-    func_ctx.offset = 0;
+    func_ctx.offset = func_decl->stack_depth();
     for (auto const& param : func_decl->parameters()) {
         func_ctx.declare(param->name(), param);
     }
     std::shared_ptr<Block> block;
     assert(func_def->statement()->node_type() == SyntaxNodeType::FunctionBlock);
     block = TRY_AND_CAST(FunctionBlock, process(func_def->statement(), func_ctx));
-    ret = make_node<MaterializedFunctionDef>(func_def, func_decl, block, func_ctx.offset);
-    return ret;
+    return make_node<MaterializedFunctionDef>(func_def, func_decl, block, func_ctx.offset);
 }
 
 NODE_PROCESSOR(FunctionBlock)
