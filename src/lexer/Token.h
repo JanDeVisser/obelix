@@ -289,7 +289,7 @@ template <>
 inline double token_value(Token const& token)
 {
     assert(token.code() == TokenCode::Float || token.code() == TokenCode::Integer || token.code() == TokenCode::HexNumber);
-    return to_long_unconditional(token.value());
+    return to_double_unconditional(token.value());
 }
 
 template <>
