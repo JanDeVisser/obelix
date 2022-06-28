@@ -8,6 +8,7 @@
 // Created by Jan de Visser on 2021-10-05.
 //
 
+#include "lexer/Token.h"
 #include <lexer/Tokenizer.h>
 
 namespace Obelix {
@@ -36,7 +37,7 @@ TokenCode NumberScanner::process(Tokenizer& tokenizer, int ch)
         } else if (isdigit(ch)) {
             m_state = NumberScannerState::Number;
         } else if (m_config.fractions && (ch == '.')) {
-            m_state = NumberScannerState::Period;
+            m_state = NumberScannerState::LeadingPeriod;
         } else if (m_config.dollar_hex && (ch == '$')) {
             m_state = NumberScannerState::HexIntegerStart;
         } else {
@@ -58,14 +59,24 @@ TokenCode NumberScanner::process(Tokenizer& tokenizer, int ch)
         }
         break;
 
+    case NumberScannerState::LeadingPeriod:
+        if (isdigit(ch)) {
+            m_state = NumberScannerState::Float;
+        } else {
+            m_state = NumberScannerState::Done;
+            code = TokenCode::Unknown;
+        }
+        break;
+
     case NumberScannerState::Period:
         if (isdigit(ch)) {
             m_state = NumberScannerState::Float;
         } else if (m_config.scientific && (ch == 'e') && (tokenizer.token().length() > 1)) {
             m_state = NumberScannerState::SciFloat;
         } else {
+            tokenizer.partial_rewind(1);
             m_state = NumberScannerState::Done;
-            code = TokenCode::Unknown;
+            code = TokenCode::Integer;
         }
         break;
 
@@ -84,7 +95,7 @@ TokenCode NumberScanner::process(Tokenizer& tokenizer, int ch)
             tokenizer.chop();
             m_state = NumberScannerState::Number;
         } else if (m_config.fractions && (ch == '.')) {
-            m_state = NumberScannerState::Float;
+            m_state = NumberScannerState::Period;
         } else if (m_config.hex && (ch == 'x')) {
             /*
              * Hexadecimals are returned including the leading

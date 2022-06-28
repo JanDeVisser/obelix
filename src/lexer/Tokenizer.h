@@ -331,6 +331,7 @@ private:
     S(PlusMinus)                           \
     S(Zero)                                \
     S(Number)                              \
+    S(LeadingPeriod)                       \
     S(Period)                              \
     S(Float)                               \
     S(SciFloat)                            \
