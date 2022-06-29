@@ -230,8 +230,8 @@ std::vector<std::shared_ptr<ObjectType>> ObjectType::s_template_specializations 
 [[maybe_unused]] auto s_boolean = ObjectType::register_type(PrimitiveType::Boolean,
     [](std::shared_ptr<ObjectType> type) {
         type->add_method(MethodDescription { Operator::LogicalInvert, PrimitiveType::Self, IntrinsicType::invert_bool });
-        type->add_method(MethodDescription { Operator::LogicalAnd, PrimitiveType::Self, IntrinsicType::and_bool_bool, { {  "other", PrimitiveType::Self }  } });
-        type->add_method(MethodDescription { Operator::LogicalOr, PrimitiveType::Self, IntrinsicType::or_bool_bool, { {  "other", PrimitiveType::Self }  } });
+        type->add_method(MethodDescription { Operator::LogicalAnd, PrimitiveType::Self, IntrinsicType::and_bool_bool, { {  "other", PrimitiveType::Boolean }  } });
+        type->add_method(MethodDescription { Operator::LogicalOr, PrimitiveType::Self, IntrinsicType::or_bool_bool, { {  "other", PrimitiveType::Boolean }  } });
         type->has_size(1);
     });
 
