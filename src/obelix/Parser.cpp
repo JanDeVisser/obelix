@@ -799,10 +799,9 @@ std::shared_ptr<Expression> Parser::parse_primary_expression()
     case KeywordFalse:
         return make_node<BooleanLiteral>(t);
     case TokenCode::Identifier: {
-        auto identifier = make_node<Identifier>(t, t.value());
         if (current_code() != TokenCode::OpenParen)
-            return identifier;
-        return parse_function_call(identifier);
+            return make_node<Variable>(t, t.value());
+        return parse_function_call(make_node<Identifier>(t, t.value()));
     }
     default:
         add_error(t, format("Syntax Error: Expected literal or variable, got '{}' ({})", t.value(), t.code_name()));

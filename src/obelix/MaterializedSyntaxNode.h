@@ -231,7 +231,7 @@ public:
 
     [[nodiscard]] std::string attributes() const override
     {
-        return format(R"(name="{}" return_type="{}" nsaa="{}")", name(), type(), nsaa());
+        return format(R"(name="{}" return_type="{}" nsaa="{}" stack_depth="{}")", name(), type(), nsaa(), stack_depth());
     }
 
     [[nodiscard]] Nodes children() const override
@@ -245,7 +245,7 @@ public:
 
     [[nodiscard]] std::string to_string() const override
     {
-        return format("func {}({}): {} [{}/{}]", name(), parameters_to_string(), type(), nsaa());
+        return format("func {}({}): {} [{}/{}]", name(), parameters_to_string(), type(), nsaa(), stack_depth());
     }
 
 protected:

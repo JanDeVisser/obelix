@@ -251,14 +251,24 @@ public:
 
     [[nodiscard]] SyntaxNodeType node_type() const override { return SyntaxNodeType::Identifier; }
     [[nodiscard]] std::string const& name() const { return m_identifier; }
-    [[nodiscard]] std::string attributes() const override { return format(R"(name="{}" type="{}")", name(), type_name()); }
-    [[nodiscard]] std::string to_string() const override { return format("{}: {}", name(), type_name()); }
+    [[nodiscard]] std::string attributes() const override { return format(R"(name="{}" type="{}")", name(), type()); }
+    [[nodiscard]] std::string to_string() const override { return format("{}: {}", name(), type()); }
 
 private:
     std::string m_identifier;
 };
 
 using Identifiers = std::vector<std::shared_ptr<Identifier>>;
+
+class Variable : public Identifier {
+public:
+    explicit Variable(Token token, std::string name, std::shared_ptr<ExpressionType> type = nullptr)
+        : Identifier(std::move(token), move(name), move(type))
+    {
+    }
+
+    [[nodiscard]] SyntaxNodeType node_type() const override { return SyntaxNodeType::Variable; }
+};
 
 class Import : public Statement {
 public:

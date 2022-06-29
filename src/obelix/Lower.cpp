@@ -143,14 +143,14 @@ NODE_PROCESSOR(BoundForStatement)
     if (for_stmt->must_declare_variable()) {
         for_block.push_back(
             make_node<BoundVariableDeclaration>(for_stmt->token(),
-                make_node<BoundIdentifier>(for_stmt->token(), for_stmt->variable(), variable_type),
+                make_node<BoundVariable>(for_stmt->token(), for_stmt->variable(), variable_type),
                 false,
                 range_binary_expr->lhs()));
     } else {
         for_block.push_back(
             make_node<BoundExpressionStatement>(for_stmt->token(),
                 make_node<BoundAssignment>(for_stmt->token(),
-                    make_node<BoundIdentifier>(for_stmt->token(), for_stmt->variable(), variable_type),
+                    make_node<BoundVariable>(for_stmt->token(), for_stmt->variable(), variable_type),
                     range_binary_expr->lhs())));
     }
     auto jump_past_loop = make_node<Goto>();
@@ -160,7 +160,7 @@ NODE_PROCESSOR(BoundForStatement)
     BoundBranches branches {
         make_node<BoundBranch>(for_stmt->token(),
             make_node<BoundBinaryExpression>(for_stmt->token(),
-                make_node<BoundIdentifier>(for_stmt->token(), for_stmt->variable(), variable_type),
+                make_node<BoundVariable>(for_stmt->token(), for_stmt->variable(), variable_type),
                 BinaryOperator::GreaterEquals,
                 range_binary_expr->rhs(),
                 ObjectType::get(PrimitiveType::Boolean)),
@@ -171,7 +171,7 @@ NODE_PROCESSOR(BoundForStatement)
     for_block.push_back(
         make_node<BoundExpressionStatement>(range_binary_expr->token(),
             make_node<BoundUnaryExpression>(range_binary_expr->token(),
-                make_node<BoundIdentifier>(range_binary_expr->token(),
+                make_node<BoundVariable>(range_binary_expr->token(),
                     for_stmt->variable(), variable_type),
                 UnaryOperator::UnaryIncrement,
                 variable_type)));

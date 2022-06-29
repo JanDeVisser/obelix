@@ -391,17 +391,17 @@ NODE_PROCESSOR(UnaryExpression)
     return make_node<BoundUnaryExpression>(expr, operand, op, return_type.value());
 }
 
-NODE_PROCESSOR(Identifier)
+NODE_PROCESSOR(Variable)
 {
-    auto ident = std::dynamic_pointer_cast<Identifier>(tree);
-    auto type_decl_maybe = ctx.get(ident->name());
+    auto variable = std::dynamic_pointer_cast<Variable>(tree);
+    auto type_decl_maybe = ctx.get(variable->name());
     if (!type_decl_maybe.has_value())
         return tree;
     auto type_decl = std::dynamic_pointer_cast<BoundVariableDeclaration>(type_decl_maybe.value());
     if (type_decl == nullptr)
-        return SyntaxError { ErrorCode::SyntaxError, ident->token(), format("Function {} cannot be referenced as a variable", ident->name()) };
+        return SyntaxError { ErrorCode::SyntaxError, variable->token(), format("Function {} cannot be referenced as a variable", variable->name()) };
     auto var_decl = std::dynamic_pointer_cast<BoundVariableDeclaration>(type_decl);
-    return make_node<BoundIdentifier>(ident, var_decl->type());
+    return make_node<BoundVariable>(variable, var_decl->type());
 }
 
 NODE_PROCESSOR(IntLiteral)

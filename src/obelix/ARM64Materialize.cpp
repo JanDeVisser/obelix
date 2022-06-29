@@ -19,7 +19,57 @@ namespace Obelix {
 class MaterializeContext : public Context<std::shared_ptr<SyntaxNode>>
 {
 public:
-    int offset { 0 };
+    enum class ContextLevel {
+        Global,
+        Function,
+        Block,
+    };
+
+    MaterializeContext()
+        : Context()
+        , m_level(ContextLevel::Global)
+    {
+    }
+
+    MaterializeContext(ContextLevel level)
+        : Context()
+        , m_level(level)
+    {
+    }
+
+    MaterializeContext(MaterializeContext& parent)
+        : Context(dynamic_cast<Context&>(parent))
+    {
+    }
+
+    MaterializeContext(MaterializeContext& parent, int offset)
+        : Context(dynamic_cast<Context&>(parent))
+        , m_offset(offset)
+        , m_level(ContextLevel::Function)
+    {
+    }
+
+    [[nodiscard]] int offset() const
+    {
+        if (level() == ContextLevel::Block) {
+            return dynamic_cast<MaterializeContext*>(parent())->offset();
+        }
+        return m_offset;
+    };
+
+    void increase_offset(int increment)
+    {
+        if (level() == ContextLevel::Block) {
+            dynamic_cast<MaterializeContext*>(parent())->increase_offset(increment);
+            return;
+        }
+        if (increment % 16)
+            increment += 16 - (increment % 16);
+        m_offset += increment;;
+    };
+
+    [[nodiscard]] ContextLevel level() const { return m_level; }
+
     void add_unresolved_function(std::shared_ptr<FunctionCall> func_call)
     {
         if (parent() != nullptr) {
@@ -83,9 +133,10 @@ public:
     }
 
 private:
+    int m_offset { 0 };
+    ContextLevel m_level { ContextLevel::Block };
     std::vector<std::shared_ptr<FunctionCall>> m_unresolved_functions;
     std::unordered_map<std::string, std::shared_ptr<MaterializedFunctionDecl>> m_declared_functions;
-
 };
 
 INIT_NODE_PROCESSOR(MaterializeContext);
@@ -107,6 +158,7 @@ ParameterMaterializations make_materialized_parameters(std::shared_ptr<BoundFunc
         if (primitive_type == PrimitiveType::Compatible)
             primitive_type = func_decl->parameter_types()[0]->type();
         switch (primitive_type) {
+            case PrimitiveType::Boolean:
             case PrimitiveType::IntegerNumber:
             case PrimitiveType::SignedIntegerNumber:
             case PrimitiveType::Pointer:
@@ -185,15 +237,14 @@ NODE_PROCESSOR(BoundFunctionDef)
     auto func_def = std::dynamic_pointer_cast<BoundFunctionDef>(tree);
     auto func_decl = TRY_AND_CAST(MaterializedFunctionDecl, process(func_def->declaration(), ctx));
 
-    MaterializeContext func_ctx(ctx);
-    func_ctx.offset = func_decl->stack_depth();
+    MaterializeContext func_ctx(ctx, func_decl->stack_depth());
     for (auto const& param : func_decl->parameters()) {
         func_ctx.declare(param->name(), param);
     }
     std::shared_ptr<Block> block;
     assert(func_def->statement()->node_type() == SyntaxNodeType::FunctionBlock);
     block = TRY_AND_CAST(FunctionBlock, process(func_def->statement(), func_ctx));
-    return make_node<MaterializedFunctionDef>(func_def, func_decl, block, func_ctx.offset);
+    return make_node<MaterializedFunctionDef>(func_def, func_decl, block, func_ctx.offset());
 }
 
 NODE_PROCESSOR(FunctionBlock)
@@ -210,14 +261,10 @@ NODE_PROCESSOR(FunctionBlock)
 NODE_PROCESSOR(BoundVariableDeclaration)
 {
     auto var_decl = std::dynamic_pointer_cast<BoundVariableDeclaration>(tree);
-    auto offset = ctx.offset;
     auto expression = TRY_AND_CAST(BoundExpression, process(var_decl->expression(), ctx));
-    offset += var_decl->type()->size();
-    if (offset % 16)
-        offset += 16 - (offset % 16);
-    auto ret = make_node<MaterializedVariableDecl>(var_decl, std::make_shared<StackVariableAddress>(offset), expression);
+    ctx.increase_offset(var_decl->type()->size());
+    auto ret = make_node<MaterializedVariableDecl>(var_decl, std::make_shared<StackVariableAddress>(ctx.offset()), expression);
     ctx.declare(var_decl->name(), ret);
-    ctx.offset = offset;
     return ret;
 }
 
@@ -365,6 +412,7 @@ NODE_PROCESSOR(BoundBinaryExpression)
 std::shared_ptr<MaterializedIdentifier> make_materialized_identifier(std::shared_ptr<BoundIdentifier> const& identifier, std::shared_ptr<VariableAddress> const& address)
 {
     switch (identifier->type()->type()) {
+    case PrimitiveType::Boolean:
     case PrimitiveType::IntegerNumber:
     case PrimitiveType::SignedIntegerNumber:
     case PrimitiveType::Pointer:
@@ -383,9 +431,9 @@ std::shared_ptr<MaterializedIdentifier> make_materialized_identifier(std::shared
     return make_materialized_identifier(identifier, decl->address());
 }
 
-NODE_PROCESSOR(BoundIdentifier)
+NODE_PROCESSOR(BoundVariable)
 {
-    auto identifier = std::dynamic_pointer_cast<BoundIdentifier>(tree);
+    auto identifier = std::dynamic_pointer_cast<BoundVariable>(tree);
     auto decl_maybe = ctx.get(identifier->name());
     if (!decl_maybe.has_value())
         return SyntaxError { ErrorCode::InternalError, identifier->token(), format("Undeclared variable '{}' during code generation", identifier->name()) };

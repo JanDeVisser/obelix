@@ -74,7 +74,7 @@ public:
 
 class BoundIdentifier : public BoundVariableAccess {
 public:
-    explicit BoundIdentifier(std::shared_ptr<Identifier> const& identifier, std::shared_ptr<ObjectType> type)
+    BoundIdentifier(std::shared_ptr<Identifier> const& identifier, std::shared_ptr<ObjectType> type)
         : BoundVariableAccess(identifier, move(type))
         , m_identifier(identifier->name())
     {
@@ -96,6 +96,21 @@ private:
 };
 
 using BoundIdentifiers = std::vector<std::shared_ptr<BoundIdentifier>>;
+
+class BoundVariable : public BoundIdentifier {
+public:
+    BoundVariable(std::shared_ptr<Variable> const& identifier, std::shared_ptr<ObjectType> type)
+        : BoundIdentifier(move(identifier), move(type))
+    {
+    }
+
+    BoundVariable(Token token, std::string name, std::shared_ptr<ObjectType> type)
+        : BoundIdentifier(std::move(token), move(name), move(type))
+    {
+    }
+
+    [[nodiscard]] SyntaxNodeType node_type() const override { return SyntaxNodeType::BoundVariable; }
+};
 
 class BoundMemberAccess : public BoundVariableAccess {
 public:

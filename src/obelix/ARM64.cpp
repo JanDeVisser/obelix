@@ -146,6 +146,7 @@ ErrorOr<void, SyntaxError> evaluate_arguments(ARM64Context& ctx, std::shared_ptr
         switch (param_defs[param_ix]->method()) {
             case MaterializedFunctionParameter::ParameterPassingMethod::Register:
                 switch (t) {
+                    case PrimitiveType::Boolean:
                     case PrimitiveType::IntegerNumber:
                     case PrimitiveType::SignedIntegerNumber:
                     case PrimitiveType::Pointer:
@@ -576,7 +577,7 @@ NODE_PROCESSOR(BoundIfStatement)
         if (branch->condition()) {
             debug(parser, "if ({})", branch->condition()->to_string());
             ctx.assembly().add_comment(format("if ({})", branch->condition()->to_string()));
-            auto cond = TRY_AND_CAST(Expression, process(branch->condition(), ctx));
+            auto cond = TRY_AND_CAST(BoundExpression, process(branch->condition(), ctx));
             ctx.assembly().add_instruction("cmp", "w0,0x00");
             ctx.assembly().add_instruction("b.eq", "lbl_{}", else_label);
         } else {

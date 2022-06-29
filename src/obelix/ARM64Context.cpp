@@ -43,7 +43,7 @@ void ARM64Context::enter_function(std::shared_ptr<MaterializedFunctionDef> const
 {
     s_function_stack.push_back(func);
     auto decl = func->declaration();
-    assembly().add_comment(format("{} nsaa {} stack depth {}", decl->to_string(), decl->nsaa(), decl->stack_depth()));
+    assembly().add_comment(format("{} nsaa {} stack depth {}", decl->to_string(), decl->nsaa(), func->stack_depth()));
     assembly().add_directive(".global", func->name());
     assembly().add_label(func->name());
 

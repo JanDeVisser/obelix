@@ -30,6 +30,7 @@ namespace Obelix {
     S(StructLiteral)                    \
     S(ArrayLiteral)                     \
     S(Identifier)                       \
+    S(Variable)                         \
     S(This)                             \
     S(BinaryExpression)                 \
     S(UnaryExpression)                  \
@@ -78,6 +79,7 @@ namespace Obelix {
     S(StatementExecutionResult)         \
     S(BoundExpression)                  \
     S(BoundIdentifier)                  \
+    S(BoundVariable)                    \
     S(BoundMemberAccess)                \
     S(BoundArrayAccess)                 \
     S(BoundIntLiteral)                  \

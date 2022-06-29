@@ -42,7 +42,7 @@ public:
             parent->m_children.push_back(this);
     }
 
-    Context(Context<T>& parent)
+    explicit Context(Context<T>& parent)
         : m_parent(&parent)
     {
         parent.m_children.push_back(this);
