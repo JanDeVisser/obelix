@@ -9,7 +9,6 @@
 //
 
 #include <core/Format.h>
-#include <core/Object.h>
 #include <core/StringUtil.h>
 
 namespace Obelix {
