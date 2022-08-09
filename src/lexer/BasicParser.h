@@ -46,6 +46,7 @@ public:
     Token const& lex();
     Token const& replace(Token);
     std::optional<Token const> match(TokenCode, char const* = nullptr);
+    std::optional<Token const> skip(TokenCode);
     bool expect(TokenCode, char const* = nullptr);
     bool expect(char const*, char const* = nullptr);
     void add_error(Token const&, std::string const&);
