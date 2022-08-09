@@ -6,7 +6,6 @@
 
 #include <core/Logging.h>
 #include <obelix/BoundSyntaxNode.h>
-#include <obelix/BoundFunction.h>
 #include <obelix/Parser.h>
 #include <obelix/Syntax.h>
 

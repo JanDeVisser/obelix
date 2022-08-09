@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include "core/Object.h"
+#include <cstdarg>
 #include <memory>
 #include <string>
 #include <vector>
@@ -1267,6 +1267,77 @@ private:
     std::shared_ptr<Expression> m_switch_expression;
     CaseStatements m_cases {};
     std::shared_ptr<DefaultCase> m_default {};
+};
+
+class EnumValue : public SyntaxNode {
+public:
+    EnumValue(Token token, std::string label, std::optional<long> value)
+        : SyntaxNode(std::move(token))
+        , m_value(move(value))
+        , m_label(move(label))
+    {
+    }
+
+    [[nodiscard]] SyntaxNodeType node_type() const override { return SyntaxNodeType::EnumValue; }
+    [[nodiscard]] std::optional<long> const& value() const { return m_value; }
+    [[nodiscard]] std::string const& label() const { return m_label; }
+    [[nodiscard]] std::string attributes() const override
+    {
+        if (value().has_value())
+            return format(R"(label="{}" value="{}")", label(), value().value());
+        return format(R"(label="{}")", label());
+    }
+
+    [[nodiscard]] std::string to_string() const override
+    {
+        if (value().has_value())
+            return format(R"({}: {})", label(), value().value());
+        return label();
+    }
+
+private:
+    std::optional<long> m_value;
+    std::string m_label;
+};
+
+using EnumValues = std::vector<std::shared_ptr<EnumValue>>;
+
+class EnumDef : public Statement {
+public:
+    explicit EnumDef(Token token, std::string name, EnumValues values)
+        : Statement(std::move(token))
+        , m_name(move(name))
+        , m_values(move(values))
+    {
+    }
+
+    [[nodiscard]] SyntaxNodeType node_type() const override { return SyntaxNodeType::EnumDef; }
+    [[nodiscard]] std::string const& name() const { return m_name; }
+    [[nodiscard]] EnumValues const& values() const { return m_values; }
+    [[nodiscard]] Nodes children() const override
+    {
+        Nodes ret;
+        for (auto const& value :  m_values) {
+            ret.push_back(value);
+        }
+        return ret;
+    }
+    [[nodiscard]] std::string attributes() const override { return format(R"(name="{}")", name());}
+
+    [[nodiscard]] std::string to_string() const override
+    {
+        auto ret = format("enum {} {{", name());
+        for (auto const& value :  m_values) {
+            ret += value->to_string();
+            ret += ", ";
+        }
+        ret += '}';
+        return ret;
+    }
+
+protected:
+    std::string m_name;
+    EnumValues m_values;
 };
 
 template<class T, class... Args>

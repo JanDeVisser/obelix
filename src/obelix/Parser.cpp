@@ -4,10 +4,14 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
+#include "lexer/Token.h"
+#include <memory>
 #include <obelix/BoundSyntaxNode.h>
 #include <obelix/Intrinsics.h>
 #include <obelix/Parser.h>
 #include <obelix/Syntax.h>
+#include <optional>
+#include <type_traits>
 
 namespace Obelix {
 
@@ -70,6 +74,7 @@ void Parser::initialize()
         Token(KeywordIntrinsic, "intrinsic"),
         Token(KeywordStruct, "struct"),
         Token(KeywordStatic, "static"),
+        Token(KeywordEnum, "enum"),
         TokenCode::BinaryIncrement,
         TokenCode::BinaryDecrement,
         TokenCode::UnaryIncrement,
@@ -156,6 +161,8 @@ std::shared_ptr<Statement> Parser::parse_top_level_statement()
     case KeywordFunc:
     case KeywordIntrinsic:
         return parse_function_definition(lex());
+    case KeywordEnum:
+        return parse_enum_definition(lex());
     case TokenCode::CloseBrace:
     case TokenCode::EndOfFile:
         return nullptr;
@@ -856,6 +863,40 @@ std::shared_ptr<ExpressionType> Parser::parse_type()
         }
     }
     return make_node<ExpressionType>(type_token, type_name);
+}
+
+std::shared_ptr<EnumDef> Parser::parse_enum_definition(Token const& enum_token)
+{
+    auto name_maybe = match(TokenCode::Identifier);
+    if (!name_maybe.has_value()) {
+        add_error(peek(), "Syntax Error: expecting enumeration name after the 'enum' keyword, got '{}'");
+        return nullptr;
+    }
+    auto name = name_maybe.value();
+    if (!expect(TokenCode::OpenBrace, "after enum name in definition")) {
+        return nullptr;
+    }
+    EnumValues values {};  
+    for (auto done = current_code() == TokenCode::CloseBrace; !done; done = current_code() == TokenCode::CloseBrace) {
+        auto value_label_maybe = match(TokenCode::Identifier);
+        if (!value_label_maybe.has_value()) {
+            return nullptr;
+        }
+        auto value_label = value_label_maybe.value();
+        std::optional<long> value_value {};
+        if (skip(TokenCode::Equals).has_value()) {
+            if (auto value_value_maybe = match(TokenCode::Integer); value_value_maybe.has_value()) {
+                value_value.emplace(value_value_maybe->to_long().value());
+            } else {
+                add_error(peek(), "Syntax Error: Expected enum value, got '{}'");
+                return nullptr;
+            }
+        }
+        skip(TokenCode::Comma);
+        values.push_back(make_node<EnumValue>(value_label, value_label.value(), value_value));
+    }
+    lex(); // Eat the closing brace
+    return make_node<EnumDef>(enum_token, name.value(), values);
 }
 
 }

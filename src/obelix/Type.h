@@ -15,6 +15,7 @@
 #include <string_view>
 #include <unordered_map>
 #include <unordered_set>
+#include <utility>
 #include <variant>
 #include <vector>
 
@@ -96,6 +97,7 @@ using ObjectTypes = std::vector<std::shared_ptr<ObjectType>>;
 
 struct MethodImpl {
     bool is_intrinsic { false };
+    bool is_pure { false };
     IntrinsicType intrinsic { IntrinsicType::NotIntrinsic };
     std::string native_function;
 };
@@ -112,10 +114,10 @@ using MethodParameters = std::vector<MethodParameter>;
 
 class MethodDescription {
 public:
-    MethodDescription(char const*, PrimitiveType, IntrinsicType = IntrinsicType::NotIntrinsic, MethodParameters = {});
-    MethodDescription(char const*, std::shared_ptr<ObjectType>, IntrinsicType = IntrinsicType::NotIntrinsic, MethodParameters = {});
-    MethodDescription(Operator, PrimitiveType, IntrinsicType = IntrinsicType::NotIntrinsic, MethodParameters = {});
-    MethodDescription(Operator, std::shared_ptr<ObjectType>, IntrinsicType = IntrinsicType::NotIntrinsic, MethodParameters = {});
+    MethodDescription(char const*, PrimitiveType, IntrinsicType = IntrinsicType::NotIntrinsic, MethodParameters = {}, bool pure = false);
+    MethodDescription(char const*, std::shared_ptr<ObjectType>, IntrinsicType = IntrinsicType::NotIntrinsic, MethodParameters = {}, bool pure = false);
+    MethodDescription(Operator, PrimitiveType, IntrinsicType = IntrinsicType::NotIntrinsic, MethodParameters = {}, bool pure = false);
+    MethodDescription(Operator, std::shared_ptr<ObjectType>, IntrinsicType = IntrinsicType::NotIntrinsic, MethodParameters = {}, bool pure = false);
 
     [[nodiscard]] std::string_view name() const
     {
@@ -132,9 +134,11 @@ public:
     void set_implementation(Architecture, IntrinsicType);
     void set_implementation(Architecture, std::string const&);
     [[nodiscard]] MethodImpl const& implementation(Architecture) const;
+    [[nodiscard]] MethodImpl const& implementation() const;
     [[nodiscard]] bool varargs() const { return m_varargs; }
     [[nodiscard]] MethodParameters const& parameters() const { return m_parameters; }
     [[nodiscard]] bool is_operator() const { return m_is_operator; }
+    [[nodiscard]] bool is_pure() const { return m_is_pure; }
     [[nodiscard]] std::shared_ptr<class BoundIntrinsicDecl> declaration() const;
     [[nodiscard]] std::shared_ptr<ObjectType> const& method_of() const { return m_method_of; }
 
@@ -151,10 +155,11 @@ private:
         Operator m_operator;
     };
     bool m_is_operator;
+    bool m_is_pure { false };
     std::shared_ptr<ObjectType> m_return_type;
     bool m_varargs { false };
     MethodParameters m_parameters {};
-    MethodImpl m_default_implementation { true, IntrinsicType::NotIntrinsic, "" };
+    MethodImpl m_default_implementation { true, false, IntrinsicType::NotIntrinsic, "" };
     std::unordered_map<Architecture,MethodImpl> m_implementations {};
     std::shared_ptr<ObjectType> m_method_of;
 };
@@ -178,14 +183,26 @@ enum class TemplateParameterType {
     String,
     Integer,
     Boolean,
+    NameValue,
+};
+
+enum class TemplateParameterMultiplicity {
+    Optional, /* 0-1 */
+    Required, /* 1 */
+    Multiple, /* 1- */
 };
 
 struct TemplateParameter {
     std::string name;
     TemplateParameterType type;
+    TemplateParameterMultiplicity multiplicity { TemplateParameterMultiplicity::Required };
 };
 
 using TemplateParameters = std::vector<TemplateParameter>;
+
+struct TemplateArgument;
+using TemplateArguments = std::vector<TemplateArgument>;
+using NVP = std::pair<std::string, long>;
 
 struct TemplateArgument {
     TemplateArgument(std::shared_ptr<ObjectType> type)
@@ -218,8 +235,29 @@ struct TemplateArgument {
     {
     }
 
+    TemplateArgument(std::string name, long value)
+        : parameter_type(TemplateParameterType::NameValue)
+        , value(std::make_pair(move(name), value))
+    {
+    }
+
+    TemplateArgument(NVP nvp)
+        : parameter_type(TemplateParameterType::NameValue)
+        , value(move(nvp))
+    {
+    }
+
+    TemplateArgument(TemplateArguments arguments)
+        : multiplicity(TemplateParameterMultiplicity::Multiple)
+        , value(move(arguments))
+    {
+        assert(!arguments.empty());
+        parameter_type = arguments.at(0).parameter_type;
+    }
+
     TemplateParameterType parameter_type;
-    std::variant<std::shared_ptr<ObjectType>, long, std::string, bool> value;
+    TemplateParameterMultiplicity multiplicity { TemplateParameterMultiplicity::Required };
+    std::variant<std::shared_ptr<ObjectType>, long, std::string, bool, NVP, TemplateArguments> value;
 
     [[nodiscard]] size_t hash() const;
     [[nodiscard]] std::string to_string() const;
@@ -249,6 +287,18 @@ struct TemplateArgument {
         return std::get<bool>(value);
     }
 
+    [[nodiscard]] NVP const& as_nvp() const
+    {
+        assert(std::holds_alternative<NVP>(value));
+        return std::get<NVP>(value);
+    }
+
+    [[nodiscard]] TemplateArguments const& as_arguments() const
+    {
+        assert(std::holds_alternative<TemplateArguments>(value));
+        return std::get<TemplateArguments>(value);
+    }
+
     template <typename ArgType>
     [[nodiscard]] ArgType const& get() const
     {
@@ -257,7 +307,31 @@ struct TemplateArgument {
     }
 };
 
-using TemplateArguments = std::vector<TemplateArgument>;
+template<typename T, typename... Args>
+TemplateArgument make_template_arguments(T arg, Args&&... args)
+{
+    TemplateArguments template_args;
+    return make_template_arguments(template_args, std::forward<Args>(args)...);
+}
+
+template<typename T, typename... Args>
+TemplateArgument make_template_arguments(TemplateArguments& template_args, T arg, Args&&... args)
+{
+    template_args.push_back(TemplateArgument(move(arg)));
+    return make_template_arguments(template_args, std::forward<Args>(args)...);
+}
+
+template<typename... Args>
+TemplateArgument make_template_arguments(TemplateArguments& template_args, TemplateArgument arg, Args&&... args)
+{
+    template_args.push_back(std::move(arg));
+    return make_template_arguments(template_args, std::forward<Args>(args)...);
+}
+
+inline TemplateArgument make_template_arguments(TemplateArguments& template_args)
+{
+    return TemplateArgument(template_args);
+}
 
 class ObjectType {
 public:

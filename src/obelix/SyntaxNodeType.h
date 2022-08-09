@@ -22,6 +22,8 @@ namespace Obelix {
     S(StringTemplateArgument)           \
     S(IntegerTemplateArgument)          \
     S(Expression)                       \
+    S(EnumValue)                        \
+    S(EnumDef)                          \
     S(IntLiteral)                       \
     S(CharLiteral)                      \
     S(FloatLiteral)                     \

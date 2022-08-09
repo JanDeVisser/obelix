@@ -70,6 +70,7 @@ public:
     constexpr static TokenCode KeywordIntrinsic = TokenCode::Keyword23;
     constexpr static TokenCode KeywordStruct = TokenCode::Keyword24;
     constexpr static TokenCode KeywordStatic = TokenCode::Keyword25;
+    constexpr static TokenCode KeywordEnum = TokenCode::Keyword26;
 
     Parser(Config const& parser_config, StringBuffer& src);
     Parser(Config const& parser_config, std::string const& file_name);
@@ -106,6 +107,7 @@ private:
     std::shared_ptr<Statement> parse_struct(Token const&);
     std::shared_ptr<Import> parse_import_statement(Token const&);
     std::shared_ptr<Expression> parse_expression();
+    std::shared_ptr<EnumDef> parse_enum_definition(Token const&);
 
     std::shared_ptr<Expression> parse_expression_1(std::shared_ptr<Expression> lhs, int min_precedence);
     std::shared_ptr<Expression> parse_postfix_unary_operator(std::shared_ptr<Expression> const& expression);
