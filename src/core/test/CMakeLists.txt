@@ -12,7 +12,6 @@ endif(${CMAKE_SYSTEM_NAME} STREQUAL "Linux")
 
 add_executable(
         CoreTest
-        Arguments.cpp
         CEscape.cpp
         Format.cpp
         Join.cpp
@@ -20,8 +19,6 @@ add_executable(
         Resolve.cpp
         Split.cpp
         Strip.cpp
-
-        Object.cpp
 )
 target_link_libraries(
         CoreTest
