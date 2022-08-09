@@ -533,5 +533,6 @@ ErrorOrNode process_node(std::shared_ptr<SyntaxNode> const& tree, Ctx& ctx)
 ErrorOrNode fold_constants(std::shared_ptr<SyntaxNode> const&);
 ErrorOrNode bind_types(std::shared_ptr<SyntaxNode> const&);
 ErrorOrNode lower(std::shared_ptr<SyntaxNode> const&);
+ErrorOrNode resolve_operators(std::shared_ptr<SyntaxNode> const&);
 
 }

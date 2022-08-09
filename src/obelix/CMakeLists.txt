@@ -16,10 +16,9 @@ add_executable(
         BindTypes.cpp
         Config.cpp
         FoldConstants.cpp
-        Functions.cpp
-        Interpreter.cpp
         Lower.cpp
         Parser.cpp
+        ResolveOperators.cpp
         Syntax.cpp
         Type.cpp
         BoundSyntaxNode.h
