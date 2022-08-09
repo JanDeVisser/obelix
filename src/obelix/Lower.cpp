@@ -236,7 +236,8 @@ NODE_PROCESSOR(BoundUnaryExpression)
 
 ErrorOrNode lower(std::shared_ptr<SyntaxNode> const& tree)
 {
-    return process<LowerContext>(tree);
+    auto lowered = TRY(process<LowerContext>(tree));
+    return resolve_operators(lowered);
 }
 
 }

@@ -101,13 +101,15 @@ public:
     }
 
     template <typename Arg>
-    void add_data(std::string const& label, bool global, std::string type, Arg const& arg)
+    void add_data(std::string const& label, bool global, std::string type, bool is_static, Arg const& arg)
     {
         if (m_data.empty())
             m_data = "\n\n.section __DATA,__data\n";
         if (global)
             m_data += format("\n.global {}", label);
         m_data += format("\n.align 2\n{}:\n\t{}\t{}", label, type, arg);
+        if (is_static)
+            m_data += format("\n\t.short 0");
     }
 
     void syscall(int id)
@@ -160,9 +162,9 @@ public:
         return *m_assembly;
     }
 
-    void enter_function(std::shared_ptr<MaterializedFunctionDef> const& func) const;
+    void enter_function(std::shared_ptr<MaterializedFunctionDef> const& func);
     void function_return() const;
-    void leave_function() const;
+    void leave_function();
 
     void add_module(std::string const& module)
     {
@@ -182,9 +184,37 @@ public:
         return s_counter++; 
     }
 
+    [[nodiscard]] size_t stack_depth() const
+    {
+        if (m_stack_depth.size() > 0) {
+            return m_stack_depth.back();
+        }
+        assembly().add_comment(format("Stack depth empty!"));
+        return 0;
+    }
+
+protected:
+    void stack_depth(size_t depth)
+    {
+        m_stack_depth.push_back(depth);
+        assembly().add_comment(format("Set stack depth to {}", stack_depth()));
+    }
+
+    void pop_stack_depth()
+    {
+        auto current = m_stack_depth.back();
+        m_stack_depth.pop_back();
+        if (m_stack_depth.empty()) {
+            assembly().add_comment(format("Stack depth popped. Was {}, now empty", current));
+        } else {
+            assembly().add_comment(format("Stack depth popped. Was {}, now {}", current, stack_depth()));
+        }
+    }
+
 private:
     Assembly* m_assembly { nullptr };
     size_t m_stack_allocated { 0 };
+    std::vector<size_t> m_stack_depth {};
     static std::vector<std::shared_ptr<MaterializedFunctionDef>> s_function_stack;
     static std::unordered_map<std::string, Assembly> s_assemblies;
     static unsigned long s_counter;

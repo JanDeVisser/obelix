@@ -4,16 +4,20 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
-#include "obelix/SyntaxNodeType.h"
 #include <memory>
 #include <obelix/BoundSyntaxNode.h>
-#include <obelix/Interpreter.h>
 #include <obelix/Parser.h>
 #include <obelix/Processor.h>
+#include <obelix/SyntaxNodeType.h>
 
 namespace Obelix {
 
 extern_logging_category(parser);
+
+ErrorOrNode interpret(std::shared_ptr<BoundExpression> expr)
+{
+    return expr;
+}
 
 using FoldContext = Context<std::shared_ptr<BoundLiteral>>;
 
@@ -113,10 +117,10 @@ NODE_PROCESSOR(BoundUnaryExpression)
     return std::make_shared<BoundUnaryExpression>(expr->token(), operand, expr->op(), expr->type());
 }
 
-NODE_PROCESSOR(BoundIdentifier)
+NODE_PROCESSOR(BoundVariable)
 {
-    auto identifier = std::dynamic_pointer_cast<BoundIdentifier>(tree);
-    if (auto constant_maybe = ctx.get(identifier->name()); constant_maybe.has_value()) {
+    auto variable = std::dynamic_pointer_cast<BoundVariable>(tree);
+    if (auto constant_maybe = ctx.get(variable->name()); constant_maybe.has_value()) {
         return constant_maybe.value();
     }
     return tree;

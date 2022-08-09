@@ -16,6 +16,7 @@ unsigned long ARM64Context::s_counter { 0 };
 ARM64Context::ARM64Context(ARM64Context& parent)
     : Context<int>(parent)
     , m_assembly(parent.m_assembly)
+    , m_stack_depth(parent.m_stack_depth)
 {
     auto offset_maybe = get("#offset");
     assert(offset_maybe.has_value());
@@ -25,6 +26,7 @@ ARM64Context::ARM64Context(ARM64Context& parent)
 ARM64Context::ARM64Context(ARM64Context* parent)
     : Context<int>(parent)
     , m_assembly(parent->m_assembly)
+    , m_stack_depth(parent->m_stack_depth)
 {
     auto offset_maybe = get("#offset");
     assert(offset_maybe.has_value());
@@ -36,13 +38,14 @@ ARM64Context::ARM64Context()
     , m_assembly()
 {
     add_module(ROOT_MODULE_NAME);
-    declare("#offset", make_obj<Integer>(0));
+    declare("#offset", 0);
 }
 
-void ARM64Context::enter_function(std::shared_ptr<MaterializedFunctionDef> const& func) const
+void ARM64Context::enter_function(std::shared_ptr<MaterializedFunctionDef> const& func)
 {
     s_function_stack.push_back(func);
     auto decl = func->declaration();
+    stack_depth(func->stack_depth());
     assembly().add_comment(format("{} nsaa {} stack depth {}", decl->to_string(), decl->nsaa(), func->stack_depth()));
     assembly().add_directive(".global", func->name());
     assembly().add_label(func->name());
@@ -53,9 +56,9 @@ void ARM64Context::enter_function(std::shared_ptr<MaterializedFunctionDef> const
     // @improve Do this lazily, i.e. when we need the registers
     int nsaa = decl->nsaa();
     assembly().add_instruction("stp", "fp,lr,[sp,#-16]!");
-    assembly().add_instruction("mov", "fp,sp");
     if (func->stack_depth())
         assembly().add_instruction("sub", "sp,sp,#{}", func->stack_depth());
+    assembly().add_instruction("mov", "fp,sp");
     for (auto& param : func->declaration()->parameters()) {
         switch (param->type()->type()) {
             case PrimitiveType::IntegerNumber:
@@ -102,14 +105,17 @@ void ARM64Context::function_return() const
     assembly().add_instruction("b", format("__{}_return", func_def->name()));
 }
 
-void ARM64Context::leave_function() const
+void ARM64Context::leave_function()
 {
     assert(!s_function_stack.empty());
     auto func_def = s_function_stack.back();
     assembly().add_label(format("__{}_return", func_def->name()));
     assembly().add_instruction("mov", "sp,fp");
+    if (stack_depth())
+        assembly().add_instruction("add", "sp,sp,#{}", stack_depth());
     assembly().add_instruction("ldp", "fp,lr,[sp],16");
     assembly().add_instruction("ret");
+    pop_stack_depth();
     s_function_stack.pop_back();
 }
 
