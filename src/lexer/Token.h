@@ -11,10 +11,11 @@
 #pragma once
 
 #include <cstring>
-
-#include <core/Object.h>
 #include <optional>
 #include <string>
+
+#include <core/Format.h>
+#include <core/Logging.h>
 
 namespace Obelix {
 

@@ -4,11 +4,11 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
-#include "lexer/Token.h"
-#include <core/Format.h>
-#include <core/Object.h>
-#include <gtest/gtest.h>
 #include <iostream>
+#include <gtest/gtest.h>
+
+#include <core/Format.h>
+#include <lexer/Token.h>
 #include <lexer/Tokenizer.h>
 #include <lexer/test/LexerTest.h>
 

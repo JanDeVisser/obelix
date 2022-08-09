@@ -19,8 +19,6 @@
 #include <unordered_set>
 #include <vector>
 
-#include <core/Arguments.h>
-#include <core/Object.h>
 #include <core/StringBuffer.h>
 #include <functional>
 #include <lexer/Token.h>
