@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
+#include "obelix/Architecture.h"
 #include "obelix/Context.h"
 #include <cstdio>
 
@@ -131,16 +132,15 @@ private:
                     return Error { ErrorCode::SyntaxError, format("Runtime error: {}", SystemErrorCode_name(ret.error())) };
                 return std::make_shared<Literal>(make_obj<Integer>(ret.value()));
 #endif
-#define MACOSX
-#ifdef MACOSX
-                auto err = output_arm64(transformed, config(), file_name);
-                if (err.is_error())
-                    return err;
-                auto ret_val = err.value();
-                if (ret_val->node_type() != SyntaxNodeType::BoundIntLiteral)
-                    ret_val = std::make_shared<BoundIntLiteral>(Token {}, 0);
-                return ret_val;
-#endif
+                if (m_config.target == Architecture::MACOS_ARM64) {
+                    auto err = output_arm64(transformed, config(), file_name);
+                    if (err.is_error())
+                        return err;
+                    auto ret_val = err.value();
+                    if (ret_val->node_type() != SyntaxNodeType::BoundIntLiteral)
+                        ret_val = std::make_shared<BoundIntLiteral>(Token {}, 0);
+                    return ret_val;
+                }
             } else {
                 fprintf(stderr, "Script execution temporarily disabled\n");
                 //                Context<Obj> root;

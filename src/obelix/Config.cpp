@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
+#include "obelix/Architecture.h"
 #include <obelix/Parser.h>
 
 namespace Obelix {
@@ -37,6 +38,14 @@ Config::Config(int argc, char const** argv)
             run = true;
         } else if (!strcmp(argv[ix], "--no-root")) {
             import_root = false;
+        } else if (!strncmp(argv[ix], "--arch", strlen("--arch")) && (argv[ix][strlen("--arch")] == '=')) {
+            const char *arch = argv[ix] + strlen("--arch=");
+            auto target_maybe = Architecture_by_name(arch);
+            if (!target_maybe.has_value()) {
+                printf("ERROR: Unknown target architecture '%s'", arch);
+                exit(-1);
+            }
+            target = target_maybe.value();
         // } else if (!strncmp(argv[ix], "--", 2) && (strlen(argv[ix]) > 2)) {
         //     printf("ERROR: Unknown command line argument '%s'", argv[ix]);
         //     exit(-1);

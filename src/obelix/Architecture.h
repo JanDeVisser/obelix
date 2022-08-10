@@ -12,17 +12,17 @@
 
 namespace Obelix {
 
-#define ENUMERATE_ARCHITECTURES(S) \
-    S(MACOS_ARM64)                 \
-    S(RASPI_ARM64)                 \
-    S(MACOS_X86_64)                \
-    S(LINUX_X86_64)                \
-    S(WINDOWS_X86_64)              \
-    S(INTERPRETER)
+#define ENUMERATE_ARCHITECTURES(S)  \
+    S(MACOS_ARM64, "macos_aarch64") \
+    S(RASPI_ARM64, "raspi_aarch64") \
+    S(MACOS_X86_64, "macos_x68_64") \
+    S(LINUX_X86_64, "linux") \
+    S(WINDOWS_X86_64, "windows")    \
+    S(INTERPRETER, "interp")
 
 enum class Architecture {
 #undef __ENUM_ARCHITECTURE
-#define __ENUM_ARCHITECTURE(arch) arch,
+#define __ENUM_ARCHITECTURE(arch, text) arch,
     ENUMERATE_ARCHITECTURES(__ENUM_ARCHITECTURE)
 #undef __ENUM_ARCHITECTURE
 };
@@ -31,10 +31,10 @@ constexpr const char* Architecture_name(Architecture a)
 {
     switch (a) {
 #undef __ENUM_ARCHITECTURE
-#define __ENUM_ARCHITECTURE(arch) \
-    case Architecture::arch:                 \
-        return #arch;
-    ENUMERATE_ARCHITECTURES(__ENUM_ARCHITECTURE)
+#define __ENUM_ARCHITECTURE(arch, text) \
+    case Architecture::arch:            \
+        return text;
+        ENUMERATE_ARCHITECTURES(__ENUM_ARCHITECTURE)
 #undef __ENUM_ARCHITECTURE
     }
 }

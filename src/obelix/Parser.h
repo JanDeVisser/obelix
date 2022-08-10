@@ -12,6 +12,7 @@
 #include <lexer/BasicParser.h>
 #include <lexer/Lexer.h>
 #include <lexer/OblBuffer.h>
+#include <obelix/Architecture.h>
 #include <obelix/Syntax.h>
 
 namespace Obelix {
@@ -32,9 +33,17 @@ public:
     bool compile { true };
     bool run { false };
     bool cmdline_flag(std::string const& flag) const;
+    Architecture target {
+#ifdef __APPLE__
+        Architecture::MACOS_ARM64
+#else
+        Architecture::INTERPRETER
+#endif
+    };
 
 private:
     std::unordered_map<std::string, bool> m_cmdline_flags;
+
 };
 
 class Parser : public BasicParser {
