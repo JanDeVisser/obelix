@@ -9,6 +9,7 @@ endif(READLINE_FOUND)
 add_executable(
         obelix
         main.cpp
+        Architecture.cpp
         ARM64.cpp
         ARM64Context.cpp
         ARM64Intrinsics.cpp
@@ -26,6 +27,8 @@ add_executable(
         MaterializedSyntaxNode.h
         Symbol.h
         SyntaxNodeType.h
+        interp/InterpIntrinsics.cpp
+        interp/Interpret.cpp
 )
 
 target_link_libraries(

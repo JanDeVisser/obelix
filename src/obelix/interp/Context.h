@@ -9,6 +9,7 @@
 #include <cstdio>
 #include <fstream>
 #include <iostream>
+#include <memory>
 #include <string>
 
 #include <config.h>
@@ -23,7 +24,7 @@ namespace Obelix {
 
 extern_logging_category(interp);
 
-using InterpContext = Context<int>;
-using InterpImplementation = std::function<ErrorOrNode(InterpContext&, std::vector<std::shared_ptr<BoundLiteral>>)>;
+using InterpContext = Context<std::shared_ptr<SyntaxNode>>;
+using InterpImplementation = std::function<ErrorOrNode(InterpContext&, BoundLiterals)>;
 
 }

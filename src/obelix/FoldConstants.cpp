@@ -9,15 +9,11 @@
 #include <obelix/Parser.h>
 #include <obelix/Processor.h>
 #include <obelix/SyntaxNodeType.h>
+#include <obelix/interp/Interp.h>
 
 namespace Obelix {
 
 extern_logging_category(parser);
-
-ErrorOrNode interpret(std::shared_ptr<BoundExpression> expr)
-{
-    return expr;
-}
 
 using FoldContext = Context<std::shared_ptr<BoundLiteral>>;
 
@@ -43,6 +39,22 @@ NODE_PROCESSOR(BoundVariableDeclaration)
 }
 
 ALIAS_NODE_PROCESSOR(BoundStaticVariableDeclaration, BoundVariableDeclaration);
+
+NODE_PROCESSOR(BoundIntrinsicCall)
+{
+    auto call = std::dynamic_pointer_cast<BoundIntrinsicCall>(tree);
+    BoundExpressions processed_args;
+    for (auto const& arg : call->arguments()) {
+        auto processed = TRY_AND_CAST(BoundExpression, process(arg, ctx));
+        processed_args.push_back(processed);
+    }
+    auto processed_call = make_node<BoundIntrinsicCall>(call, processed_args, std::dynamic_pointer_cast<BoundIntrinsicDecl>(call->declaration()));
+    return TRY(interpret(processed_call));
+}
+
+#if 0
+
+// The rejigging of BinaryExpressions needs to be refitted into ResolveOperators.
 
 NODE_PROCESSOR(BoundBinaryExpression)
 {
@@ -103,19 +115,7 @@ NODE_PROCESSOR(BoundBinaryExpression)
     return expr;
 }
 
-NODE_PROCESSOR(BoundUnaryExpression)
-{
-    auto expr = std::dynamic_pointer_cast<BoundUnaryExpression>(tree);
-    auto operand = TRY_AND_CAST(BoundExpression, process(expr->operand(), ctx));
-
-    if (expr->op() == UnaryOperator::Identity)
-        return operand;
-
-    if (std::dynamic_pointer_cast<BoundLiteral>(operand) != nullptr) {
-        return TRY(interpret(expr));
-    }
-    return std::make_shared<BoundUnaryExpression>(expr->token(), operand, expr->op(), expr->type());
-}
+#endif
 
 NODE_PROCESSOR(BoundVariable)
 {

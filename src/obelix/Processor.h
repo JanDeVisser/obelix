@@ -43,6 +43,22 @@ extern_logging_category(parser);
         __##var##_casted;                                                                             \
     })
 
+#define TRY_AND_TRY_CAST(cls, expr)                                                                   \
+    ({                                                                                                \
+        auto __##var##_maybe = (expr);                                                                \
+        if (__##var##_maybe.is_error()) {                                                             \
+            debug(parser, "Processing node results in error '{}' instead of node of type '" #cls "'", \
+                __##var##_maybe.error());                                                             \
+            return __##var##_maybe.error();                                                           \
+        }                                                                                             \
+        auto __##var##_processed = __##var##_maybe.value();                                           \
+        std::shared_ptr<cls> __##var##_casted = nullptr;                                              \
+        if (__##var##_processed != nullptr) {                                                         \
+            __##var##_casted = std::dynamic_pointer_cast<cls>(__##var##_processed);                   \
+        }                                                                                             \
+        __##var##_casted;                                                                             \
+    })
+
 using ErrorOrNode = ErrorOr<std::shared_ptr<SyntaxNode>, SyntaxError>;
 
 template<typename Context, typename Processor>

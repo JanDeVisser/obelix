@@ -28,9 +28,9 @@ InterpImplementation const& get_interp_intrinsic(IntrinsicType type)
 }
 
 #define INTRINSIC(intrinsic)                                                                                              \
-    ErrorOrNode interp_intrinsic_##intrinsic(InterpContext& ctx, std::vector<std::shared_ptr<BoundLiteral>>);             \
+    ErrorOrNode interp_intrinsic_##intrinsic(InterpContext& ctx, BoundLiterals);                                          \
     auto s_interp_##intrinsic##_decl = register_interp_intrinsic(IntrinsicType::intrinsic, interp_intrinsic_##intrinsic); \
-    ErrorOrNode interp_intrinsic_##intrinsic(InterpContext& ctx, std::vector<std::shared_ptr<BoundLiteral>> params)
+    ErrorOrNode interp_intrinsic_##intrinsic(InterpContext& ctx, BoundLiterals params)
 
 #define INTRINSIC_ALIAS(intrinsic, alias) \
     auto s_##intrinsic##_decl = register_interp_intrinsic(intrinsic, interp_intrinsic_##alias); \
@@ -47,7 +47,7 @@ INTRINSIC(add_int_int)
 {
     auto int_literal_1 = std::dynamic_pointer_cast<BoundIntLiteral>(params[0]);
     auto int_literal_2 = std::dynamic_pointer_cast<BoundIntLiteral>(params[1]);
-    if (int_literal_1 != nullptr && int_literal_1 == nullptr)
+    if (int_literal_1 != nullptr && int_literal_1 != nullptr)
         return std::make_shared<BoundIntLiteral>(int_literal_1->token(), int_literal_1->int_value() + int_literal_2->int_value());
     return params[0];
 }
@@ -56,7 +56,7 @@ INTRINSIC(subtract_int_int)
 {
     auto int_literal_1 = std::dynamic_pointer_cast<BoundIntLiteral>(params[0]);
     auto int_literal_2 = std::dynamic_pointer_cast<BoundIntLiteral>(params[1]);
-    if (int_literal_1 != nullptr && int_literal_1 == nullptr)
+    if (int_literal_1 != nullptr && int_literal_1 != nullptr)
         return std::make_shared<BoundIntLiteral>(int_literal_1->token(), int_literal_1->int_value() - int_literal_2->int_value());
     return params[0];
 }
@@ -65,7 +65,7 @@ INTRINSIC(multiply_int_int)
 {
     auto int_literal_1 = std::dynamic_pointer_cast<BoundIntLiteral>(params[0]);
     auto int_literal_2 = std::dynamic_pointer_cast<BoundIntLiteral>(params[1]);
-    if (int_literal_1 != nullptr && int_literal_1 == nullptr)
+    if (int_literal_1 != nullptr && int_literal_1 != nullptr)
         return std::make_shared<BoundIntLiteral>(int_literal_1->token(), int_literal_1->int_value() * int_literal_2->int_value());
     return params[0];
 }
@@ -74,7 +74,7 @@ INTRINSIC(divide_int_int)
 {
     auto int_literal_1 = std::dynamic_pointer_cast<BoundIntLiteral>(params[0]);
     auto int_literal_2 = std::dynamic_pointer_cast<BoundIntLiteral>(params[1]);
-    if (int_literal_1 != nullptr && int_literal_1 == nullptr)
+    if (int_literal_1 != nullptr && int_literal_1 != nullptr)
         return std::make_shared<BoundIntLiteral>(int_literal_1->token(), int_literal_1->int_value() / int_literal_2->int_value());
     return params[0];
 }
@@ -83,7 +83,7 @@ INTRINSIC(equals_int_int)
 {
     auto int_literal_1 = std::dynamic_pointer_cast<BoundIntLiteral>(params[0]);
     auto int_literal_2 = std::dynamic_pointer_cast<BoundIntLiteral>(params[1]);
-    if (int_literal_1 != nullptr && int_literal_1 == nullptr)
+    if (int_literal_1 != nullptr && int_literal_1 != nullptr)
         return std::make_shared<BoundBooleanLiteral>(int_literal_1->token(), int_literal_1->int_value() == int_literal_2->int_value());
     return params[0];
 }
@@ -92,7 +92,7 @@ INTRINSIC(greater_int_int)
 {
     auto int_literal_1 = std::dynamic_pointer_cast<BoundIntLiteral>(params[0]);
     auto int_literal_2 = std::dynamic_pointer_cast<BoundIntLiteral>(params[1]);
-    if (int_literal_1 != nullptr && int_literal_1 == nullptr)
+    if (int_literal_1 != nullptr && int_literal_1 != nullptr)
         return std::make_shared<BoundBooleanLiteral>(int_literal_1->token(), int_literal_1->int_value() > int_literal_2->int_value());
     return params[0];
 }
@@ -101,7 +101,7 @@ INTRINSIC(less_int_int)
 {
     auto int_literal_1 = std::dynamic_pointer_cast<BoundIntLiteral>(params[0]);
     auto int_literal_2 = std::dynamic_pointer_cast<BoundIntLiteral>(params[1]);
-    if (int_literal_1 != nullptr && int_literal_1 == nullptr)
+    if (int_literal_1 != nullptr && int_literal_1 != nullptr)
         return std::make_shared<BoundBooleanLiteral>(int_literal_1->token(), int_literal_1->int_value() < int_literal_2->int_value());
     return params[0];
 }
@@ -134,7 +134,7 @@ INTRINSIC(and_bool_bool)
 {
     auto bool_literal_1 = std::dynamic_pointer_cast<BoundBooleanLiteral>(params[0]);
     auto bool_literal_2 = std::dynamic_pointer_cast<BoundBooleanLiteral>(params[1]);
-    if (bool_literal_1 != nullptr && bool_literal_1 == nullptr)
+    if (bool_literal_1 != nullptr && bool_literal_1 != nullptr)
         return std::make_shared<BoundBooleanLiteral>(bool_literal_1->token(), bool_literal_1->bool_value() && bool_literal_2->bool_value());
     return params[0];
 }
@@ -143,7 +143,7 @@ INTRINSIC(or_bool_bool)
 {
     auto bool_literal_1 = std::dynamic_pointer_cast<BoundBooleanLiteral>(params[0]);
     auto bool_literal_2 = std::dynamic_pointer_cast<BoundBooleanLiteral>(params[1]);
-    if (bool_literal_1 != nullptr && bool_literal_1 == nullptr)
+    if (bool_literal_1 != nullptr && bool_literal_1 != nullptr)
         return std::make_shared<BoundBooleanLiteral>(bool_literal_1->token(), bool_literal_1->bool_value() || bool_literal_2->bool_value());
     return params[0];
 }
@@ -152,7 +152,7 @@ INTRINSIC(xor_bool_bool)
 {
     auto bool_literal_1 = std::dynamic_pointer_cast<BoundBooleanLiteral>(params[0]);
     auto bool_literal_2 = std::dynamic_pointer_cast<BoundBooleanLiteral>(params[1]);
-    if (bool_literal_1 != nullptr && bool_literal_1 == nullptr)
+    if (bool_literal_1 != nullptr && bool_literal_1 != nullptr)
         return std::make_shared<BoundBooleanLiteral>(bool_literal_1->token(), bool_literal_1->bool_value() ^ bool_literal_2->bool_value());
     return params[0];
 }
@@ -161,7 +161,7 @@ INTRINSIC(equals_bool_bool)
 {
     auto bool_literal_1 = std::dynamic_pointer_cast<BoundBooleanLiteral>(params[0]);
     auto bool_literal_2 = std::dynamic_pointer_cast<BoundBooleanLiteral>(params[1]);
-    if (bool_literal_1 != nullptr && bool_literal_1 == nullptr)
+    if (bool_literal_1 != nullptr && bool_literal_1 != nullptr)
         return std::make_shared<BoundBooleanLiteral>(bool_literal_1->token(), !(bool_literal_1->bool_value() ^ bool_literal_2->bool_value()));
     return params[0];
 }
@@ -170,7 +170,7 @@ INTRINSIC(add_str_str)
 {
     auto literal_1 = std::dynamic_pointer_cast<BoundStringLiteral>(params[0]);
     auto literal_2 = std::dynamic_pointer_cast<BoundStringLiteral>(params[1]);
-    if (literal_1 != nullptr && literal_1 == nullptr)
+    if (literal_1 != nullptr && literal_1 != nullptr)
         return std::make_shared<BoundStringLiteral>(literal_1->token(), literal_1->string_value() + literal_2->string_value());
     return params[0];
 }

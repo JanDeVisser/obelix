@@ -352,6 +352,8 @@ public:
     }
 };
 
+using BoundLiterals = std::vector<std::shared_ptr<BoundLiteral>>;
+
 class BoundIntLiteral : public BoundLiteral {
 public:
     explicit BoundIntLiteral(std::shared_ptr<IntLiteral> const& literal)

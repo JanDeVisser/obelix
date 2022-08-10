@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
+#include "obelix/Operator.h"
 #include <obelix/Syntax.h>
 #include <obelix/BoundSyntaxNode.h>
 #include <obelix/Parser.h>
@@ -25,6 +26,9 @@ NODE_PROCESSOR(BoundUnaryExpression)
     IntrinsicType intrinsic;
     std::shared_ptr<BoundIntrinsicDecl> decl;
     switch (expr->op()) {
+    case UnaryOperator::Identity: {
+        return operand;
+    }
     case UnaryOperator::Dereference: {
         auto method_descr_maybe = operand->type()->get_method(Operator::Dereference);
         if (!method_descr_maybe.has_value())
