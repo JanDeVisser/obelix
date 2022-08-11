@@ -284,13 +284,13 @@ NODE_PROCESSOR(BinaryExpression)
     if (op == BinaryOperator::MemberAccess) {
         if (lhs->type()->type() != PrimitiveType::Struct)
             return SyntaxError { ErrorCode::CannotAccessMember, lhs->token(), lhs->to_string() };
-        if (rhs->node_type() != SyntaxNodeType::Identifier)
+        auto field_var = std::dynamic_pointer_cast<Variable>(rhs);
+        if (field_var == nullptr)
             return SyntaxError { ErrorCode::NotMember, rhs->token(), rhs, lhs };
-        auto ident = std::dynamic_pointer_cast<Identifier>(rhs);
-        auto field = lhs->type()->field(ident->name());
+        auto field = lhs->type()->field(field_var->name());
         if (field.type->type() == PrimitiveType::Unknown)
             return SyntaxError { ErrorCode::NotMember, rhs->token(), rhs, lhs };
-        auto member_identifier = make_node<BoundIdentifier>(rhs->token(), ident->name(), field.type);
+        auto member_identifier = make_node<BoundIdentifier>(rhs->token(), field_var->name(), field.type);
         return std::make_shared<BoundMemberAccess>(lhs, member_identifier);
     }
 
