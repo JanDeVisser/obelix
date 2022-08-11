@@ -6,6 +6,8 @@
 
 #pragma once
 
+#include <algorithm>
+#include <cassert>
 #include <cstring>
 #include <functional>
 #include <iostream>
@@ -38,6 +40,7 @@ namespace Obelix {
     S(Struct, "struct", 9)                   \
     S(Range, "range", 10)                    \
     S(Array, "array", 11)                    \
+    S(Enum, "enum", 12)                      \
     S(Error, "error", 9995)                  \
     S(Self, "self", 9996)                    \
     S(Compatible, "compatible", 9997)        \
@@ -200,64 +203,91 @@ struct TemplateParameter {
 
 using TemplateParameters = std::vector<TemplateParameter>;
 
-struct TemplateArgument;
-using TemplateArguments = std::vector<TemplateArgument>;
 using NVP = std::pair<std::string, long>;
+using NVPs = std::vector<NVP>;
+
+using TemplateArgumentValue = std::variant<std::shared_ptr<ObjectType>, long, std::string, bool, NVP>;
+using TemplateArgumentValues = std::vector<TemplateArgumentValue>;
+
+size_t hash(TemplateArgumentValue const&);
+std::string to_string(TemplateArgumentValue const&);
+bool compare(TemplateArgumentValue const&, TemplateArgumentValue const&);
 
 struct TemplateArgument {
+    TemplateArgument(TemplateParameterType type)
+        : parameter_type(type)
+        , multiplicity(TemplateParameterMultiplicity::Optional)
+    {
+    }
+
     TemplateArgument(std::shared_ptr<ObjectType> type)
         : parameter_type(TemplateParameterType::Type)
-        , value(type)
     {
+        value.push_back(type);
     }
 
     TemplateArgument(long integer)
         : parameter_type(TemplateParameterType::Integer)
-        , value(integer)
     {
+        value.push_back(integer);
     }
 
     TemplateArgument(int integer)
         : parameter_type(TemplateParameterType::Integer)
-        , value(integer)
     {
+        value.push_back(integer);
     }
 
     TemplateArgument(std::string string)
         : parameter_type(TemplateParameterType::String)
-        , value(string)
     {
+        value.push_back(string);
     }
 
     TemplateArgument(bool boolean)
         : parameter_type(TemplateParameterType::Boolean)
-        , value(boolean)
     {
+        value.push_back(boolean);
     }
 
-    TemplateArgument(std::string name, long value)
+    TemplateArgument(std::string name, long nvp_value)
         : parameter_type(TemplateParameterType::NameValue)
-        , value(std::make_pair(move(name), value))
     {
+        value.push_back(std::make_pair(move(name), nvp_value));
     }
 
     TemplateArgument(NVP nvp)
         : parameter_type(TemplateParameterType::NameValue)
-        , value(move(nvp))
     {
+        value.push_back(move(nvp));
     }
 
-    TemplateArgument(TemplateArguments arguments)
-        : multiplicity(TemplateParameterMultiplicity::Multiple)
+    TemplateArgument(TemplateParameterType type, TemplateArgumentValues arguments)
+        : parameter_type(type)
+        , multiplicity(TemplateParameterMultiplicity::Multiple)
         , value(move(arguments))
     {
-        assert(!arguments.empty());
-        parameter_type = arguments.at(0).parameter_type;
+        assert(std::all_of(value.begin(), value.end(), [type](auto const& arg) {
+            switch (type) {
+                case TemplateParameterType::String:
+                    return std::holds_alternative<std::string>(arg);
+                case TemplateParameterType::Integer:
+                    return std::holds_alternative<long>(arg);
+                case TemplateParameterType::Boolean:
+                    return std::holds_alternative<bool>(arg);
+                case TemplateParameterType::Type:
+                    return std::holds_alternative<std::shared_ptr<ObjectType>>(arg);
+                case TemplateParameterType::NameValue:
+                    return std::holds_alternative<NVP>(arg);
+            }
+        }));
+        assert(value.size() <= 1 || multiplicity == TemplateParameterMultiplicity::Multiple);
+        assert(!value.empty() || multiplicity == TemplateParameterMultiplicity::Optional);
     }
 
     TemplateParameterType parameter_type;
     TemplateParameterMultiplicity multiplicity { TemplateParameterMultiplicity::Required };
-    std::variant<std::shared_ptr<ObjectType>, long, std::string, bool, NVP, TemplateArguments> value;
+    TemplateArgumentValues value {};
 
     [[nodiscard]] size_t hash() const;
     [[nodiscard]] std::string to_string() const;
@@ -265,73 +295,59 @@ struct TemplateArgument {
 
     [[nodiscard]] std::shared_ptr<ObjectType> as_type() const
     {
-        assert(std::holds_alternative<std::shared_ptr<ObjectType>>(value));
-        return std::get<std::shared_ptr<ObjectType>>(value);
+        assert(!value.empty());
+        assert(std::holds_alternative<std::shared_ptr<ObjectType>>(value[0]));
+        assert(parameter_type == TemplateParameterType::Type);
+        return std::get<std::shared_ptr<ObjectType>>(value[0]);
     }
 
     [[nodiscard]] long as_integer() const
     {
-        assert(std::holds_alternative<long>(value));
-        return std::get<long>(value);
+        assert(!value.empty());
+        assert(parameter_type == TemplateParameterType::Integer);
+        assert(std::holds_alternative<long>(value[0]));
+        return std::get<long>(value[0]);
     }
 
     [[nodiscard]] std::string const& as_string() const
     {
-        assert(std::holds_alternative<std::string>(value));
-        return std::get<std::string>(value);
+        assert(!value.empty());
+        assert(parameter_type == TemplateParameterType::String);
+        assert(std::holds_alternative<std::string>(value[0]));
+        return std::get<std::string>(value[0]);
     }
 
     [[nodiscard]] bool as_bool() const
     {
-        assert(std::holds_alternative<bool>(value));
-        return std::get<bool>(value);
+        assert(!value.empty());
+        assert(parameter_type == TemplateParameterType::Boolean);
+        assert(std::holds_alternative<bool>(value[0]));
+        return std::get<bool>(value[0]);
     }
 
     [[nodiscard]] NVP const& as_nvp() const
     {
-        assert(std::holds_alternative<NVP>(value));
-        return std::get<NVP>(value);
+        assert(!value.empty());
+        assert(parameter_type == TemplateParameterType::NameValue);
+        assert(std::holds_alternative<NVP>(value[0]));
+        return std::get<NVP>(value[0]);
     }
 
-    [[nodiscard]] TemplateArguments const& as_arguments() const
+    [[nodiscard]] TemplateArgumentValues const& as_values() const
     {
-        assert(std::holds_alternative<TemplateArguments>(value));
-        return std::get<TemplateArguments>(value);
+        return value;
     }
 
     template <typename ArgType>
     [[nodiscard]] ArgType const& get() const
     {
-        assert(std::holds_alternative<ArgType>(value));
-        return std::get<ArgType>(value);
+        assert(!value.empty());
+        assert(std::holds_alternative<ArgType>(value[0]));
+        return std::get<ArgType>(value[0]);
     }
 };
 
-template<typename T, typename... Args>
-TemplateArgument make_template_arguments(T arg, Args&&... args)
-{
-    TemplateArguments template_args;
-    return make_template_arguments(template_args, std::forward<Args>(args)...);
-}
-
-template<typename T, typename... Args>
-TemplateArgument make_template_arguments(TemplateArguments& template_args, T arg, Args&&... args)
-{
-    template_args.push_back(TemplateArgument(move(arg)));
-    return make_template_arguments(template_args, std::forward<Args>(args)...);
-}
-
-template<typename... Args>
-TemplateArgument make_template_arguments(TemplateArguments& template_args, TemplateArgument arg, Args&&... args)
-{
-    template_args.push_back(std::move(arg));
-    return make_template_arguments(template_args, std::forward<Args>(args)...);
-}
-
-inline TemplateArgument make_template_arguments(TemplateArguments& template_args)
-{
-    return TemplateArgument(template_args);
-}
+using TemplateArguments = std::vector<TemplateArgument>;
 
 class ObjectType {
 public:
@@ -461,6 +477,7 @@ public:
 
     static ErrorOr<std::shared_ptr<ObjectType>> make_struct_type(std::string, FieldDefs, ObjectTypeBuilder const& = nullptr);
     static std::shared_ptr<ObjectType> register_struct_type(std::string const&, FieldDefs, ObjectTypeBuilder const& = nullptr);
+    static std::shared_ptr<ObjectType> make_enum_type(std::string, NVPs);
     static void dump();
 
 private:

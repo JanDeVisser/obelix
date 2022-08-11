@@ -15,6 +15,7 @@
 #include <obelix/BoundSyntaxNode.h>
 #include <obelix/Intrinsics.h>
 #include <obelix/Type.h>
+#include <variant>
 
 namespace Obelix {
 
@@ -33,33 +34,52 @@ std::optional<PrimitiveType> PrimitiveType_by_name(std::string const& t)
     return {};
 }
 
+size_t hash(TemplateArgumentValue const& arg)
+{
+    if (std::holds_alternative<long>(arg))
+        return std::hash<long> {}(std::get<long>(arg));
+    if (std::holds_alternative<std::string>(arg))
+        return std::hash<std::string> {}(std::get<std::string>(arg));
+    if (std::holds_alternative<std::shared_ptr<ObjectType>>(arg))
+        return std::hash<std::shared_ptr<ObjectType>> {}(std::get<std::shared_ptr<ObjectType>>(arg));
+    if (std::holds_alternative<bool>(arg))
+        return std::hash<bool> {}(std::get<bool>(arg));
+    assert(std::holds_alternative<NVP>(arg));
+    auto nvp = std::get<NVP>(arg);
+    return std::hash<std::string> {}(nvp.first) ^ std::hash<long> {}(nvp.second);
+}
+
+std::string to_string(TemplateArgumentValue const& arg)
+{
+    if (std::holds_alternative<long>(arg))
+        return Obelix::to_string(std::get<long>(arg));
+    if (std::holds_alternative<std::string>(arg))
+        return std::get<std::string>(arg);
+    if (std::holds_alternative<std::shared_ptr<ObjectType>>(arg))
+        return std::get<std::shared_ptr<ObjectType>>(arg)->to_string();
+    if (std::holds_alternative<bool>(arg))
+        return Obelix::to_string(std::get<bool>(arg));
+    assert(std::holds_alternative<NVP>(arg));
+    auto nvp = std::get<NVP>(arg);
+    return format("{}={}", nvp.first, nvp.second);
+}
+
+bool compare(TemplateArgumentValue const& arg1, TemplateArgumentValue const& arg2)
+{
+    if (arg1.index() != arg2.index())
+        return false;
+    if (arg1.valueless_by_exception() != arg2.valueless_by_exception())
+        return false;
+    if (std::holds_alternative<std::shared_ptr<ObjectType>>(arg1))
+        return *std::get<std::shared_ptr<ObjectType>>(arg1) == *std::get<std::shared_ptr<ObjectType>>(arg2);
+    return arg1 == arg2;
+}
+
 size_t TemplateArgument::hash() const
 {
     size_t ret = std::hash<int> {}(static_cast<int>(parameter_type));
-    if (multiplicity == TemplateParameterMultiplicity::Multiple) {
-        for (auto const& arg : as_arguments()) {
-            ret ^= arg.hash();
-        }
-        return ret;
-    }
-    switch (parameter_type) {
-        case TemplateParameterType::Type:
-            ret ^= std::hash<Obelix::ObjectType> {}(*std::get<std::shared_ptr<ObjectType>>(value));
-            break;
-        case TemplateParameterType::Integer:
-            ret ^= std::hash<long> {}(std::get<long>(value));
-            break;
-        case TemplateParameterType::String:
-            ret ^= std::hash<std::string> {}(std::get<std::string>(value));
-            break;
-        case TemplateParameterType::Boolean:
-            ret ^= std::hash<bool> {}(std::get<bool>(value));
-            break;
-        case TemplateParameterType::NameValue: {
-            auto nvp = as_nvp();
-            ret ^= std::hash<std::string> {}(nvp.first) ^ std::hash<long> {}(nvp.second);
-            break;
-        }
+    for (auto const& arg : value) {
+        ret ^= Obelix::hash(arg);
     }
     return ret;
 }
@@ -68,53 +88,28 @@ std::string TemplateArgument::to_string() const
 {
     if (multiplicity == TemplateParameterMultiplicity::Multiple) {
         std::string ret = "[ ";
-        for (auto const& arg : as_arguments()) {
-            ret += arg.to_string();
+        for (auto const& arg : value) {
+            ret += Obelix::to_string(arg);
             ret += ' ';
         }
         return ret + "]";
     }
-    switch (parameter_type) {
-        case TemplateParameterType::Type:
-            return std::get<std::shared_ptr<ObjectType>>(value)->to_string();
-        case TemplateParameterType::Integer:
-            return Obelix::to_string(std::get<long>(value));
-        case TemplateParameterType::String:
-            return std::get<std::string>(value);
-        case TemplateParameterType::Boolean:
-            return Obelix::to_string(std::get<bool>(value));
-        case TemplateParameterType::NameValue: {
-            auto nvp = as_nvp();
-            return format("{}={}", nvp.first, nvp.second);
-        }
-        default:
-            fatal("Unknown parameter type '{}'", (int) parameter_type);
-    }
+    if (!value.empty())
+        return Obelix::to_string(value[0]);
+    return "";
 }
 
 bool TemplateArgument::operator==(TemplateArgument const& other) const
 {
     if (parameter_type != other.parameter_type || multiplicity != other.multiplicity)
         return false;
-    if (multiplicity == TemplateParameterMultiplicity::Multiple) {
-        auto my_values = as_arguments();
-        auto other_values = other.as_arguments();
-        return my_values == other_values;
+    if (value.size() != other.value.size())
+        return false;
+    for (auto ix = 0u; ix < value.size(); ++ix) {
+        if (!compare(value[ix], other.value[ix]))
+            return false;
     }
-    switch (parameter_type) {
-        case TemplateParameterType::Type:
-            return *std::get<std::shared_ptr<ObjectType>>(value) == *std::get<std::shared_ptr<ObjectType>>(other.value);
-        case TemplateParameterType::Integer:
-            return std::get<long>(value) == std::get<long>(other.value);
-        case TemplateParameterType::String:
-            return std::get<std::string>(value) == std::get<std::string>(other.value);
-        case TemplateParameterType::Boolean:
-            return std::get<bool>(value) == std::get<bool>(other.value);
-        case TemplateParameterType::NameValue:
-            return std::get<NVP>(value) == std::get<NVP>(other.value);
-        default:
-            fatal("Unknown parameter type '{}'", (int) parameter_type);
-    }
+    return true;
 }
 
 MethodParameter::MethodParameter(char const* n, PrimitiveType t)
@@ -404,6 +399,17 @@ std::vector<std::shared_ptr<ObjectType>> ObjectType::s_template_specializations 
         type->add_method(MethodDescription { Operator::Add, PrimitiveType::Self, IntrinsicType::add_str_str, { { "other", PrimitiveType::Self } }, true });
         type->add_method(MethodDescription { Operator::Multiply, PrimitiveType::Self, IntrinsicType::multiply_str_int, { { "other", ObjectType::get("u32") } }, true });
         type->will_be_a(s_comparable);
+    });
+
+[[maybe_unused]] auto s_enum = ObjectType::register_type(PrimitiveType::Enum,
+    [](std::shared_ptr<ObjectType> type) {
+        type->has_template_parameter({ "values", TemplateParameterType::NameValue, TemplateParameterMultiplicity::Multiple });
+        type->has_size(4);
+
+        type->has_template_stamp([](std::shared_ptr<ObjectType> instantiation) {
+            instantiation->add_method(MethodDescription { Operator::Subscript, s_long,
+                IntrinsicType::NotIntrinsic, { { "subscript", ObjectType::get("string") } } });
+        });
     });
 
 [[maybe_unused]] auto s_any = ObjectType::register_type(PrimitiveType::Any,
@@ -879,6 +885,16 @@ ErrorOr<std::shared_ptr<ObjectType>> ObjectType::make_struct_type(std::string na
     if (builder != nullptr)
         builder(ret);
     return ret;
+}
+
+std::shared_ptr<ObjectType> ObjectType::make_enum_type(std::string name, NVPs values)
+{
+    TemplateArgumentValues arg_values;
+    for (auto const& nvp : values) {
+        arg_values.push_back(nvp);
+    }
+    TemplateArguments args { TemplateArgument(TemplateParameterType::NameValue, arg_values) };
+    return register_type(name.c_str(), s_enum, args);
 }
 
 void ObjectType::register_type_in_caches(std::shared_ptr<ObjectType> const& type)
