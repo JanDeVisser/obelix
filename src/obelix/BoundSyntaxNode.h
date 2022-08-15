@@ -357,7 +357,7 @@ using BoundLiterals = std::vector<std::shared_ptr<BoundLiteral>>;
 class BoundIntLiteral : public BoundLiteral {
 public:
     explicit BoundIntLiteral(std::shared_ptr<IntLiteral> const& literal)
-        : BoundLiteral(literal->token(), get_type<int>())
+        : BoundLiteral(literal->token(), ObjectType::get("s32"))
     {
         m_int = token_value<long>(token());
     }
