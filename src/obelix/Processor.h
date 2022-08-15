@@ -491,19 +491,22 @@ ErrorOrNode process(std::shared_ptr<SyntaxNode> const& tree, Ctx& ctx)
 {
     if (!tree)
         return tree;
+    std::string log_message;
+    debug(parser, "Process <{} {}>", tree->node_type(), tree);
     switch (tree->node_type()) {
 #undef __SYNTAXNODETYPE
-#define __SYNTAXNODETYPE(type)                                                                                                           \
-    case SyntaxNodeType::type: {                                                                                                         \
-        debug(parser, "NodeProcessor: {}:{} = {}", tree, tree->node_type(), SyntaxNodeType::type);                                       \
-        ErrorOrNode ret = process_node<Ctx, SyntaxNodeType::type>(tree, ctx);                                                            \
-        if (ret.is_error()) {                                                                                                            \
-            debug(parser, "NodeProcessor for {} = {} returned error {}", tree, tree->node_type(), ret.error());                          \
-            ctx.add_error(ret.error());                                                                                                  \
-        } else {                                                                                                                         \
-            debug(parser, "NodeProcessor for {} = {} returned {} = {}", tree, tree->node_type(), ret.value(), ret.value()->node_type()); \
-        }                                                                                                                                \
-        return ret;                                                                                                                      \
+#define __SYNTAXNODETYPE(type)                                                \
+    case SyntaxNodeType::type: {                                              \
+        log_message = format("<{} {}> => ", #type, tree);                     \
+        ErrorOrNode ret = process_node<Ctx, SyntaxNodeType::type>(tree, ctx); \
+        if (ret.is_error()) {                                                 \
+            log_message += format("Error {}", ret.error());                   \
+            ctx.add_error(ret.error());                                       \
+        } else {                                                              \
+            log_message += format("<{} {}>", tree->node_type(), tree);        \
+        }                                                                     \
+        debug(parser, "{}", log_message);                                     \
+        return ret;                                                           \
     }
         ENUMERATE_SYNTAXNODETYPES(__SYNTAXNODETYPE)
 #undef __SYNTAXNODETYPE
@@ -522,7 +525,6 @@ ErrorOrNode process(std::shared_ptr<SyntaxNode> const& tree)
 template<typename Ctx, SyntaxNodeType node_type>
 ErrorOrNode process_node(std::shared_ptr<SyntaxNode> const& tree, Ctx& ctx)
 {
-    debug(parser, "{} = {} forwarding to process_tree", tree->node_type(), tree);
     return process_tree(tree, ctx, [](std::shared_ptr<SyntaxNode> const& tree, Ctx& ctx) {
         return process(tree, ctx);
     });
