@@ -15,6 +15,7 @@
 #include <optional>
 #include <string>
 #include <string_view>
+#include <type_traits>
 #include <unordered_map>
 #include <unordered_set>
 #include <utility>
@@ -23,6 +24,7 @@
 
 #include <core/Error.h>
 #include <core/Format.h>
+#include <core/Logging.h>
 #include <obelix/Architecture.h>
 #include <obelix/Intrinsics.h>
 #include <obelix/Operator.h>
@@ -349,6 +351,28 @@ struct TemplateArgument {
 
 using TemplateArguments = std::vector<TemplateArgument>;
 
+template<>
+struct Converter<TemplateArguments> {
+    static std::string to_string(TemplateArguments const& arguments)
+    {
+        std::string ret = "<";
+        for (auto const& arg : arguments) {
+            ret += format("{}", arg);
+        }
+        return ret + ">";
+    }
+
+    static double to_double(TemplateArguments const&)
+    {
+        return NAN;
+    }
+
+    static long to_long(TemplateArguments const&)
+    {
+        return 0;
+    }
+};
+
 class ObjectType {
 public:
     ObjectType(PrimitiveType type, const char* name) noexcept
@@ -503,63 +527,55 @@ private:
 };
 
 template <typename T>
-inline std::shared_ptr<ObjectType> get_type()
-{
-    return nullptr;
-}
+struct TypeGetter {
+    std::shared_ptr<ObjectType> operator()() 
+    {
+        if (std::is_integral<T>()) {
+            std::string prefix = "u";
+            if (std::is_signed<T>())
+                prefix = "s";
+            auto t = format("{}{}", prefix, 8 * sizeof(T));
+            return ObjectType::get(t);
+        }
+        if (std::is_floating_point<T>()) {
+            return ObjectType::get("float");
+        }
+        fatal("Sorry can't do this yet");
+    }
+};
+
+template <>
+struct TypeGetter<std::string> {
+    std::shared_ptr<ObjectType> operator()() 
+    {
+        return ObjectType::get("string");
+    }
+};
+
+template<typename T>
+struct TypeGetter<T*> {
+    std::shared_ptr<ObjectType> operator()()
+    {
+        auto ret_or_error = ObjectType::specialize(ObjectType::get("pointer"),
+            { TemplateArgument(TypeGetter<T>{}()) });
+        if (ret_or_error.is_error())
+            fatal("Could not specialize pointer: {}", ret_or_error.error());
+        return ret_or_error.value();
+    }
+};
 
 template<>
-inline std::shared_ptr<ObjectType> get_type<int>()
-{
-    return ObjectType::get("s32");
-}
+struct TypeGetter<void*> {
+    std::shared_ptr<ObjectType> operator()() 
+    {
+        return ObjectType::get("pointer");
+    }
+};
 
-template<>
-inline std::shared_ptr<ObjectType> get_type<long>()
+template <typename T>
+std::shared_ptr<ObjectType> get_type()
 {
-    return ObjectType::get("s64");
-}
-
-template<>
-inline std::shared_ptr<ObjectType> get_type<uint8_t>()
-{
-    return ObjectType::get("u8");
-}
-
-template<>
-inline std::shared_ptr<ObjectType> get_type<int8_t>()
-{
-    return ObjectType::get("s8");
-}
-
-template<>
-inline std::shared_ptr<ObjectType> get_type<std::string>()
-{
-    return ObjectType::get("string");
-}
-
-template<>
-inline std::shared_ptr<ObjectType> get_type<bool>()
-{
-    return ObjectType::get("bool");
-}
-
-template<>
-inline std::shared_ptr<ObjectType> get_type<double>()
-{
-    return ObjectType::get("float");
-}
-
-template<>
-inline std::shared_ptr<ObjectType> get_type<float>()
-{
-    return ObjectType::get("float");
-}
-
-template<>
-inline std::shared_ptr<ObjectType> get_type<void*>()
-{
-    return ObjectType::get("pointer");
+    return TypeGetter<T> {}();
 }
 
 template<>
@@ -569,12 +585,12 @@ struct Converter<ObjectType> {
         return val.to_string();
     }
 
-    static double to_double(UnaryOperator const&)
+    static double to_double(ObjectType const&)
     {
         return NAN;
     }
 
-    static long to_long(UnaryOperator const&)
+    static long to_long(ObjectType const&)
     {
         return 0;
     }
