@@ -1,6 +1,6 @@
 func main(argc: int, argv: ptr<ptr<char>>): int
 {
-  puts("argc: "); puti(argc); putchar(10);
+  puts("argc: "); puti(argc); putln("");
   for (ix in 0 .. argc) {
     var arg: ptr<char> = *(argv + ix);
     var str: string = cstr_to_str(arg);
