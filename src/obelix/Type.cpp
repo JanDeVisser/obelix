@@ -411,10 +411,10 @@ static void initialize_types()
             type->add_method(MethodDescription { Operator::Dereference, ObjectType::get("u8") });
             type->add_method(MethodDescription { Operator::UnaryIncrement, PrimitiveType::Self });
             type->add_method(MethodDescription { Operator::UnaryDecrement, PrimitiveType::Self });
-            type->add_method(MethodDescription { Operator::BinaryIncrement, PrimitiveType::Self, IntrinsicType::NotIntrinsic, { { "other", ObjectType::get("s32") } } });
-            type->add_method(MethodDescription { Operator::BinaryDecrement, PrimitiveType::Self, IntrinsicType::NotIntrinsic, { { "other", ObjectType::get("s32") } } });
-            type->add_method(MethodDescription { Operator::Add, PrimitiveType::Self, IntrinsicType::NotIntrinsic, { { "other", ObjectType::get("s32") } } });
-            type->add_method(MethodDescription { Operator::Subtract, PrimitiveType::Self, IntrinsicType::NotIntrinsic, { { "other", ObjectType::get("s32") } } });
+            type->add_method(MethodDescription { Operator::BinaryIncrement, PrimitiveType::Self, IntrinsicType::NotIntrinsic, { { "other", ObjectType::get("u64") } } });
+            type->add_method(MethodDescription { Operator::BinaryDecrement, PrimitiveType::Self, IntrinsicType::NotIntrinsic, { { "other", ObjectType::get("u64") } } });
+            type->add_method(MethodDescription { Operator::Add, PrimitiveType::Self, IntrinsicType::NotIntrinsic, { { "other", ObjectType::get("u64") } } });
+            type->add_method(MethodDescription { Operator::Subtract, PrimitiveType::Self, IntrinsicType::NotIntrinsic, { { "other", ObjectType::get("u64") } } });
             type->will_be_a(s_comparable);
 
             type->has_template_stamp([](std::shared_ptr<ObjectType> instantiation) {
@@ -471,16 +471,7 @@ static void initialize_types()
 
 std::string ObjectType::to_string() const
 {
-    std::string ret = name();
-    auto glue = '<';
-    for (auto& parameter : template_arguments()) {
-        ret += glue;
-        ret += parameter.to_string();
-        glue = ',';
-    }
-    if (glue == ',')
-        ret += '>';
-    return ret;
+    return name();
 }
 
 MethodDescription& ObjectType::add_method(MethodDescription md)
@@ -504,19 +495,54 @@ bool ObjectType::operator==(ObjectType const& other) const
     return true;
 }
 
+/*
+ * is_assignable_to - is a value of this type assignable to the other type.
+ *  - non-integers: types must be the same.
+ *  - integers:
+ *      -- signedness is the same and this size is less or equal to other
+ *      -- signedness is different and this size is stritcly less than other
+ */
 bool ObjectType::is_assignable_to(ObjectType const& other) const
 {
-    if (type() != PrimitiveType::Struct && type() != PrimitiveType::Array) {
-        bool ret = (type() == other.type()) && (size() <= other.size());
-        debug(type, "{}.is_assignable_to({}) = {}", to_string(), other.to_string(), ret);
-        return ret;
+    if (type() == PrimitiveType::SignedIntegerNumber || type() == PrimitiveType::IntegerNumber) {
+        if (type() == other.type()) {
+            bool ret = size() <= other.size();
+            debug(type, "{}.is_assignable_to({}) = {}", to_string(), other.to_string(), ret);
+            return ret;
+        }
+        if (other.type() == PrimitiveType::IntegerNumber || other.type() == PrimitiveType::SignedIntegerNumber) {
+            bool ret = size() < other.size();
+            debug(type, "{}.is_assignable_to({}) = {}", to_string(), other.to_string(), ret);
+            return ret;
+        }
+        return false;
     }
     return *this == other;
 }
 
-bool ObjectType::can_assign(ObjectType const& other) const
+/*
+ * is_assignable_to - is a value of other type assignable to this type.
+ *  - non-integers: types must be the same.
+ *  - integers:
+ *      -- signedness is the same and this other size is less or equal this size
+ *      -- signedness is different and other size is stritcly less than this size
+ */
+bool ObjectType::is_compatible_with(ObjectType const& other) const
 {
-    return other.is_assignable_to(*this);
+    if (type() == PrimitiveType::SignedIntegerNumber || type() == PrimitiveType::IntegerNumber) {
+        if (type() == other.type()) {
+            bool ret = other.size() <= size();
+            debug(type, "{}.is_compatible_with({}) = {}", to_string(), other.to_string(), ret);
+            return ret;
+        }
+        if (other.type() == PrimitiveType::IntegerNumber || other.type() == PrimitiveType::SignedIntegerNumber) {
+            bool ret = other.size() < size();
+            debug(type, "{}.is_compatible_with({}) = {}", to_string(), other.to_string(), ret);
+            return ret;
+        }
+        return false;
+    }
+    return *this == other;
 }
 
 size_t ObjectType::size() const
@@ -591,15 +617,15 @@ bool ObjectType::is_compatible(MethodDescription const& mth, ObjectTypes const& 
         return false;
     auto ix = 0u;
     for (; ix < mth.parameters().size(); ++ix) {
-        auto& param = mth.parameters()[ix];
-        auto arg_type = argument_types[ix];
+        auto const& param = mth.parameters()[ix];
+        auto const& arg_type = argument_types[ix];
         switch (param.type->type()) {
             case PrimitiveType::Self:
                 if (*arg_type != *this)
                     return false;
                 break;
             case PrimitiveType::Compatible:
-                if (!can_assign(arg_type))
+                if (!is_compatible_with(arg_type))
                     return false;
                 break;
             case PrimitiveType::AssignableTo:

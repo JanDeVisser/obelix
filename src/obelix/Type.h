@@ -356,7 +356,11 @@ struct Converter<TemplateArguments> {
     static std::string to_string(TemplateArguments const& arguments)
     {
         std::string ret = "<";
+        auto first = true;
         for (auto const& arg : arguments) {
+            if (!first)
+                ret += ',';
+            first = false;
             ret += format("{}", arg);
         }
         return ret + ">";
@@ -444,8 +448,8 @@ public:
     bool operator==(ObjectType const&) const;
     [[nodiscard]] bool is_assignable_to(std::shared_ptr<ObjectType> const& other) const { return is_assignable_to(*other); }
     [[nodiscard]] bool is_assignable_to(ObjectType const&) const;
-    [[nodiscard]] bool can_assign(std::shared_ptr<ObjectType> const& other) const { return can_assign(*other); }
-    [[nodiscard]] bool can_assign(ObjectType const&) const;
+    [[nodiscard]] bool is_compatible_with(std::shared_ptr<ObjectType> const& other) const { return is_compatible_with(*other); }
+    [[nodiscard]] bool is_compatible_with(ObjectType const&) const;
 
     template<typename... Args>
     [[nodiscard]] std::optional<std::shared_ptr<ObjectType>> return_type_of(std::string_view method_name, ObjectTypes& arg_types, std::shared_ptr<ObjectType> arg_type, Args&&... args) const
