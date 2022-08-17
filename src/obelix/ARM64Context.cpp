@@ -63,15 +63,16 @@ void ARM64Context::enter_function(std::shared_ptr<MaterializedFunctionDef> const
         switch (param->type()->type()) {
             case PrimitiveType::IntegerNumber:
             case PrimitiveType::SignedIntegerNumber:
+            case PrimitiveType::Pointer:
                 switch (param->method()) {
                     case MaterializedFunctionParameter::ParameterPassingMethod::Register:
                         assembly().add_comment(format("Register parameter {}: x{} -> {}", param->name(), param->where(), std::dynamic_pointer_cast<StackVariableAddress>(param->address())->offset()));
-                        assembly().add_instruction("str", "x{},[fp,#-{}]", param->where(), std::dynamic_pointer_cast<StackVariableAddress>(param->address())->offset());
+                        assembly().add_instruction("str", "x{},[fp,#{}]", param->where(), func->stack_depth() - std::dynamic_pointer_cast<StackVariableAddress>(param->address())->offset());
                         break;
                     case MaterializedFunctionParameter::ParameterPassingMethod::Stack:
                         assembly().add_comment(format("Stack parameter {}: nsaa {} -> {}", param->name(), param->where(), std::dynamic_pointer_cast<StackVariableAddress>(param->address())->offset()));
                         assembly().add_instruction("ldr", "x9,[fp,#{}]", 16 + nsaa - param->where());
-                        assembly().add_instruction("str", "x9,[fp,#-{}]", std::dynamic_pointer_cast<StackVariableAddress>(param->address())->offset());
+                        assembly().add_instruction("str", "x9,[fp,#{}]", func->stack_depth() - std::dynamic_pointer_cast<StackVariableAddress>(param->address())->offset());
                         break;
                 }
                 break;
