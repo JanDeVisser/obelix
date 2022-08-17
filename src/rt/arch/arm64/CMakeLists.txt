@@ -3,6 +3,8 @@ add_library(
         oblrt
         STATIC
         close.s
+        cputln.s
+        cputs.s
         cstr_to_str.s
         cstrlen.s
         exit.s

@@ -30,7 +30,7 @@ intrinsic add_int_int(i1: s32, i2: s32) : string;
 func fsize(fd: s32) : u64 -> "fsize";
 func memset(buffer: ptr<char>, ch : u32, len: u32) : ptr<char> -> "memset";
 func memcpy(dst: ptr<char>, src: ptr<char>, len: u32) : ptr<char> -> "memcpy";
-func open(path: string, flags: s32) : s32 -> "open";
+func open(path: string, flags: u32) : s32 -> "open";
 func puti(i: s64) : int -> "putint";
 func putu(i: u64) : int -> "putint";
 func puthex(i: u64) : int -> "puthex";
@@ -40,6 +40,10 @@ func puts(s: string) : u64 -> "puts";
 func write(fd: int, buffer: ptr<char>, number_of_bytes: u64) : u64 -> "write";
 func cstr_to_str(s: ptr<char>) : string -> "cstr_to_str";
 
-const O_RDONLY: s32 = 0x0000;
-const O_RDWR: s32 = 0x0002;
-const O_WRONLY: s32 = 0x0001;
+func cstrlen(s: ptr<char>) : u64 -> "cstrlen";
+func cputs(s: ptr<char>) : u64 -> "cputs";
+func cputln(s: ptr<char>) : u64 -> "cputln";
+
+const O_RDONLY: u32 = 0x0000u32;
+const O_RDWR: u32 = 0x0002u32;
+const O_WRONLY: u32 = 0x0001u32;
