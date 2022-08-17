@@ -226,9 +226,8 @@ NODE_PROCESSOR(BoundUnaryExpression)
         auto new_rhs = make_node<BoundBinaryExpression>(expr->token(),
             identifier,
             (expr->op() == UnaryOperator::UnaryIncrement) ? BinaryOperator::Add : BinaryOperator::Subtract,
-            make_node<BoundIntLiteral>(expr->token(), 1),
+            make_node<BoundIntLiteral>(expr->token(), 1l, identifier->type()),
             identifier->type());
-        debug(parser, "identifier->type() = {} new_rhs->type() = {}", identifier->type(), new_rhs->type());
         return make_node<BoundAssignment>(expr->token(), identifier, new_rhs);
     }
     return tree;

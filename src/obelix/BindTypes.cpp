@@ -406,7 +406,15 @@ NODE_PROCESSOR(Variable)
 
 NODE_PROCESSOR(IntLiteral)
 {
-    return make_node<BoundIntLiteral>(std::dynamic_pointer_cast<IntLiteral>(tree));
+    auto literal = std::dynamic_pointer_cast<IntLiteral>(tree);
+    std::shared_ptr<ObjectType> type = ObjectType::get("s64");
+    if (literal->is_typed()) {
+         auto type_or_error = literal->type()->resolve_type();
+         if (type_or_error.is_error())
+            return SyntaxError { ErrorCode::NoSuchType, literal->token(), format("Unknown type '{}'", literal->type()) };
+        type = type_or_error.value();
+    }
+    return make_node<BoundIntLiteral>(std::dynamic_pointer_cast<IntLiteral>(tree), type);
 }
 
 NODE_PROCESSOR(StringLiteral)
