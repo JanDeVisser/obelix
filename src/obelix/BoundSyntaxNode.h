@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <cstddef>
 #include <memory>
 
 #include <obelix/Intrinsics.h>
@@ -356,16 +357,69 @@ using BoundLiterals = std::vector<std::shared_ptr<BoundLiteral>>;
 
 class BoundIntLiteral : public BoundLiteral {
 public:
-    explicit BoundIntLiteral(std::shared_ptr<IntLiteral> const& literal)
-        : BoundLiteral(literal->token(), ObjectType::get("s32"))
+    explicit BoundIntLiteral(std::shared_ptr<IntLiteral> const& literal, std::shared_ptr<ObjectType> type = nullptr)
+        : BoundLiteral(literal->token(), (type) ? move(type) : ObjectType::get("s64")) 
     {
         m_int = token_value<long>(token());
     }
 
-    template <typename IntType=int>
-    explicit BoundIntLiteral(Token t, IntType value)
-        : BoundLiteral(std::move(t), get_type<IntType>())
-        , m_int(static_cast<long>(value))
+    BoundIntLiteral(Token t, long value, std::shared_ptr<ObjectType> type)
+        : BoundLiteral(std::move(t), move(type))
+        , m_int(value)
+    {
+    }
+
+    BoundIntLiteral(Token t, unsigned long value, std::shared_ptr<ObjectType> type)
+        : BoundLiteral(std::move(t), move(type))
+        , m_int(value)
+    {
+    }
+
+    BoundIntLiteral(Token t, long value)
+        : BoundLiteral(std::move(t), ObjectType::get("s64"))
+        , m_int(value)
+    {
+    }
+
+    BoundIntLiteral(Token t, unsigned long value)
+        : BoundLiteral(std::move(t), ObjectType::get("u64"))
+        , m_int(value)
+    {
+    }
+
+    BoundIntLiteral(Token t, int value)
+        : BoundLiteral(std::move(t), ObjectType::get("s32"))
+        , m_int(value)
+    {
+    }
+
+    BoundIntLiteral(Token t, unsigned value)
+        : BoundLiteral(std::move(t), ObjectType::get("u32"))
+        , m_int(value)
+    {
+    }
+
+    BoundIntLiteral(Token t, short value)
+        : BoundLiteral(std::move(t), ObjectType::get("s16"))
+        , m_int(value)
+    {
+    }
+
+    BoundIntLiteral(Token t, unsigned char value)
+        : BoundLiteral(std::move(t), ObjectType::get("u8"))
+        , m_int(value)
+    {
+    }
+
+    BoundIntLiteral(Token t, signed char value)
+        : BoundLiteral(std::move(t), ObjectType::get("s8"))
+        , m_int(value)
+    {
+    }
+
+    BoundIntLiteral(Token t, unsigned short value)
+        : BoundLiteral(std::move(t), ObjectType::get("u16"))
+        , m_int(value)
     {
     }
 

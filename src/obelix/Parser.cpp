@@ -790,8 +790,32 @@ std::shared_ptr<Expression> Parser::parse_primary_expression()
         return make_node<UnaryExpression>(t, operand);
     }
     case TokenCode::Integer:
-    case TokenCode::HexNumber:
-        return make_node<IntLiteral>(t);
+    case TokenCode::HexNumber: {
+        auto type_mnemonic = std::string("s64");
+        debug(parser, "next after number: {}", peek());
+        if (auto int_type = peek(); int_type.code() == TokenCode::Identifier) {
+            if (int_type.value() == "u8" || int_type.value() == "s8" ||
+                    int_type.value() == "u16" || int_type.value() == "s16" ||
+                    int_type.value() == "u32" || int_type.value() == "s32" ||
+                    int_type.value() == "u64" || int_type.value() == "s64") {
+                type_mnemonic = int_type.value();
+                lex();
+            } else if (int_type.value() == "uc" || int_type.value() == "sc") {
+                type_mnemonic = format("{}8", int_type.value()[0]);
+                lex();
+            } else if (int_type.value() == "us" || int_type.value() == "ss") {
+                type_mnemonic = format("{}16", int_type.value()[0]);
+                lex();
+            } else if (int_type.value() == "uw" || int_type.value() == "sw") {
+                type_mnemonic = format("{}32", int_type.value()[0]);
+                lex();
+            } else if (int_type.value() == "ul" || int_type.value() == "sl") {
+                type_mnemonic = format("{}64", int_type.value()[0]);
+                lex();
+            }
+        }
+        return make_node<IntLiteral>(t, ObjectType::get(type_mnemonic));
+    }
     case TokenCode::Float:
         return make_node<FloatLiteral>(t);
     case TokenCode::DoubleQuotedString:

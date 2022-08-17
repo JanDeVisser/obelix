@@ -636,11 +636,15 @@ private:
     std::shared_ptr<Expression> m_expression;
 };
 
-template <typename LiteralType>
 class Literal : public Expression {
 protected:
-    Literal(Token const& t)
-        : Expression(t, std::make_shared<ExpressionType>(t, get_type<LiteralType>()))
+    Literal(Token const& t, std::shared_ptr<ExpressionType> type)
+        : Expression(t, std::move(type))
+    {
+    }
+
+    Literal(Token const& t, std::shared_ptr<ObjectType> type)
+        : Expression(t, std::make_shared<ExpressionType>(t, type))
     {
     }
 
@@ -649,50 +653,60 @@ public:
     [[nodiscard]] std::string to_string() const override { return format("{}: {}", Expression::token().value(), type()->to_string()); }
 };
 
-class IntLiteral : public Literal<long> {
+class IntLiteral : public Literal {
 public:
     IntLiteral(Token const& t)
-        : Literal(t)
+        : Literal(t, ObjectType::get("s64"))
+    {
+    }
+
+    IntLiteral(Token const& t, std::shared_ptr<ExpressionType> type)
+        : Literal(t, move(type))
+    {
+    }
+
+    IntLiteral(Token const& t, std::shared_ptr<ObjectType> type)
+        : Literal(t, move(type))
     {
     }
 
     [[nodiscard]] SyntaxNodeType node_type() const override { return SyntaxNodeType::IntLiteral; }
 };
 
-class CharLiteral : public Literal<char> {
+class CharLiteral : public Literal {
 public:
     CharLiteral(Token const& t)
-        : Literal(t)
+        : Literal(t, ObjectType::get("char"))
     {
     }
 
     [[nodiscard]] SyntaxNodeType node_type() const override { return SyntaxNodeType::CharLiteral; }
 };
 
-class FloatLiteral : public Literal<double> {
+class FloatLiteral : public Literal {
 public:
     FloatLiteral(Token const& t)
-        : Literal(t)
+        : Literal(t, ObjectType::get("double"))
     {
     }
 
     [[nodiscard]] SyntaxNodeType node_type() const override { return SyntaxNodeType::FloatLiteral; }
 };
 
-class StringLiteral : public Literal<std::string> {
+class StringLiteral : public Literal {
 public:
     StringLiteral(Token const& t)
-        : Literal(t)
+        : Literal(t, ObjectType::get("string"))
     {
     }
 
     [[nodiscard]] SyntaxNodeType node_type() const override { return SyntaxNodeType::StringLiteral; }
 };
 
-class BooleanLiteral : public Literal<bool> {
+class BooleanLiteral : public Literal {
 public:
     BooleanLiteral(Token const& t)
-        : Literal(t)
+        : Literal(t, ObjectType::get("bool"))
     {
     }
 
