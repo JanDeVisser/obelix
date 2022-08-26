@@ -25,6 +25,7 @@
 #include <core/Error.h>
 #include <core/Format.h>
 #include <core/Logging.h>
+#include <core/StringUtil.h>
 #include <obelix/Architecture.h>
 #include <obelix/Intrinsics.h>
 #include <obelix/Operator.h>
@@ -532,7 +533,7 @@ private:
 
 template <typename T>
 struct TypeGetter {
-    std::shared_ptr<ObjectType> operator()() 
+    std::shared_ptr<ObjectType> operator()()
     {
         if (std::is_integral<T>()) {
             std::string prefix = "u";
@@ -550,7 +551,7 @@ struct TypeGetter {
 
 template <>
 struct TypeGetter<std::string> {
-    std::shared_ptr<ObjectType> operator()() 
+    std::shared_ptr<ObjectType> operator()()
     {
         return ObjectType::get("string");
     }
@@ -570,7 +571,7 @@ struct TypeGetter<T*> {
 
 template<>
 struct TypeGetter<void*> {
-    std::shared_ptr<ObjectType> operator()() 
+    std::shared_ptr<ObjectType> operator()()
     {
         return ObjectType::get("pointer");
     }
@@ -595,6 +596,24 @@ struct Converter<ObjectType> {
     }
 
     static long to_long(ObjectType const&)
+    {
+        return 0;
+    }
+};
+
+template<>
+struct Converter<ObjectTypes> {
+    static std::string to_string(ObjectTypes const& val)
+    {
+        return Obelix::join(val, ", ", [](std::shared_ptr<ObjectType> type) { return type->name(); });
+    }
+
+    static double to_double(ObjectTypes const&)
+    {
+        return NAN;
+    }
+
+    static long to_long(ObjectTypes const&)
     {
         return 0;
     }
