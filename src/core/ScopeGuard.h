@@ -6,14 +6,13 @@
 
 #pragma once
 
-#include <functional>
-
 namespace Obelix {
 
+template<typename Callback>
 class ScopeGuard {
 public:
-    explicit ScopeGuard(std::function<void(void)> callback)
-        : m_callback(move(callback))
+    explicit ScopeGuard(Callback const& callback)
+        : m_callback(callback)
     {
     }
 
@@ -23,7 +22,7 @@ public:
     }
 
 private:
-    std::function<void(void)> m_callback;
+    Callback const& m_callback;
 };
 
 }
