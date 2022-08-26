@@ -1,6 +1,6 @@
 func main() : int
 {
-   var s = "Hello, World!";
-   var x = putln(s);
+   static var s = "Hello, World!";
+   const x = putln(s);
    return 1;
 }
