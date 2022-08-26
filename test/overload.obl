@@ -1,0 +1,19 @@
+func foo(x: s64): string
+{
+   return "foo_string";
+}
+
+
+func foo(x: s64, y: s64): int
+{
+  return 12;
+}
+
+func main() : s32
+{
+  puts(foo(1));
+  putln("");
+  puti(foo(1,2));
+  putln("");
+  return 0;
+}

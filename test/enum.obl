@@ -1,0 +1,10 @@
+enum Hello {
+ Value1 = 1,
+  Value2,
+  Value9 = 9
+}
+
+func main(): s32
+{
+  return 0;
+}
