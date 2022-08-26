@@ -47,8 +47,8 @@ void ARM64Context::enter_function(std::shared_ptr<MaterializedFunctionDef> const
     auto decl = func->declaration();
     stack_depth(func->stack_depth());
     assembly().add_comment(format("{} nsaa {} stack depth {}", decl->to_string(), decl->nsaa(), func->stack_depth()));
-    assembly().add_directive(".global", func->name());
-    assembly().add_label(func->name());
+    assembly().add_directive(".global", func->label());
+    assembly().add_label(func->label());
 
     // fp, lr, and sp have been set be the calling function
 
@@ -103,14 +103,14 @@ void ARM64Context::function_return() const
 {
     assert(!s_function_stack.empty());
     auto func_def = s_function_stack.back();
-    assembly().add_instruction("b", format("__{}_return", func_def->name()));
+    assembly().add_instruction("b", format("__{}__return", func_def->label()));
 }
 
 void ARM64Context::leave_function()
 {
     assert(!s_function_stack.empty());
     auto func_def = s_function_stack.back();
-    assembly().add_label(format("__{}_return", func_def->name()));
+    assembly().add_label(format("__{}__return", func_def->label()));
     assembly().add_instruction("mov", "sp,fp");
     if (stack_depth())
         assembly().add_instruction("add", "sp,sp,#{}", stack_depth());

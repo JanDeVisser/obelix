@@ -209,7 +209,7 @@ NODE_PROCESSOR(MaterializedFunctionCall)
 {
     auto call = std::dynamic_pointer_cast<MaterializedFunctionCall>(tree);
     TRY_RETURN(evaluate_arguments(ctx, call->declaration(), call->arguments()));
-    ctx.assembly().add_instruction("bl", call->name());
+    ctx.assembly().add_instruction("bl", call->declaration()->label());
     reset_sp_after_call(ctx, call->declaration());
     return tree;
 }
