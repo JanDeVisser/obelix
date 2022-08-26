@@ -15,10 +15,10 @@
 
 namespace Obelix {
 
-#define ENUMERATE_VARIABLEADDRESSTYPES(S)  \
-    S(StackVariableAddress)                \
-    S(StaticVariableAddress)               \
-    S(StructMemberAddress)                   
+#define ENUMERATE_VARIABLEADDRESSTYPES(S) \
+    S(StackVariableAddress)               \
+    S(StaticVariableAddress)              \
+    S(StructMemberAddress)
 
 enum class VariableAddressType {
 #undef __VARIABLEADDRESSTYPE
@@ -85,7 +85,7 @@ public:
     ErrorOr<void, SyntaxError> load_variable(std::shared_ptr<ObjectType>, ARM64Context&, int) const override;
     ErrorOr<void, SyntaxError> prepare_pointer(ARM64Context&) const override;
 
-private:    
+private:
     int m_offset;
 };
 
@@ -112,7 +112,7 @@ private:
 struct StructMemberAddress : public VariableAddress {
 public:
     StructMemberAddress(std::shared_ptr<VariableAddress> strukt, int offset)
-        : m_struct(move(strukt))        
+        : m_struct(move(strukt))
         , m_offset(offset)
     {
     }
@@ -135,7 +135,7 @@ private:
 class ArrayElementAddress : public VariableAddress {
 public:
     ArrayElementAddress(std::shared_ptr<VariableAddress> array, int element_size)
-        : m_array(move(array))        
+        : m_array(move(array))
         , m_element_size(element_size)
     {
     }
@@ -208,6 +208,24 @@ private:
 
 using MaterializedFunctionParameters = std::vector<std::shared_ptr<MaterializedFunctionParameter>>;
 
+template<>
+struct Converter<MaterializedFunctionParameters> {
+    static std::string to_string(MaterializedFunctionParameters const& val)
+    {
+        return Obelix::join(val, ", ", [](std::shared_ptr<MaterializedFunctionParameter> param) { return param->to_string(); });
+    }
+
+    static double to_double(MaterializedFunctionParameters const&)
+    {
+        return NAN;
+    }
+
+    static long to_long(MaterializedFunctionParameters const&)
+    {
+        return 0;
+    }
+};
+
 class MaterializedFunctionDecl : public Statement {
 public:
     explicit MaterializedFunctionDecl(std::shared_ptr<BoundFunctionDecl> const& decl, MaterializedFunctionParameters parameters, int nsaa, int stack_depth)
@@ -246,6 +264,17 @@ public:
     [[nodiscard]] std::string to_string() const override
     {
         return format("func {}({}): {} [{}/{}]", name(), parameters_to_string(), type(), nsaa(), stack_depth());
+    }
+
+    [[nodiscard]] std::string label() const
+    {
+        if (parameters().empty())
+            return name();
+        size_t hash = 0u;
+        for (auto const& param : parameters()) {
+            hash ^= std::hash<ObjectType> {}(*param->type());
+        }
+        return format("{}_{}", name(), hash % 4096);
     }
 
 protected:
@@ -336,6 +365,11 @@ public:
             ret.push_back(m_statement);
         }
         return ret;
+    }
+
+    [[nodiscard]] std::string label() const
+    {
+        return declaration()->label();
     }
 
 protected:
