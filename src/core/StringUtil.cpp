@@ -75,23 +75,12 @@ std::vector<std::string> split(std::string const& s, char sep)
 
 std::string join(std::vector<std::string> const& collection, std::string const& sep)
 {
-    std::string ret;
-    auto first = true;
-    for (auto& elem : collection) {
-        if (!first) {
-            ret += sep;
-        }
-        ret += elem;
-        first = false;
-    }
-    return ret;
+    return join(collection, sep, [](std::string const& elem) { return elem; });
 }
 
 std::string join(std::vector<std::string> const& collection, char sep)
 {
-    std::string sep_str;
-    sep_str += sep;
-    return join(collection, sep_str);
+    return join(collection, sep, [](std::string const& elem) { return elem; });
 }
 
 std::string strip(std::string const& s)

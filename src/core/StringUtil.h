@@ -42,4 +42,27 @@ long to_long_unconditional(std::string const&);
 double to_double_unconditional(std::string const&);
 bool to_bool_unconditional(std::string const&);
 
+template<typename ElementType, typename ToString>
+std::string join(std::vector<ElementType> const& collection, std::string const& sep, ToString const& tostring)
+{
+    std::string ret;
+    auto first = true;
+    for (auto& elem : collection) {
+        if (!first) {
+            ret += sep;
+        }
+        ret += tostring(elem);
+        first = false;
+    }
+    return ret;
+}
+
+template<typename ElementType, typename ToString>
+std::string join(std::vector<ElementType> const& collection, char sep, ToString const& tostring)
+{
+    std::string sep_str;
+    sep_str += sep;
+    return join(collection, sep_str, tostring);
+}
+
 }
