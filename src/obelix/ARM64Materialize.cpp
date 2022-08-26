@@ -82,7 +82,7 @@ public:
     [[nodiscard]] std::vector<std::shared_ptr<FunctionCall>> const& unresolved_functions() const
     {
         if (parent() != nullptr) {
-            return (static_cast<MaterializeContext*>(parent()))->unresolved_functions();
+            return (dynamic_cast<MaterializeContext*>(parent()))->unresolved_functions();
         }
         return m_unresolved_functions;
     }
@@ -90,53 +90,82 @@ public:
     void clear_unresolved_functions()
     {
         if (parent() != nullptr) {
-            (static_cast<MaterializeContext*>(parent()))->clear_unresolved_functions();
+            (dynamic_cast<MaterializeContext*>(parent()))->clear_unresolved_functions();
             return;
         }
         m_unresolved_functions.clear();
     }
 
-    void add_declared_function(std::string const& name, std::shared_ptr<MaterializedFunctionDecl> func)
+    void add_materialized_function(std::shared_ptr<MaterializedFunctionDecl> func)
     {
         if (parent() != nullptr) {
-            (static_cast<MaterializeContext*>(parent()))->add_declared_function(name, func);
+            (dynamic_cast<MaterializeContext*>(parent()))->add_materialized_function(func);
             return;
         }
-        m_declared_functions[name] = func;
+        m_materialized_functions.insert({ func->name(), func });
     }
 
-    [[nodiscard]] std::unordered_map<std::string, std::shared_ptr<MaterializedFunctionDecl>> const& declared_functions() const
+    [[nodiscard]] std::multimap<std::string, std::shared_ptr<MaterializedFunctionDecl>> const& materialized_functions() const
     {
         if (parent() != nullptr) {
-            return (static_cast<MaterializeContext*>(parent()))->declared_functions();
+            return (dynamic_cast<MaterializeContext*>(parent()))->materialized_functions();
         }
-        return m_declared_functions;
+        return m_materialized_functions;
     }
 
-    [[nodiscard]] std::optional<std::shared_ptr<MaterializedFunctionDecl>> declared_function(std::string const& name) const
+    [[nodiscard]] std::shared_ptr<MaterializedFunctionDecl> match(std::string const& name, ObjectTypes arg_types) const
     {
         if (parent() != nullptr) {
-            return (static_cast<MaterializeContext*>(parent()))->declared_function(name);
+            return (dynamic_cast<MaterializeContext*>(parent()))->match(name, arg_types);
         }
-        if (m_declared_functions.contains(name))
-            return m_declared_functions.at(name);
-        return {};
+        debug(parser, "matching function {}({})", name, arg_types);
+        //        debug(parser, "Current materialized functions:");
+        //        for (auto const& f : m_materialized_functions) {
+        //            debug(parser, "{} {}", f.second->node_type(), f.second->to_string());
+        //        }
+        std::shared_ptr<MaterializedFunctionDecl> func_decl = nullptr;
+        auto range = m_materialized_functions.equal_range(name);
+        for (auto iter = range.first; iter != range.second; ++iter) {
+            debug(parser, "checking {}({})", iter->first, iter->second->parameters());
+            auto candidate = iter->second;
+            if (arg_types.size() != candidate->parameters().size())
+                continue;
+
+            bool all_matched = true;
+            for (auto ix = 0u; ix < arg_types.size(); ix++) {
+                auto& arg_type = arg_types.at(ix);
+                auto& param = candidate->parameters().at(ix);
+                if (!arg_type->is_assignable_to(param->type())) {
+                    all_matched = false;
+                    break;
+                }
+            }
+            if (all_matched) {
+                func_decl = candidate;
+                break;
+            }
+        }
+        if (func_decl != nullptr)
+            debug(parser, "match() returns {}", *func_decl);
+        else
+            debug(parser, "No matching function found");
+        return func_decl;
     }
 
-    void clear_declared_functions()
+    void clear_materialized_functions()
     {
         if (parent() != nullptr) {
-            (static_cast<MaterializeContext*>(parent()))->clear_declared_functions();
+            (dynamic_cast<MaterializeContext*>(parent()))->clear_materialized_functions();
             return;
         }
-        m_declared_functions.clear();
+        m_materialized_functions.clear();
     }
 
 private:
     int m_offset { 0 };
     ContextLevel m_level { ContextLevel::Block };
     std::vector<std::shared_ptr<FunctionCall>> m_unresolved_functions;
-    std::unordered_map<std::string, std::shared_ptr<MaterializedFunctionDecl>> m_declared_functions;
+    std::multimap<std::string, std::shared_ptr<MaterializedFunctionDecl>> m_materialized_functions;
 };
 
 INIT_NODE_PROCESSOR(MaterializeContext);
@@ -189,8 +218,8 @@ ParameterMaterializations make_materialized_parameters(std::shared_ptr<BoundFunc
             default:
                 fatal("Type '{}' Not yet implemented in make_materialized_parameters", parameter->type());
         }
-    
-        ret.offset += parameter->type()->size();
+
+            ret.offset += parameter->type()->size();
         if (ret.offset % 16)
             ret.offset += 16 - (ret.offset % 16);
         auto materialized_parameter = make_node<MaterializedFunctionParameter>(parameter, std::make_shared<StackVariableAddress>(ret.offset), method, where);
@@ -203,10 +232,10 @@ NODE_PROCESSOR(BoundFunctionDecl)
 {
     auto func_decl = std::dynamic_pointer_cast<BoundFunctionDecl>(tree);
     auto materialized_parameters = make_materialized_parameters(func_decl);
-    auto ret = make_node<MaterializedFunctionDecl>(func_decl, 
+    auto ret = make_node<MaterializedFunctionDecl>(func_decl,
         materialized_parameters.function_parameters, materialized_parameters.nsaa, materialized_parameters.offset);
     ctx.declare(func_decl->name(), ret);
-    ctx.add_declared_function(func_decl->name(), ret);
+    ctx.add_materialized_function(ret);
     return ret;
 }
 
@@ -214,10 +243,10 @@ NODE_PROCESSOR(BoundNativeFunctionDecl)
 {
     auto func_decl = std::dynamic_pointer_cast<BoundNativeFunctionDecl>(tree);
     auto materialized_parameters = make_materialized_parameters(func_decl);
-    auto ret = make_node<MaterializedNativeFunctionDecl>(func_decl, 
+    auto ret = make_node<MaterializedNativeFunctionDecl>(func_decl,
         materialized_parameters.function_parameters, materialized_parameters.nsaa);
     ctx.declare(func_decl->name(), ret);
-    ctx.add_declared_function(func_decl->name(), ret);
+    ctx.add_materialized_function(ret);
     return ret;
 }
 
@@ -225,10 +254,10 @@ NODE_PROCESSOR(BoundIntrinsicDecl)
 {
     auto func_decl = std::dynamic_pointer_cast<BoundIntrinsicDecl>(tree);
     auto materialized_parameters = make_materialized_parameters(func_decl);
-    auto ret = make_node<MaterializedIntrinsicDecl>(func_decl, 
+    auto ret = make_node<MaterializedIntrinsicDecl>(func_decl,
         materialized_parameters.function_parameters, materialized_parameters.nsaa);
     ctx.declare(func_decl->name(), ret);
-    ctx.add_declared_function(func_decl->name(), ret);
+    ctx.add_materialized_function(ret);
     return ret;
 }
 
@@ -281,57 +310,39 @@ NODE_PROCESSOR(BoundFunctionCall)
 {
     auto call = std::dynamic_pointer_cast<BoundFunctionCall>(tree);
     BoundExpressions arguments;
+    ObjectTypes arg_types;
     for (auto& expr : call->arguments()) {
         auto new_expr = process(expr, ctx);
         if (new_expr.is_error())
             return new_expr.error();
-        arguments.push_back(std::dynamic_pointer_cast<BoundExpression>(new_expr.value()));
+        auto arg = std::dynamic_pointer_cast<BoundExpression>(new_expr.value());
+        arguments.push_back(arg);
+        arg_types.push_back(arg->type());
     }
-    auto decl_maybe = ctx.declared_function(call->name());
-    assert(decl_maybe.has_value());
-    auto decl = decl_maybe.value();
-    return make_node<MaterializedFunctionCall>(call, arguments, decl);
+    auto materialized_decl = ctx.match(call->name(), arg_types);
+    assert(materialized_decl != nullptr);
+    switch (materialized_decl->node_type()) {
+    case SyntaxNodeType::MaterializedNativeFunctionDecl:
+        return make_node<MaterializedNativeFunctionCall>(call, arguments, std::dynamic_pointer_cast<MaterializedNativeFunctionDecl>(materialized_decl));
+    case SyntaxNodeType::MaterializedIntrinsicDecl: {
+        std::shared_ptr<MaterializedIntrinsicDecl> materialized;
+        if (materialized_decl == nullptr) {
+            materialized = TRY_AND_CAST(MaterializedIntrinsicDecl, process(call->declaration(), ctx));
+            ctx.add_materialized_function(materialized);
+            ctx.declare(call->name(), materialized);
+        } else {
+            materialized = std::dynamic_pointer_cast<MaterializedIntrinsicDecl>(materialized_decl);
+            assert(materialized != nullptr);
+        }
+        return std::make_shared<MaterializedIntrinsicCall>(call, arguments, materialized, std::dynamic_pointer_cast<MaterializedIntrinsicCall>(call)->intrinsic());
+    }
+    default:
+        return make_node<MaterializedFunctionCall>(call, arguments, materialized_decl);
+    }
 }
 
-NODE_PROCESSOR(BoundNativeFunctionCall)
-{
-    auto call = std::dynamic_pointer_cast<BoundNativeFunctionCall>(tree);
-    BoundExpressions arguments;
-    for (auto& expr : call->arguments()) {
-        auto new_expr = process(expr, ctx);
-        if (new_expr.is_error())
-            return new_expr.error();
-        arguments.push_back(std::dynamic_pointer_cast<BoundExpression>(new_expr.value()));
-    }
-    auto decl_maybe = ctx.declared_function(call->name());
-    assert(decl_maybe.has_value());
-    auto decl = std::dynamic_pointer_cast<MaterializedNativeFunctionDecl>(decl_maybe.value());
-    assert(decl != nullptr);
-    return make_node<MaterializedNativeFunctionCall>(call, arguments, decl);
-}
-
-NODE_PROCESSOR(BoundIntrinsicCall)
-{
-    auto call = std::dynamic_pointer_cast<BoundIntrinsicCall>(tree);
-    BoundExpressions arguments;
-    for (auto& expr : call->arguments()) {
-        auto new_expr = process(expr, ctx);
-        if (new_expr.is_error())
-            return new_expr.error();
-        arguments.push_back(std::dynamic_pointer_cast<BoundExpression>(new_expr.value()));
-    }
-    auto decl_maybe = ctx.declared_function(call->name());
-    std::shared_ptr<MaterializedIntrinsicDecl> materialized;
-    if (!decl_maybe.has_value()) {
-        materialized = TRY_AND_CAST(MaterializedIntrinsicDecl, process(call->declaration(), ctx));
-        ctx.add_declared_function(call->name(), materialized);
-        ctx.declare(call->name(), materialized);
-    } else {
-        materialized = std::dynamic_pointer_cast<MaterializedIntrinsicDecl>(decl_maybe.value());
-        assert(materialized != nullptr);
-    }
-    return std::make_shared<MaterializedIntrinsicCall>(call, arguments, materialized, call->intrinsic());
-}
+ALIAS_NODE_PROCESSOR(BoundNativeFunctionCall, BoundFunctionCall);
+ALIAS_NODE_PROCESSOR(BoundIntrinsicCall, BoundFunctionCall);
 
 std::shared_ptr<MaterializedIdentifier> make_materialized_identifier(std::shared_ptr<BoundIdentifier> const& identifier, std::shared_ptr<VariableAddress> const& address)
 {

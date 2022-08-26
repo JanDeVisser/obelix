@@ -5,14 +5,13 @@
  */
 
 #include <memory>
+#include <map>
 
 #include <obelix/BoundSyntaxNode.h>
 #include <obelix/Context.h>
 #include <obelix/Intrinsics.h>
 #include <obelix/Parser.h>
 #include <obelix/Processor.h>
-#include <string>
-#include <unordered_map>
 
 namespace Obelix {
 
@@ -58,34 +57,63 @@ public:
     void add_declared_function(std::string const& name, std::shared_ptr<BoundFunctionDecl> func)
     {
         if (parent() != nullptr) {
-            (static_cast<BindContext*>(parent()))->add_declared_function(name, func);
+            (dynamic_cast<BindContext*>(parent()))->add_declared_function(name, func);
             return;
         }
-        m_declared_functions[name] = func;
+        m_declared_functions.insert({ name, func });
     }
 
-    [[nodiscard]] std::unordered_map<std::string, std::shared_ptr<BoundFunctionDecl>> const& declared_functions() const
+    [[nodiscard]] std::multimap<std::string, std::shared_ptr<BoundFunctionDecl>> const& declared_functions() const
     {
         if (parent() != nullptr) {
-            return (static_cast<BindContext*>(parent()))->declared_functions();
+            return (dynamic_cast<BindContext*>(parent()))->declared_functions();
         }
         return m_declared_functions;
     }
 
-    [[nodiscard]] std::optional<std::shared_ptr<BoundFunctionDecl>> declared_function(std::string const& name) const
+    [[nodiscard]] std::shared_ptr<BoundFunctionDecl> match(std::string const& name, ObjectTypes arg_types) const
     {
         if (parent() != nullptr) {
-            return (static_cast<BindContext*>(parent()))->declared_function(name);
+            return (dynamic_cast<BindContext*>(parent()))->match(name, arg_types);
         }
-        if (m_declared_functions.contains(name))
-            return m_declared_functions.at(name);
-        return {};
+        debug(parser, "matching function {}({})", name, arg_types);
+        //        debug(parser, "Current declared functions:");
+        //        for (auto const& f : m_declared_functions) {
+        //            debug(parser, "{} {}", f.second->node_type(), f.second->to_string());
+        //        }
+        std::shared_ptr<BoundFunctionDecl> func_decl = nullptr;
+        auto range = m_declared_functions.equal_range(name);
+        for (auto iter = range.first; iter != range.second; ++iter) {
+            debug(parser, "checking {}({})", iter->first, iter->second->parameters());
+            auto candidate = iter->second;
+            if (arg_types.size() != candidate->parameters().size())
+                continue;
+
+            bool all_matched = true;
+            for (auto ix = 0u; ix < arg_types.size(); ix++) {
+                auto& arg_type = arg_types.at(ix);
+                auto& param = candidate->parameters().at(ix);
+                if (!arg_type->is_assignable_to(param->type())) {
+                    all_matched = false;
+                    break;
+                }
+            }
+            if (all_matched) {
+                func_decl = candidate;
+                break;
+            }
+        }
+        if (func_decl != nullptr)
+            debug(parser, "match() returns {}", *func_decl);
+        else
+            debug(parser, "No matching function found");
+        return func_decl;
     }
 
     void clear_declared_functions()
     {
         if (parent() != nullptr) {
-            (static_cast<BindContext*>(parent()))->clear_declared_functions();
+            (dynamic_cast<BindContext*>(parent()))->clear_declared_functions();
             return;
         }
         m_declared_functions.clear();
@@ -93,7 +121,7 @@ public:
 
 private:
     std::vector<std::shared_ptr<FunctionCall>> m_unresolved_functions;
-    std::unordered_map<std::string, std::shared_ptr<BoundFunctionDecl>> m_declared_functions;
+    std::multimap<std::string, std::shared_ptr<BoundFunctionDecl>> m_declared_functions;
 };
 
 INIT_NODE_PROCESSOR(BindContext);
@@ -430,7 +458,6 @@ NODE_PROCESSOR(BooleanLiteral)
 NODE_PROCESSOR(FunctionCall)
 {
     auto func_call = std::dynamic_pointer_cast<FunctionCall>(tree);
-    std::shared_ptr<BoundFunctionDecl> func_decl;
 
     BoundExpressions args;
     ObjectTypes arg_types;
@@ -442,23 +469,10 @@ NODE_PROCESSOR(FunctionCall)
         args.push_back(processed_arg);
         arg_types.push_back(processed_arg->type());
     }
-
-    auto type_decl_maybe = ctx.declared_function(func_call->name());
-    if (!type_decl_maybe.has_value()) {
+    std::shared_ptr<BoundFunctionDecl> func_decl = ctx.match(func_call->name(), arg_types);
+    if (func_decl == nullptr) {
         ctx.add_unresolved_function(func_call);
         return tree;
-    }
-    func_decl = std::dynamic_pointer_cast<BoundFunctionDecl>(type_decl_maybe.value());
-    if (func_decl == nullptr)
-        return SyntaxError { ErrorCode::SyntaxError, func_call->token(), format("Variable {} cannot be called", func_call->name()) };
-    if (args.size() != func_decl->parameters().size())
-        return SyntaxError { ErrorCode::ArgumentCountMismatch, func_call->token(), func_call->name(), func_call->arguments().size() };
-
-    for (auto ix = 0u; ix < args.size(); ix++) {
-        auto& arg = args.at(ix);
-        auto& param = func_decl->parameters().at(ix);
-        if (!arg->type()->is_assignable_to(param->type()))
-            return SyntaxError { ErrorCode::ArgumentTypeMismatch, param->token(), func_call->name(), arg->type(), param->name() };
     }
 
     switch (func_decl->node_type()) {
