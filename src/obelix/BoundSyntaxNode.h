@@ -98,6 +98,24 @@ private:
 
 using BoundIdentifiers = std::vector<std::shared_ptr<BoundIdentifier>>;
 
+template<>
+struct Converter<BoundIdentifiers> {
+    static std::string to_string(BoundIdentifiers const& val)
+    {
+        return Obelix::join(val, ", ", [](std::shared_ptr<BoundIdentifier> identifier) { return identifier->to_string(); });
+    }
+
+    static double to_double(BoundIdentifiers const&)
+    {
+        return NAN;
+    }
+
+    static long to_long(BoundIdentifiers const&)
+    {
+        return 0;
+    }
+};
+
 class BoundVariable : public BoundIdentifier {
 public:
     BoundVariable(std::shared_ptr<Variable> const& identifier, std::shared_ptr<ObjectType> type)
@@ -358,7 +376,7 @@ using BoundLiterals = std::vector<std::shared_ptr<BoundLiteral>>;
 class BoundIntLiteral : public BoundLiteral {
 public:
     explicit BoundIntLiteral(std::shared_ptr<IntLiteral> const& literal, std::shared_ptr<ObjectType> type = nullptr)
-        : BoundLiteral(literal->token(), (type) ? move(type) : ObjectType::get("s64")) 
+        : BoundLiteral(literal->token(), (type) ? move(type) : ObjectType::get("s64"))
     {
         m_int = token_value<long>(token());
     }
