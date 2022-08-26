@@ -208,24 +208,6 @@ private:
 
 using MaterializedFunctionParameters = std::vector<std::shared_ptr<MaterializedFunctionParameter>>;
 
-template<>
-struct Converter<MaterializedFunctionParameters> {
-    static std::string to_string(MaterializedFunctionParameters const& val)
-    {
-        return Obelix::join(val, ", ", [](std::shared_ptr<MaterializedFunctionParameter> param) { return param->to_string(); });
-    }
-
-    static double to_double(MaterializedFunctionParameters const&)
-    {
-        return NAN;
-    }
-
-    static long to_long(MaterializedFunctionParameters const&)
-    {
-        return 0;
-    }
-};
-
 class MaterializedFunctionDecl : public Statement {
 public:
     explicit MaterializedFunctionDecl(std::shared_ptr<BoundFunctionDecl> const& decl, MaterializedFunctionParameters parameters, int nsaa, int stack_depth)

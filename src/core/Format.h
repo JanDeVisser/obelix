@@ -231,6 +231,60 @@ struct Converter<std::shared_ptr<T>> {
     }
 };
 
+template<typename T>
+struct Converter<std::vector<T>> {
+    static std::string to_string(std::vector<T> const& val)
+    {
+        return Obelix::join(val, ", ", [](T elem) { return elem.to_string(); });
+    }
+
+    static double to_double(std::vector<T> const& val)
+    {
+        return NAN;
+    }
+
+    static unsigned long to_long(std::vector<T> const& val)
+    {
+        return val.size();
+    }
+};
+
+template<typename T>
+struct Converter<std::vector<T*>> {
+    static std::string to_string(std::vector<T*> const& val)
+    {
+        return Obelix::join(val, ", ", [](T elem) { return elem->to_string(); });
+    }
+
+    static double to_double(std::vector<T*> const& val)
+    {
+        return NAN;
+    }
+
+    static unsigned long to_long(std::vector<T*> const& val)
+    {
+        return val.size();
+    }
+};
+
+template<typename T>
+struct Converter<std::vector<std::shared_ptr<T>>> {
+    static std::string to_string(std::vector<std::shared_ptr<T>> const& val)
+    {
+        return Obelix::join(val, ", ", [](std::shared_ptr<T> elem) { return elem->to_string(); });
+    }
+
+    static double to_double(std::vector<std::shared_ptr<T>> const& val)
+    {
+        return NAN;
+    }
+
+    static unsigned long to_long(std::vector<std::shared_ptr<T>> const& val)
+    {
+        return val.size();
+    }
+};
+
 class FormatSpecifier {
 public:
     enum class FormatState {

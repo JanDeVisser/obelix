@@ -601,24 +601,6 @@ struct Converter<ObjectType> {
     }
 };
 
-template<>
-struct Converter<ObjectTypes> {
-    static std::string to_string(ObjectTypes const& val)
-    {
-        return Obelix::join(val, ", ", [](std::shared_ptr<ObjectType> type) { return type->name(); });
-    }
-
-    static double to_double(ObjectTypes const&)
-    {
-        return NAN;
-    }
-
-    static long to_long(ObjectTypes const&)
-    {
-        return 0;
-    }
-};
-
 std::string type_name(std::shared_ptr<ObjectType> type);
 
 }
