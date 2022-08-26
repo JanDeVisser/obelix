@@ -3,6 +3,7 @@ project(obelix)
 
 cmake_policy(SET CMP0048 NEW)
 cmake_policy(SET CMP0115 NEW)
+#cmake_policy(SET CMP0135 NEW)
 
 set(CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 
