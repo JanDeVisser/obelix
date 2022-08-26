@@ -495,18 +495,19 @@ ErrorOrNode process(std::shared_ptr<SyntaxNode> const& tree, Ctx& ctx)
     debug(parser, "Process <{} {}>", tree->node_type(), tree);
     switch (tree->node_type()) {
 #undef __SYNTAXNODETYPE
-#define __SYNTAXNODETYPE(type)                                                \
-    case SyntaxNodeType::type: {                                              \
-        log_message = format("<{} {}> => ", #type, tree);                     \
-        ErrorOrNode ret = process_node<Ctx, SyntaxNodeType::type>(tree, ctx); \
-        if (ret.is_error()) {                                                 \
-            log_message += format("Error {}", ret.error());                   \
-            ctx.add_error(ret.error());                                       \
-        } else {                                                              \
-            log_message += format("<{} {}>", tree->node_type(), tree);        \
-        }                                                                     \
-        debug(parser, "{}", log_message);                                     \
-        return ret;                                                           \
+#define __SYNTAXNODETYPE(type)                                                 \
+    case SyntaxNodeType::type: {                                               \
+        log_message = format("<{} {}> => ", #type, tree);                      \
+        ErrorOrNode ret = process_node<Ctx, SyntaxNodeType::type>(tree, ctx);  \
+        if (ret.is_error()) {                                                  \
+            log_message += format("Error {}", ret.error());                    \
+            ctx.add_error(ret.error());                                        \
+        } else {                                                               \
+            auto new_tree = ret.value();                                       \
+            log_message += format("<{} {}>", new_tree->node_type(), new_tree); \
+        }                                                                      \
+        debug(parser, "{}", log_message);                                      \
+        return ret;                                                            \
     }
         ENUMERATE_SYNTAXNODETYPES(__SYNTAXNODETYPE)
 #undef __SYNTAXNODETYPE
