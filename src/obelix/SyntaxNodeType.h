@@ -88,6 +88,7 @@ namespace Obelix {
     S(BoundFloatLiteral)                \
     S(BoundStringLiteral)               \
     S(BoundBooleanLiteral)              \
+    S(BoundTypeLiteral)                 \
     S(BoundBinaryExpression)            \
     S(BoundUnaryExpression)             \
     S(BoundFunctionCall)                \
@@ -96,6 +97,9 @@ namespace Obelix {
     S(BoundVariableDeclaration)         \
     S(BoundStaticVariableDeclaration)   \
     S(BoundStructDefinition)            \
+    S(BoundEnumDef)                     \
+    S(BoundEnumValueDef)                \
+    S(BoundEnumValue)                   \
     S(BoundReturn)                      \
     S(BoundExpressionStatement)         \
     S(BoundBranch)                      \
@@ -129,7 +133,7 @@ constexpr char const* SyntaxNodeType_name(SyntaxNodeType type)
         ENUMERATE_SYNTAXNODETYPES(__SYNTAXNODETYPE)
 #undef __SYNTAXNODETYPE
     default:
-        fatal("Unknown SyntaxNodeType value '{}'", (int) type);
+        fatal("Unknown SyntaxNodeType value '{}'", (int)type);
     }
 }
 

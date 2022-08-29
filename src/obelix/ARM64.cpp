@@ -37,13 +37,14 @@ struct TypeMnemonicMap {
 };
 
 static TypeMnemonicMap mnemonic_map[] = {
-    { PrimitiveType::SignedIntegerNumber, true, 8, "ldr", "str", "x"},
-    { PrimitiveType::IntegerNumber, false, 8, "ldr", "str", "x"},
-    { PrimitiveType::Pointer, false, 8, "ldr", "str", "x"},
-    { PrimitiveType::SignedIntegerNumber, true, 4, "ldr", "str", "w"},
-    { PrimitiveType::IntegerNumber, false, 4, "ldr", "str", "w"},
-    { PrimitiveType::SignedIntegerNumber, true, 1, "ldrsb", "strsb", "w"},
-    { PrimitiveType::IntegerNumber, false, 1, "ldrb", "strb", "w"},
+    { PrimitiveType::SignedIntegerNumber, true, 8, "ldr", "str", "x" },
+    { PrimitiveType::IntegerNumber, false, 8, "ldr", "str", "x" },
+    { PrimitiveType::Enum, false, 8, "ldr", "str", "x" },
+    { PrimitiveType::Pointer, false, 8, "ldr", "str", "x" },
+    { PrimitiveType::SignedIntegerNumber, true, 4, "ldr", "str", "w" },
+    { PrimitiveType::IntegerNumber, false, 4, "ldr", "str", "w" },
+    { PrimitiveType::SignedIntegerNumber, true, 1, "ldrsb", "strsb", "w" },
+    { PrimitiveType::IntegerNumber, false, 1, "ldrb", "strb", "w" },
 };
 
 TypeMnemonicMap const* get_type_mnemonic_map(std::shared_ptr<ObjectType> type)
@@ -251,6 +252,18 @@ NODE_PROCESSOR(BoundIntLiteral)
     return tree;
 }
 
+NODE_PROCESSOR(BoundEnumValue)
+{
+    auto enum_value = std::dynamic_pointer_cast<BoundEnumValue>(tree);
+    auto mm = get_type_mnemonic_map(enum_value->type());
+    if (mm == nullptr)
+        return SyntaxError { ErrorCode::NotYetImplemented, enum_value->token(),
+            format("Cannot push values of variables of type {} yet", enum_value->type()) };
+
+    ctx.assembly().add_instruction("mov", "{}0,#{}", mm->reg_width, enum_value->value());
+    return tree;
+}
+
 ErrorOr<void, SyntaxError> StackVariableAddress::load_variable(std::shared_ptr<ObjectType> type, ARM64Context& ctx, int target) const
 {
     if (type->type() != PrimitiveType::Struct) {
@@ -278,7 +291,7 @@ ErrorOr<void, SyntaxError> StackVariableAddress::store_variable(std::shared_ptr<
         auto mm = get_type_mnemonic_map(type);
         if (mm == nullptr)
             return SyntaxError { ErrorCode::NotYetImplemented, Token {},
-                format("Cannot store values type {} yet", type) };
+                format("Cannot store values of type {} yet", type) };
         ctx.assembly().add_comment(format("Storing to variable: stack_depth {} offset {}", ctx.stack_depth(), offset()));
         ctx.assembly().add_instruction(mm->store_mnemonic, "{}{},[fp,#{}]", mm->reg_width, from, ctx.stack_depth() - offset());
         return {};
@@ -367,7 +380,7 @@ ErrorOr<void, SyntaxError> ArrayElementAddress::prepare_pointer(ARM64Context& ct
 {
     // x0 will hold the array index. Here we add that index, multiplied by the element size,
     // to x8, which should hold the array base address
-    
+
     switch (element_size()) {
         case 1:
             ctx.assembly().add_instruction("add", "x8,x8,x0");
@@ -518,9 +531,8 @@ NODE_PROCESSOR(MaterializedVariableDecl)
                 break;
             }
             case PrimitiveType::Array: {
-                ctx.assembly().add_data(static_address->label(), true, ".space", 
-                    var_decl->type()->template_argument<std::shared_ptr<ObjectType>>("base_type")->size() * 
-                    true, var_decl->type()->template_argument<long>("size"));
+                ctx.assembly().add_data(static_address->label(), true, ".space",
+                    var_decl->type()->template_argument<std::shared_ptr<ObjectType>>("base_type")->size() * true, var_decl->type()->template_argument<long>("size"));
                 break;
             }
             case PrimitiveType::Struct: {
@@ -637,11 +649,11 @@ ErrorOrNode output_arm64(std::shared_ptr<SyntaxNode> const& tree, Config const& 
 {
     auto processed = TRY(materialize_arm64(tree));
     if (config.cmdline_flag("show-tree"))
-        std::cout << "\n\nMaterialized:\n" 
-            << std::dynamic_pointer_cast<Compilation>(processed)->root_to_xml()
-            << "\n"
-            << processed->to_xml() 
-            << "\n";
+        std::cout << "\n\nMaterialized:\n"
+                  << std::dynamic_pointer_cast<Compilation>(processed)->root_to_xml()
+                  << "\n"
+                  << processed->to_xml()
+                  << "\n";
     if (!config.compile)
         return processed;
 

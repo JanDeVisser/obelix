@@ -152,6 +152,24 @@ NODE_PROCESSOR(StructDefinition)
     return make_node<BoundStructDefinition>(struct_def, type);
 }
 
+NODE_PROCESSOR(EnumDef)
+{
+    auto enum_def = std::dynamic_pointer_cast<EnumDef>(tree);
+    NVPs enum_values;
+    BoundEnumValueDefs bound_values;
+    long v = 0;
+    for (auto const& value : enum_def->values()) {
+        if (value->value().has_value())
+            // FIXME Check sanity of value
+            v = value->value().value();
+        enum_values.emplace_back(value->label(), v);
+        bound_values.push_back(make_node<BoundEnumValueDef>(value->token(), value->label(), v));
+        v++;
+    }
+    auto type = ObjectType::make_enum_type(enum_def->name(), enum_values);
+    return make_node<BoundEnumDef>(enum_def, type, bound_values);
+}
+
 NODE_PROCESSOR(VariableDeclaration)
 {
     auto var_decl = std::dynamic_pointer_cast<VariableDeclaration>(tree);
@@ -260,7 +278,7 @@ NODE_PROCESSOR(BinaryExpression)
     auto expr = std::dynamic_pointer_cast<BinaryExpression>(tree);
     auto lhs = TRY_AND_CAST(BoundExpression, process(expr->lhs(), ctx));
     if (lhs == nullptr) {
-        auto ident = std::dynamic_pointer_cast<Identifier>(expr->lhs());
+        auto ident = std::dynamic_pointer_cast<Variable>(expr->lhs());
         if (ident != nullptr) {
             return SyntaxError { ErrorCode::UndeclaredVariable, ident->token(), ident->name() };
         }
@@ -310,6 +328,34 @@ NODE_PROCESSOR(BinaryExpression)
         return SyntaxError { ErrorCode::OperatorUnresolved, expr->token(), expr->op().value(), lhs->to_string() };
 
     if (op == BinaryOperator::MemberAccess) {
+        switch (lhs->type()->type()) {
+        case PrimitiveType::Struct: {
+            auto field_var = std::dynamic_pointer_cast<Variable>(rhs);
+            if (field_var == nullptr)
+                return SyntaxError { ErrorCode::NotMember, rhs->token(), rhs, lhs };
+            auto field = lhs->type()->field(field_var->name());
+            if (field.type->type() == PrimitiveType::Unknown)
+                return SyntaxError { ErrorCode::NotMember, rhs->token(), rhs, lhs };
+            auto member_identifier = make_node<BoundIdentifier>(rhs->token(), field_var->name(), field.type);
+            return std::make_shared<BoundMemberAccess>(lhs, member_identifier);
+        }
+        case PrimitiveType::Type: {
+            auto type_literal = std::dynamic_pointer_cast<BoundTypeLiteral>(lhs);
+            auto value_var = std::dynamic_pointer_cast<Variable>(rhs);
+            if (value_var == nullptr)
+                return SyntaxError { ErrorCode::NotMember, rhs->token(), rhs, lhs };
+            assert(type_literal->value()->type() == PrimitiveType::Enum);
+            auto values = type_literal->value()->template_argument_values<NVP>("values");
+            for (auto const& v : values) {
+                if (v.first == value_var->name())
+                    return make_node<BoundEnumValue>(lhs->token(), type_literal->value(), v.first, v.second);
+            }
+            return SyntaxError { ErrorCode::NotMember, rhs->token(), rhs, lhs };
+        }
+        default:
+            return SyntaxError { ErrorCode::CannotAccessMember, lhs->token(), lhs->to_string() };
+        }
+
         if (lhs->type()->type() != PrimitiveType::Struct)
             return SyntaxError { ErrorCode::CannotAccessMember, lhs->token(), lhs->to_string() };
         auto field_var = std::dynamic_pointer_cast<Variable>(rhs);
@@ -423,8 +469,12 @@ NODE_PROCESSOR(Variable)
 {
     auto variable = std::dynamic_pointer_cast<Variable>(tree);
     auto type_decl_maybe = ctx.get(variable->name());
-    if (!type_decl_maybe.has_value())
+    if (!type_decl_maybe.has_value()) {
+        auto type = ObjectType::get(variable->name());
+        if (type->type() != PrimitiveType::Unknown)
+            return make_node<BoundTypeLiteral>(variable->token(), type);
         return tree;
+    }
     auto type_decl = std::dynamic_pointer_cast<BoundVariableDeclaration>(type_decl_maybe.value());
     if (type_decl == nullptr)
         return SyntaxError { ErrorCode::SyntaxError, variable->token(), format("Function {} cannot be referenced as a variable", variable->name()) };

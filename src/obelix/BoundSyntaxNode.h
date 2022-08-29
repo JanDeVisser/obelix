@@ -493,6 +493,43 @@ private:
     bool m_value;
 };
 
+class BoundTypeLiteral : public BoundLiteral {
+public:
+    explicit BoundTypeLiteral(Token t, std::shared_ptr<ObjectType> type)
+        : BoundLiteral(std::move(t), get_type<ObjectType>())
+        , m_type_value(move(type))
+    {
+    }
+
+    [[nodiscard]] SyntaxNodeType node_type() const override { return SyntaxNodeType::BoundTypeLiteral; }
+    [[nodiscard]] std::string attributes() const override { return format(R"(type="{}")", type()); }
+    [[nodiscard]] std::string to_string() const override { return type()->to_string(); }
+    [[nodiscard]] std::shared_ptr<ObjectType> const& value() const { return m_type_value; }
+
+private:
+    std::shared_ptr<ObjectType> m_type_value;
+};
+
+class BoundEnumValue : public BoundExpression {
+public:
+    BoundEnumValue(Token token, std::shared_ptr<ObjectType> enum_type, std::string label, long value)
+        : BoundExpression(std::move(token), move(enum_type))
+        , m_value(value)
+        , m_label(move(label))
+    {
+    }
+
+    [[nodiscard]] SyntaxNodeType node_type() const override { return SyntaxNodeType::BoundEnumValue; }
+    [[nodiscard]] long const& value() const { return m_value; }
+    [[nodiscard]] std::string const& label() const { return m_label; }
+    [[nodiscard]] std::string attributes() const override { return format(R"(label="{}" value="{}")", label(), value()); }
+    [[nodiscard]] std::string to_string() const override { return format(R"({}: {})", label(), value()); }
+
+private:
+    long m_value;
+    std::string m_label;
+};
+
 class BoundBinaryExpression : public BoundExpression {
 public:
     BoundBinaryExpression(std::shared_ptr<BinaryExpression> const& expr, std::shared_ptr<BoundExpression> lhs, BinaryOperator op, std::shared_ptr<BoundExpression> rhs, std::shared_ptr<ObjectType> type = nullptr)
@@ -716,6 +753,67 @@ public:
 private:
     std::string m_name;
     std::shared_ptr<ObjectType> m_type;
+};
+
+class BoundEnumValueDef : public SyntaxNode {
+public:
+    BoundEnumValueDef(Token token, std::string label, long value)
+        : SyntaxNode(std::move(token))
+        , m_value(value)
+        , m_label(move(label))
+    {
+    }
+
+    [[nodiscard]] SyntaxNodeType node_type() const override { return SyntaxNodeType::BoundEnumValueDef; }
+    [[nodiscard]] long const& value() const { return m_value; }
+    [[nodiscard]] std::string const& label() const { return m_label; }
+    [[nodiscard]] std::string attributes() const override { return format(R"(label="{}" value="{}")", label(), value()); }
+    [[nodiscard]] std::string to_string() const override { return format(R"({}: {})", label(), value()); }
+
+private:
+    long m_value;
+    std::string m_label;
+};
+
+using BoundEnumValueDefs = std::vector<std::shared_ptr<BoundEnumValueDef>>;
+
+class BoundEnumDef : public Statement {
+public:
+    BoundEnumDef(std::shared_ptr<EnumDef> const& enum_def, std::shared_ptr<ObjectType> type, BoundEnumValueDefs values)
+        : Statement(enum_def->token())
+        , m_name(enum_def->name())
+        , m_type(move(type))
+        , m_values(move(values))
+    {
+    }
+
+    [[nodiscard]] SyntaxNodeType node_type() const override { return SyntaxNodeType::BoundEnumDef; }
+    [[nodiscard]] std::string const& name() const { return m_name; }
+    [[nodiscard]] std::shared_ptr<ObjectType> type() const { return m_type; }
+    [[nodiscard]] BoundEnumValueDefs const& values() const { return m_values; }
+    [[nodiscard]] std::string attributes() const override { return format(R"(name="{}")", name()); }
+
+    [[nodiscard]] Nodes children() const override
+    {
+        Nodes ret;
+        for (auto const& value : m_values) {
+            ret.push_back(value);
+        }
+        return ret;
+    }
+
+    [[nodiscard]] std::string to_string() const override
+    {
+        auto values = m_type->template_argument_values<NVP>("values");
+        return format("enum {} { {} }", name(), join(values, ", ", [](NVP const& value) {
+            return format("{}: {}", value.first, value.second);
+        }));
+    }
+
+private:
+    std::string m_name;
+    std::shared_ptr<ObjectType> m_type;
+    BoundEnumValueDefs m_values;
 };
 
 class BoundVariableDeclaration : public Statement {
