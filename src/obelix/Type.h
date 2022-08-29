@@ -44,6 +44,7 @@ namespace Obelix {
     S(Range, "range", 10)                    \
     S(Array, "array", 11)                    \
     S(Enum, "enum", 12)                      \
+    S(Type, "type", 13)                      \
     S(Error, "error", 9995)                  \
     S(Self, "self", 9996)                    \
     S(Compatible, "compatible", 9997)        \
@@ -74,7 +75,7 @@ constexpr const char* PrimitiveType_name(PrimitiveType t)
         ENUMERATE_PRIMITIVE_TYPES(__ENUM_PRIMITIVE_TYPE)
 #undef __ENUM_PRIMITIVE_TYPE
     default:
-        fatal("Unknowm PrimitiveType '{}'", (int) t);
+        fatal("Unknowm PrimitiveType '{}'", (int)t);
     }
 }
 
@@ -166,7 +167,7 @@ private:
     bool m_varargs { false };
     MethodParameters m_parameters {};
     MethodImpl m_default_implementation { true, false, IntrinsicType::NotIntrinsic, "" };
-    std::unordered_map<Architecture,MethodImpl> m_implementations {};
+    std::unordered_map<Architecture, MethodImpl> m_implementations {};
     std::shared_ptr<ObjectType> m_method_of;
 };
 
@@ -272,16 +273,16 @@ struct TemplateArgument {
     {
         assert(std::all_of(value.begin(), value.end(), [type](auto const& arg) {
             switch (type) {
-                case TemplateParameterType::String:
-                    return std::holds_alternative<std::string>(arg);
-                case TemplateParameterType::Integer:
-                    return std::holds_alternative<long>(arg);
-                case TemplateParameterType::Boolean:
-                    return std::holds_alternative<bool>(arg);
-                case TemplateParameterType::Type:
-                    return std::holds_alternative<std::shared_ptr<ObjectType>>(arg);
-                case TemplateParameterType::NameValue:
-                    return std::holds_alternative<NVP>(arg);
+            case TemplateParameterType::String:
+                return std::holds_alternative<std::string>(arg);
+            case TemplateParameterType::Integer:
+                return std::holds_alternative<long>(arg);
+            case TemplateParameterType::Boolean:
+                return std::holds_alternative<bool>(arg);
+            case TemplateParameterType::Type:
+                return std::holds_alternative<std::shared_ptr<ObjectType>>(arg);
+            case TemplateParameterType::NameValue:
+                return std::holds_alternative<NVP>(arg);
             }
         }));
         assert(value.size() <= 1 || multiplicity == TemplateParameterMultiplicity::Multiple);
@@ -341,7 +342,7 @@ struct TemplateArgument {
         return value;
     }
 
-    template <typename ArgType>
+    template<typename ArgType>
     [[nodiscard]] ArgType const& get() const
     {
         assert(!value.empty());
@@ -422,7 +423,7 @@ public:
     [[nodiscard]] TemplateArguments const& template_arguments() const { return m_template_arguments; }
     [[nodiscard]] bool has_template_argument(std::string const&) const;
 
-    template <typename ArgType>
+    template<typename ArgType>
     [[nodiscard]] ArgType const& template_argument(std::string const& arg_name) const
     {
         assert(is_template_specialization());
@@ -430,6 +431,25 @@ public:
             auto const& param = specializes_template()->template_parameters()[ix];
             if (param.name == arg_name) {
                 return template_arguments()[ix].get<ArgType>();
+            }
+        }
+        fatal("Type '{}' instantiates template '{}' which has no template parameter named '{}'",
+            name(), specializes_template()->name(), arg_name);
+    }
+
+    template<typename ArgType>
+    [[nodiscard]] std::vector<ArgType> template_argument_values(std::string const& arg_name) const
+    {
+        assert(is_template_specialization());
+        for (auto ix = 0u; ix < specializes_template()->template_parameters().size(); ++ix) {
+            auto const& param = specializes_template()->template_parameters()[ix];
+            if (param.name == arg_name) {
+                TemplateArgument arg = template_arguments()[ix];
+                std::vector<ArgType> ret;
+                for (auto const& v : arg.value) {
+                    ret.push_back(std::get<ArgType>(v));
+                }
+                return ret;
             }
         }
         fatal("Type '{}' instantiates template '{}' which has no template parameter named '{}'",
@@ -531,7 +551,7 @@ private:
     static std::vector<std::shared_ptr<ObjectType>> s_template_specializations;
 };
 
-template <typename T>
+template<typename T>
 struct TypeGetter {
     std::shared_ptr<ObjectType> operator()()
     {
@@ -549,11 +569,27 @@ struct TypeGetter {
     }
 };
 
-template <>
+template<>
 struct TypeGetter<std::string> {
     std::shared_ptr<ObjectType> operator()()
     {
         return ObjectType::get("string");
+    }
+};
+
+template<>
+struct TypeGetter<std::shared_ptr<ObjectType>> {
+    std::shared_ptr<ObjectType> operator()()
+    {
+        return ObjectType::get("type");
+    }
+};
+
+template<>
+struct TypeGetter<ObjectType> {
+    std::shared_ptr<ObjectType> operator()()
+    {
+        return ObjectType::get("type");
     }
 };
 
@@ -562,7 +598,7 @@ struct TypeGetter<T*> {
     std::shared_ptr<ObjectType> operator()()
     {
         auto ret_or_error = ObjectType::specialize(ObjectType::get("pointer"),
-            { TemplateArgument(TypeGetter<T>{}()) });
+            { TemplateArgument(TypeGetter<T> {}()) });
         if (ret_or_error.is_error())
             fatal("Could not specialize pointer: {}", ret_or_error.error());
         return ret_or_error.value();
@@ -577,7 +613,7 @@ struct TypeGetter<void*> {
     }
 };
 
-template <typename T>
+template<typename T>
 std::shared_ptr<ObjectType> get_type()
 {
     return TypeGetter<T> {}();

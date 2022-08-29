@@ -263,6 +263,7 @@ std::vector<std::shared_ptr<ObjectType>> ObjectType::s_template_specializations 
 [[maybe_unused]] std::shared_ptr<ObjectType> s_array;
 [[maybe_unused]] std::shared_ptr<ObjectType> s_string;
 [[maybe_unused]] std::shared_ptr<ObjectType> s_enum;
+[[maybe_unused]] std::shared_ptr<ObjectType> s_type;
 [[maybe_unused]] std::shared_ptr<ObjectType> s_any;
 
 static void initialize_types()
@@ -276,6 +277,7 @@ static void initialize_types()
     s_compatible = ObjectType::register_type(PrimitiveType::Compatible);
     s_assignable_to = ObjectType::register_type(PrimitiveType::AssignableTo);
     s_unknown = ObjectType::register_type(PrimitiveType::Unknown);
+    s_type = ObjectType::register_type(PrimitiveType::Type);
 
     s_incrementable = ObjectType::register_type(PrimitiveType::Incrementable,
         [](std::shared_ptr<ObjectType> type) {
@@ -879,7 +881,8 @@ std::shared_ptr<ObjectType> ObjectType::register_type(char const* name, std::sha
     type->m_name = name;
     type->m_name_str = name;
     register_type_in_caches(type);
-    builder(type);
+    if (builder)
+        builder(type);
     return type;
 }
 
