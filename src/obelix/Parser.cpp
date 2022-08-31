@@ -145,19 +145,15 @@ std::shared_ptr<Statement> Parser::parse_top_level_statement()
         return parse_block(statements);
     }
     case KeywordImport:
-        ret = parse_import_statement(lex());
-        break;
+        return parse_import_statement(lex());
     case KeywordStruct:
-        ret = parse_struct(lex());
-        break;
+        return parse_struct(lex());
     case KeywordStatic:
         lex();
-        ret = parse_static_variable_declaration();
-        break;
+        return parse_static_variable_declaration();
     case KeywordVar:
     case KeywordConst:
-        ret = parse_variable_declaration(lex(), token.code() == KeywordConst, true);
-        break;
+        return parse_variable_declaration(lex(), token.code() == KeywordConst, true);
     case KeywordFunc:
     case KeywordIntrinsic:
         return parse_function_definition(lex());
@@ -170,15 +166,9 @@ std::shared_ptr<Statement> Parser::parse_top_level_statement()
         auto expr = parse_expression();
         if (!expr)
             return nullptr;
-        ret = make_node<ExpressionStatement>(expr);
-    } break;
+        return make_node<ExpressionStatement>(expr);
+    };
     }
-    if (current_code() != TokenCode::SemiColon) {
-        add_error(peek(), format("Expected ';', got '{}'", peek().value()));
-        return nullptr;
-    }
-    lex();
-    return ret;
 }
 
 std::shared_ptr<Statement> Parser::parse_statement()
@@ -195,8 +185,7 @@ std::shared_ptr<Statement> Parser::parse_statement()
         return parse_block(statements);
     }
     case KeywordImport:
-        ret = parse_import_statement(lex());
-        break;
+        return parse_import_statement(lex());
     case KeywordIf:
         return parse_if_statement(lex());
     case KeywordSwitch:
@@ -207,25 +196,21 @@ std::shared_ptr<Statement> Parser::parse_statement()
         return parse_for_statement(lex());
     case KeywordStatic:
         lex();
-        ret = parse_static_variable_declaration();
-        break;
+        return parse_static_variable_declaration();
     case KeywordVar:
     case KeywordConst:
-        ret = parse_variable_declaration(lex(), token.code() == KeywordConst);
-        break;
+        return parse_variable_declaration(lex(), token.code() == KeywordConst);
     case KeywordReturn: {
         lex();
         auto expr = parse_expression();
         if (!expr)
             return nullptr;
-        ret = make_node<Return>(token, expr);
-    } break;
+        return make_node<Return>(token, expr);
+    };
     case KeywordBreak:
-        ret = make_node<Break>(lex());
-        break;
+        return make_node<Break>(lex());
     case KeywordContinue:
-        ret = make_node<Continue>(lex());
-        break;
+        return make_node<Continue>(lex());
     case TokenCode::CloseBrace:
     case TokenCode::EndOfFile:
         return nullptr;
@@ -233,15 +218,9 @@ std::shared_ptr<Statement> Parser::parse_statement()
         auto expr = parse_expression();
         if (!expr)
             return nullptr;
-        ret = make_node<ExpressionStatement>(expr);
-    } break;
+        return make_node<ExpressionStatement>(expr);
     }
-    if (current_code() != TokenCode::SemiColon) {
-        add_error(peek(), format("Expected ';', got '{}'", peek().value()));
-        return nullptr;
     }
-    lex();
-    return ret;
 }
 
 void Parser::parse_statements(Statements& block, bool top_level)
@@ -352,13 +331,11 @@ std::shared_ptr<Statement> Parser::parse_function_definition(Token const& func_t
     if (current_code() == KeywordLink) {
         lex();
         if (auto link_target_maybe = match(TokenCode::DoubleQuotedString, "after '->'"); link_target_maybe.has_value()) {
-            expect(TokenCode::SemiColon);
             return make_node<NativeFunctionDecl>(name, func_ident, params, link_target_maybe.value().value());
         }
         return nullptr;
     }
     if (func_token.code() == KeywordIntrinsic) {
-        expect(TokenCode::SemiColon);
         return make_node<IntrinsicDecl>(name, func_ident, params);
     }
     func_decl = std::make_shared<FunctionDecl>(name, func_ident, params);
@@ -502,7 +479,6 @@ std::shared_ptr<Statement> Parser::parse_struct(Token const& struct_token)
             add_error(peek(), format("Syntax Error: Expected type after ':', got '{}' ({})", peek().value(), peek().code_name()));
             return nullptr;
         }
-        expect(TokenCode::SemiColon);
         fields.push_back(make_node<Identifier>(field_name_maybe.value(), field_name_maybe.value().value(), field_type));
     } while (current_code() != TokenCode::CloseBrace);
     lex();

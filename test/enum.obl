@@ -6,6 +6,7 @@ enum Hello {
 
 func main(): s32
 {
-  var x: Hello = Hello.Value1;
-  return 0;
+  var x: Hello = Hello.Value1
+  return 0
 }
+
