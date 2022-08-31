@@ -1,9 +1,0 @@
-count = 0
-for s in [ "str1", "str2", "str3" ]
-  count = count + s.len()
-end
-
-return count
-/*
---exit-- 12
-*/

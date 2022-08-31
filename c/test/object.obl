@@ -1,8 +1,0 @@
-func obj()
-  self.x = 42
-  self.y = "foo"
-end
-
-o = new obj()
-print(o.y)
-return o.x

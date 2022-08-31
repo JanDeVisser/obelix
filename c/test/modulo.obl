@@ -1,3 +1,0 @@
-a = 23
-print(a.mod(7))
-print(a % 7)

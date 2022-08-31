@@ -1,3 +1,0 @@
-This is a test file
-It has a number of lines
-3 to be exact

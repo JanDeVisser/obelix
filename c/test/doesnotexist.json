@@ -1,1 +1,0 @@
-{"exit": 251, "name": "doesnotexist", "stderr": ["Error: Cannot resolve name 'function_does_not_exist' in Closure 'doesnotexist()'"], "stdout": []}

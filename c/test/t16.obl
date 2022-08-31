@@ -1,8 +1,0 @@
-
-print("$USER: ${0}", sys.env.USER)
-print("argv: ${0}", sys.argv)
-u = sys.uname()
-print("sysname: ${0} nodename: ${1} release: ${2} version: ${3} machine: ${4}",
-      u.sysname, u.nodename, u.release, u.version, u.machine)
-
-return sys.env.SHLVL

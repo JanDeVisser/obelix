@@ -1,5 +1,0 @@
-context fd = open("lipsum.txt")
-  for str in `[A-Za-z][a-z]*a`
-    print("--${0}--", str)
-  end
-end

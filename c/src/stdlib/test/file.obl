@@ -1,8 +1,0 @@
-f = open("file.txt")
-line = f.readline()
-while line
-  print(line)
-  line = f.readline()
-end
-f.close()
-return 0

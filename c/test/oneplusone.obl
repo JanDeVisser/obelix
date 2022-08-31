@@ -1,7 +1,0 @@
-#!/home/jan/Projects/obelix/install/bin/obelix
-
-return 1 + 1
-
-/*
---exit-- 2
-*/
