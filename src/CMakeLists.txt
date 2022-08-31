@@ -1,7 +1,4 @@
 add_subdirectory(core)
 add_subdirectory(lexer)
-add_subdirectory(cpu)
-#add_subdirectory(jv80)
-add_subdirectory(oblasm)
 add_subdirectory(obelix)
 add_subdirectory(rt)
