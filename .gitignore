@@ -29,7 +29,7 @@ obelix.sublime-workspace
 *.sdf
 *.cbp
 *.layout
-config.h
+/config.h
 src/bin/grammar.c
 callgrind.out*
 CMakeCache.txt
@@ -91,10 +91,7 @@ kdev_build/
 cmake-build-debug/*
 cmake-build-debug-gcc-11/*
 
-install/*
 test_x/*
 share_x/*
-config.h
 
-src/jv80
 .cache
