@@ -11,40 +11,10 @@
 
 #include <lexer/BasicParser.h>
 #include <lexer/Lexer.h>
-#include <lexer/OblBuffer.h>
-#include <obelix/Architecture.h>
+#include <obelix/Config.h>
 #include <obelix/Syntax.h>
 
 namespace Obelix {
-
-struct Config {
-public:
-    Config(int argc, char const** argv);
-
-    std::string filename { "" };
-    bool help { false };
-    bool show_tree { false };
-    bool import_root { true };
-    bool lex { true };
-    bool bind { true };
-    bool lower { true };
-    bool fold_constants { true };
-    bool materialize { true };
-    bool compile { true };
-    bool run { false };
-    bool cmdline_flag(std::string const& flag) const;
-    Architecture target {
-#ifdef __APPLE__
-        Architecture::MACOS_ARM64
-#else
-        Architecture::INTERPRETER
-#endif
-    };
-
-private:
-    std::unordered_map<std::string, bool> m_cmdline_flags;
-
-};
 
 class Parser : public BasicParser {
 public:

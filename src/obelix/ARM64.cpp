@@ -4,18 +4,15 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
-#include "obelix/Type.h"
-#include <cstddef>
+#include <unistd.h>
 #include <filesystem>
 #include <memory>
-#include <optional>
 
 #include <config.h>
 
 #include <core/Error.h>
 #include <core/Logging.h>
 #include <core/Process.h>
-#include <core/ScopeGuard.h>
 #include <obelix/ARM64.h>
 #include <obelix/ARM64Context.h>
 #include <obelix/ARM64Intrinsics.h>
@@ -101,7 +98,10 @@ NODE_PROCESSOR(Compilation)
 NODE_PROCESSOR(Module)
 {
     auto module = std::dynamic_pointer_cast<Module>(tree);
-    ctx.add_module(join(split(module->name(), '/'), "-"));
+    auto name = module->name();
+    if (name.starts_with("./"))
+        name = name.substr(2);
+    ctx.add_module(join(split(name, '/'), "-"));
     return process_tree(tree, ctx, ARM64Context_processor);
 }
 
@@ -678,17 +678,21 @@ ErrorOrNode output_arm64(std::shared_ptr<SyntaxNode> const& tree, Config const& 
 
             if (config.cmdline_flag("show-assembly")) {
                 std::cout << bare_file_name << ".s:"
-                        << "\n";
+                          << "\n";
                 std::cout << assembly.to_string();
             }
 
             TRY_RETURN(assembly.save_and_assemble(bare_file_name));
+            if (!config.cmdline_flag("keep-assembly")) {
+                auto assembly_file = bare_file_name + ".s";
+                unlink(assembly_file.c_str());
+            }
             modules.push_back(bare_file_name + ".o");
         }
     }
 
     if (!modules.empty()) {
-        std::string obl_dir = (getenv("OBL_DIR")) ? getenv("OBL_DIR") : OBELIX_DIR;
+        std::string obl_dir = config.obelix_directory();
 
         auto file_parts = split(file_name, '/');
         auto file_name_parts = split(file_parts.back(), '.');

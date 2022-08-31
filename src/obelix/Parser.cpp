@@ -18,7 +18,7 @@ namespace Obelix {
 logging_category(parser);
 
 Parser::Parser(Config const& config, std::string const& file_name)
-    : BasicParser(file_name)
+    : BasicParser(file_name, new ObelixBufferLocator(config))
     , m_config(config)
 {
     initialize();
@@ -117,7 +117,7 @@ std::shared_ptr<Compilation> Parser::parse()
 
 std::shared_ptr<Module> Parser::parse_module(std::string const& module_name)
 {
-    if (auto ret = read_file(module_name); ret.is_error())
+    if (auto ret = read_file(module_name, new ObelixBufferLocator(m_config)); ret.is_error())
         return nullptr;
     return parse_module();
 }
@@ -900,7 +900,7 @@ std::shared_ptr<EnumDef> Parser::parse_enum_definition(Token const& enum_token)
     if (!expect(TokenCode::OpenBrace, "after enum name in definition")) {
         return nullptr;
     }
-    EnumValues values {};  
+    EnumValues values {};
     for (auto done = current_code() == TokenCode::CloseBrace; !done; done = current_code() == TokenCode::CloseBrace) {
         auto value_label_maybe = match(TokenCode::Identifier);
         if (!value_label_maybe.has_value()) {

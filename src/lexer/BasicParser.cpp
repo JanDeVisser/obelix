@@ -10,17 +10,17 @@ namespace Obelix {
 
 extern_logging_category(lexer);
 
-BasicParser::BasicParser(std::string const& file_name)
+BasicParser::BasicParser(std::string const& file_name, BufferLocator* locator)
     : BasicParser()
 {
-    OblBuffer obl_buffer(file_name);
+    FileBuffer buffer(file_name, locator);
 
-    m_file_name = file_name;
-    if (!obl_buffer.file_is_read()) {
+    m_file_name = buffer.file_path();
+    if (!buffer.file_is_read()) {
         add_error(Token { TokenCode::Error, file_name }, format("Could not read '{}'", file_name));
         return;
     }
-    m_lexer.assign(obl_buffer.buffer().str());
+    m_lexer.assign(buffer.buffer()->str());
     m_buffer_read = true;
 }
 
@@ -36,17 +36,16 @@ BasicParser::BasicParser()
 {
 }
 
-ErrorOr<void> BasicParser::read_file(std::string const& file_name)
+ErrorOr<void> BasicParser::read_file(std::string const& file_name, BufferLocator* locator)
 {
-    OblBuffer obl_buffer(file_name);
+    FileBuffer buffer(file_name, locator);
 
-    m_file_name = file_name;
-    m_effective_file_name = obl_buffer.dir_name() + "/" + obl_buffer.effective_file_name();
-    if (!obl_buffer.file_is_read()) {
-        add_error(Token { TokenCode::Error, m_effective_file_name }, format("Could not read '{}'", m_effective_file_name));
-        return obl_buffer.error();
+    m_file_name = buffer.file_path();
+    if (!buffer.file_is_read()) {
+        add_error(Token { TokenCode::Error, buffer.file_path() }, format("Could not read '{}'", buffer.file_path()));
+        return buffer.error();
     }
-    m_lexer.assign(obl_buffer.buffer().str());
+    m_lexer.assign(buffer.buffer()->str());
     m_buffer_read = true;
     return {};
 }
@@ -158,7 +157,7 @@ bool BasicParser::expect(char const* expected, char const* where)
 void BasicParser::add_error(Token const& token, std::string const& message)
 {
     debug(lexer, "Parser::add_error({}, '{}')", token.to_string(), message);
-    m_errors.emplace_back(message, m_effective_file_name, token);
+    m_errors.emplace_back(message, file_name(), token);
 }
 
 }

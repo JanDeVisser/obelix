@@ -8,10 +8,10 @@
 #include "obelix/Context.h"
 #include <cstdio>
 
-#include <cpu/emulator.h>
 #include <lexer/Token.h>
 #ifdef JV80
-#include <obelix/OutputJV80.h>
+#    include <cpu/emulator.h>
+#    include <obelix/OutputJV80.h>
 #endif
 #include <obelix/ARM64.h>
 #include <obelix/Parser.h>

@@ -6,8 +6,8 @@
 
 #pragma once
 
+#include <core/FileBuffer.h>
 #include <lexer/Lexer.h>
-#include <lexer/OblBuffer.h>
 
 namespace Obelix {
 
@@ -34,10 +34,10 @@ struct ParseError {
 class BasicParser {
 public:
     explicit BasicParser(StringBuffer& src);
-    explicit BasicParser(std::string const& file_name);
+    explicit BasicParser(std::string const& file_name, BufferLocator* locator = nullptr);
     explicit BasicParser();
 
-    ErrorOr<void> read_file(std::string const&);
+    ErrorOr<void> read_file(std::string const&, BufferLocator* locator = nullptr);
     [[nodiscard]] std::vector<ParseError> const& errors() const { return m_errors; };
     [[nodiscard]] bool has_errors() const { return !m_errors.empty(); }
     Token const& peek();
@@ -61,7 +61,6 @@ public:
 
 private:
     std::string m_file_name { "<literal>" };
-    std::string m_effective_file_name { "<literal>" };
     Lexer m_lexer;
     std::vector<ParseError> m_errors {};
     bool m_buffer_read { false };
