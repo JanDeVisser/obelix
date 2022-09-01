@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022, Jan de Visser <jan@finiandarcy.com>
+ * Copyright (c) ${YEAR}, Jan de Visser <jan@finiandarcy.com>
  *
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
@@ -13,9 +13,9 @@
 #include <core/Error.h>
 #include <core/Logging.h>
 #include <core/Process.h>
-#include <obelix/ARM64.h>
-#include <obelix/ARM64Context.h>
-#include <obelix/ARM64Intrinsics.h>
+#include <obelix/arm64/ARM64.h>
+#include <obelix/arm64/ARM64Context.h>
+#include <obelix/arm64/ARM64Intrinsics.h>
 #include <obelix/MaterializedSyntaxNode.h>
 #include <obelix/Parser.h>
 #include <obelix/Processor.h>

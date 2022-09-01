@@ -6,7 +6,7 @@
 
 #include <sys/stat.h>
 
-#include <obelix/ARM64Intrinsics.h>
+#include <obelix/arm64/ARM64Intrinsics.h>
 #include <obelix/Intrinsics.h>
 
 namespace Obelix {

@@ -10,10 +10,6 @@ add_executable(
         obelix
         main.cpp
         Architecture.cpp
-        ARM64.cpp
-        ARM64Context.cpp
-        ARM64Intrinsics.cpp
-        ARM64Materialize.cpp
         BindTypes.cpp
         Config.cpp
         FoldConstants.cpp
@@ -27,6 +23,10 @@ add_executable(
         MaterializedSyntaxNode.h
         Symbol.h
         SyntaxNodeType.h
+        arm64/ARM64.cpp
+        arm64/ARM64Context.cpp
+        arm64/ARM64Intrinsics.cpp
+        arm64/ARM64Materialize.cpp
         interp/InterpIntrinsics.cpp
         interp/Interpret.cpp
 )

@@ -13,7 +13,7 @@
 #    include <cpu/emulator.h>
 #    include <obelix/OutputJV80.h>
 #endif
-#include <obelix/ARM64.h>
+#include <obelix/arm64/ARM64.h>
 #include <obelix/Parser.h>
 #include <obelix/Processor.h>
 #include <optional>

@@ -12,7 +12,7 @@
 #include <unordered_map>
 
 #include <obelix/Intrinsics.h>
-#include <obelix/ARM64Context.h>
+#include <obelix/arm64/ARM64Context.h>
 
 namespace Obelix {
 
