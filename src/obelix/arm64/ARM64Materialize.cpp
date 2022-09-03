@@ -319,12 +319,12 @@ NODE_PROCESSOR(BoundFunctionCall)
         arguments.push_back(arg);
         arg_types.push_back(arg->type());
     }
-    auto materialized_decl = ctx.match(call->name(), arg_types);
-    assert(materialized_decl != nullptr);
-    switch (materialized_decl->node_type()) {
-    case SyntaxNodeType::MaterializedNativeFunctionDecl:
+    std::shared_ptr<MaterializedFunctionDecl> materialized_decl = ctx.match(call->name(), arg_types);
+    switch (call->node_type()) {
+    case SyntaxNodeType::BoundNativeFunctionCall:
+        assert(materialized_decl != nullptr);
         return make_node<MaterializedNativeFunctionCall>(call, arguments, std::dynamic_pointer_cast<MaterializedNativeFunctionDecl>(materialized_decl));
-    case SyntaxNodeType::MaterializedIntrinsicDecl: {
+    case SyntaxNodeType::BoundIntrinsicCall: {
         std::shared_ptr<MaterializedIntrinsicDecl> materialized;
         if (materialized_decl == nullptr) {
             materialized = TRY_AND_CAST(MaterializedIntrinsicDecl, process(call->declaration(), ctx));
@@ -334,9 +334,11 @@ NODE_PROCESSOR(BoundFunctionCall)
             materialized = std::dynamic_pointer_cast<MaterializedIntrinsicDecl>(materialized_decl);
             assert(materialized != nullptr);
         }
-        return std::make_shared<MaterializedIntrinsicCall>(call, arguments, materialized, std::dynamic_pointer_cast<MaterializedIntrinsicCall>(call)->intrinsic());
+        auto intrinsic_call = std::dynamic_pointer_cast<BoundIntrinsicCall>(call);
+        return std::make_shared<MaterializedIntrinsicCall>(call, arguments, materialized, intrinsic_call->intrinsic());
     }
     default:
+        assert(materialized_decl != nullptr);
         return make_node<MaterializedFunctionCall>(call, arguments, materialized_decl);
     }
 }
