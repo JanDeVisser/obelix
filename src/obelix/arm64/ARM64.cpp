@@ -44,10 +44,10 @@ static TypeMnemonicMap mnemonic_map[] = {
     { PrimitiveType::IntegerNumber, false, 1, "ldrb", "strb", "w" },
 };
 
-TypeMnemonicMap const* get_type_mnemonic_map(std::shared_ptr<ObjectType> type)
+TypeMnemonicMap const* get_type_mnemonic_map(std::shared_ptr<ObjectType> const& type)
 {
     bool is_signed = (type->has_template_argument("signed")) && type->template_argument<bool>("signed");
-    int size = (type->has_template_argument("size")) ? type->template_argument<long>("size") : type->size();
+    auto size = (type->has_template_argument("size")) ? type->template_argument<long>("size") : type->size();
     for (auto const& mm : mnemonic_map) {
         if (mm.type != type->type())
             continue;
@@ -64,15 +64,18 @@ ErrorOr<void, SyntaxError> zero_initialize(ARM64Context &ctx, std::shared_ptr<Ob
     case PrimitiveType::Pointer:
     case PrimitiveType::SignedIntegerNumber:
     case PrimitiveType::IntegerNumber:
-    case PrimitiveType::Boolean:
-        ctx.assembly().add_instruction("mov", "x0,xzr");
-        ctx.assembly().add_instruction("str", "x0,[fp,#{}]", ctx.stack_depth() - offset);
+    case PrimitiveType::Boolean: {
+        auto mm = get_type_mnemonic_map(type);
+        assert(mm != nullptr);
+        ctx.assembly().add_instruction("mov", "{}0,{}zr", mm->reg_width, mm->reg_width);
+        ctx.assembly().add_instruction("str", "{}0,[fp,#{}]", mm->reg_width, ctx.stack_depth() - offset);
         break;
+    }
     case PrimitiveType::Struct: {
         auto off = ctx.stack_depth() - offset;
         for (auto const& field : type->fields()) {
             TRY_RETURN(zero_initialize(ctx, field.type, off));
-            off += field.type->size();
+            off -= field.type->size();
         }
         break;
     }
