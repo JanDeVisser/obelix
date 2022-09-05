@@ -3,9 +3,12 @@
 #
 #  SPDX-License-Identifier: GPL-3.0-or-later
 
+import argparse
 import json
 import os
+import shutil
 import subprocess
+
 import sys
 
 
@@ -23,21 +26,47 @@ def check_stream(script, which, stream):
     return ret
 
 
-def test_script(name):
+def compile_script(name):
     os.path.exists("stdout") and os.remove("stdout")
-    os.path.exists("stdout") and os.remove("stderr")
+    os.path.exists("stderr") and os.remove("stderr")
+    if name.endswith(".obl"):
+        f = name
+        name = name[:-4]
+    else:
+        f = name + ".obl"
 
-    f = name + ".obl"
+    print(name)
+    script = {"name": name}
+    with open("stdout", "w+") as out, open("stderr", "w+") as err:
+        if os.path.exists(name):
+            os.remove(name)
+        if os.path.exists(os.path.join(".compiled", name)):
+            os.remove(os.path.join(".compiled", name))
+        ex = subprocess.call(["../build/bin/obelix", "--keep-assembly", f], stdout=out, stderr=err)
+        if ex != 0:
+            print(f"Compilation of '{f}' failed: {ex}")
+            subprocess.call(["cat", "stdout"])
+            subprocess.call(["cat", "stderr"])
+            return None
+    os.path.exists("stdout") and os.remove("stdout")
+    os.path.exists("stderr") and os.remove("stderr")
+    os.rename(name, os.path.join(".compiled", name))
+    return name
+
+
+def test_script(name):
+    if name.endswith(".obl"):
+        name = name[:-4]
 
     with open(name + ".json") as fd:
         script = json.load(fd)
-    with open("/dev/null", "w+") as out, open("/dev/null", "w+") as err:
-        ex = subprocess.call(["../build/bin/obelix", f], stdout=out, stderr=err)
-        if ex != 0:
-            print(f"{name}: Compilation Failed")
-            return False
+    name = compile_script(name)
+    if name is None:
+        print(f"{name}: Compilation Failed")
+        return False
+
     with open("stdout", "w+") as out, open("stderr", "w+") as err:
-        cmdline = [f"./{name}"]
+        cmdline = [os.path.join(".compiled", name)]
         cmdline.extend(script["args"])
         ex = subprocess.call(cmdline, stdout=out, stderr=err)
         out.seek(0)
@@ -74,20 +103,14 @@ def run_all_tests():
             break
 
 
-def config_test(name, args):
-    os.path.exists("stdout") and os.remove("stdout")
-    os.path.exists("stderr") and os.remove("stderr")
-    f = name + ".obl"
-
-    print(name)
+def config_test(name, *args):
+    name = compile_script(name)
+    if name is None:
+        sys.exit(1)
     script = {"name": name}
-    with open("/dev/null", "w+") as out, open("/dev/null", "w+") as err:
-        ex = subprocess.call(["../build/bin/obelix", f], stdout=out, stderr=err)
-        if ex != 0:
-            print(f"Compilation of '{f}' failed")
-            sys.exit(1)
+
     with open("stdout", "w+") as out, open("stderr", "w+") as err:
-        cmdline = [f"./{name}"]
+        cmdline = [os.path.join(".compiled", name)]
         cmdline.extend(args)
         ex = subprocess.call(cmdline, stdout=out, stderr=err)
         out.seek(0)
@@ -124,7 +147,8 @@ def remove_all_tests():
     for script in scripts:
         fname = script + ".json"
         os.path.exists(fname) and os.remove(fname)
-    os.remove("tests.json")
+    if os.path.exists("tests.json"):
+        os.remove("tests.json")
 
 
 def print_index():
@@ -135,48 +159,50 @@ def print_index():
 
 def config_tests(tests):
     with open(tests) as fd:
-        map(config_test, [name.strip() for name in fd if not name.startswith("#")])
+        # FIXME Why does this map() not work?
+        # map(config_test, [stripped for stripped in [name.strip() for name in fd] if not stripped.startswith("#")])
+        for x in [stripped for stripped in [name.strip() for name in fd] if not stripped.startswith("#")]:
+            config_test(x)
 
 
-def usage():
-    print("run_tests - Execute and manage obelix tests.")
-    print("")
-    print("Usage: python run_tests.py [option]")
-    print("Options:")
-    print(" -c <test>:   Add test script <test>.obl to test suite.")
-    print("              Execute script, capture and register exit code and stdout/stderr.")
-    print(" -f <file>:   Add all tests in <file>. <file> contains test script names,")
-    print("              one per line, without .obl extension.")
-    print(" -x <test>:   Run test <test>.")
-    print("              Compare exit code and stderr/out with registered values.")
-    print(" -a, --all:   Run all registered tests.")
-    print(" -d <test>:   Remove test <test> from registry.")
-    print(" --clear:     Clear test registry.")
-    print(" -i, --index: Print an index of all registered tests. Output can be used by -f.")
-    print(" -h, --help:  Display this message.")
-    print("")
+def initialize():
+    shutil.rmtree(".compiled", True)
+    os.mkdir(".compiled")
 
 
-if len(sys.argv) > 1:
-    if sys.argv[1] == "-c":
-        config_test(sys.argv[2], sys.argv[3:])
-    elif sys.argv[1] == "-d":
-        remove_test(sys.argv[2])
-    elif sys.argv[1] == "--clear":
-        remove_all_tests()
-    elif sys.argv[1] == "-f":
-        config_tests(sys.argv[2])
-    elif sys.argv[1] in ["-a", "--all"]:
-        run_all_tests()
-    elif sys.argv[1] == "-x":
-        test_script(sys.argv[2])
-    elif sys.argv[1] in ["-h", "--help"]:
-        usage()
-    elif sys.argv[1] in ["-i", "--index"]:
-        print_index()
-    else:
-        print("Unrecognized option " + sys.argv[1])
-        print("")
-        usage()
-else:
-    usage()
+initialize()
+arg_parser = argparse.ArgumentParser()
+group = arg_parser.add_mutually_exclusive_group(required=True)
+group.add_argument(
+    "-i", "--index", action='store_true',
+    help="Displays an index of all registered tests. Output can be used by -f/--add-all")
+group.add_argument("-a", "--execute-all", action='store_true', help="Execute all tests in the registry")
+group.add_argument("-x", "--execute", nargs="+", metavar="Test", help="Execute the specified tests")
+group.add_argument(
+    "-c", "--create", nargs="+", metavar=("Test", "Test Argument"),
+    help="Add the specified test script with optional arguments to the test registry, and executes them")
+group.add_argument(
+    "-f", "--add-all", metavar="File",
+    help="Add all tests in <File>. <File> should contain test script names, one per line")
+group.add_argument(
+    "-d", "--delete", nargs="+", metavar="Test",
+    help="Remove the specified tests from the registry")
+group.add_argument("--clear", action='store_true', help="Clear the test registry")
+args = arg_parser.parse_args()
+
+if args.execute_all:
+    run_all_tests()
+if args.execute:
+    for name in args.execute:
+        test_script(name)
+if args.create:
+    config_test(args.create[0], *args.create[1:])
+if args.add_all:
+    config_tests(args.add_all)
+if args.delete:
+    for name in args.delete:
+        remove_test(name)
+if args.clear:
+    remove_all_tests()
+if args.index:
+    print_index()

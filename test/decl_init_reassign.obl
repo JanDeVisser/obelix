@@ -1,0 +1,7 @@
+func main(): s32
+{
+  var x: s64 = 12
+  x = 24
+  return x
+}
+

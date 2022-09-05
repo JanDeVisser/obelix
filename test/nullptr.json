@@ -1,1 +1,9 @@
-{"name": "nullptr", "exit": 0, "stdout": ["[[null]]\u0000"], "stderr": [], "args": []}
+{
+  "name": "nullptr",
+  "exit": 0,
+  "stdout": [
+    "[[null]]"
+  ],
+  "stderr": [],
+  "args": []
+}

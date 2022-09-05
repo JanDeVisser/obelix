@@ -1,6 +1,6 @@
-func main() : int
+func main(): s32
 {
-   var s: string;
-   var x = putln(s);
-   return 0;
+   var s: string
+   var x = putln(s)
+   return 0
 }

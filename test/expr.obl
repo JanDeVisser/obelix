@@ -1,4 +1,4 @@
-func main() : int {
+func main() : s32 {
   var x = 1 + 2;
   return (x*3) + x;
 }

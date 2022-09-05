@@ -1,5 +1,5 @@
 enum Hello {
- Value1 = 1,
+  Value1 = 1,
   Value2,
   Value9 = 9
 }
@@ -9,4 +9,3 @@ func main(): s32
   var x: Hello = Hello.Value1
   return 0
 }
-
