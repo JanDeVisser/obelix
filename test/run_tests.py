@@ -123,11 +123,11 @@ def config_test(name, *args):
     if name not in scripts:
         scripts.append(name)
         with open("tests.json", "w+") as fd:
-            json.dump(scripts, fd)
+            json.dump(scripts, fd, indent=2)
+            print(file=fd);
     with open(name + ".json", "w+") as fd:
-        json.dump(script, fd)
-    json.dump(script, sys.stdout)
-    print()
+        json.dump(script, fd, indent=2)
+        print(file=fd)
     os.remove("stdout")
     os.remove("stderr")
 
@@ -140,7 +140,7 @@ def remove_test(name, destroy=False):
     if name in scripts:
         scripts.remove(name)
         with open("tests.json", "w+") as fd:
-            json.dump(scripts, fd)
+            json.dump(scripts, fd, indent=2)
 
 
 def remove_all_tests(nuke=False):

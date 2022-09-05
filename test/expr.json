@@ -1,1 +1,7 @@
-{"name": "expr", "exit": 12, "stdout": [], "stderr": [], "args": []}
+{
+  "name": "expr",
+  "exit": 12,
+  "stdout": [],
+  "stderr": [],
+  "args": []
+}
