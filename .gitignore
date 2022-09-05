@@ -30,6 +30,7 @@ obelix.sublime-workspace
 *.cbp
 *.layout
 /config.h
+/test/tests.json
 src/bin/grammar.c
 callgrind.out*
 CMakeCache.txt
