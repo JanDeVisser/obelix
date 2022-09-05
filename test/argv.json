@@ -1,1 +1,0 @@
-{"name": "argv", "exit": 0, "stdout": ["argc: 5", "./argv", "abc", "def", "12", "42"], "stderr": [], "args": ["abc", "def", "12", "42"]}
