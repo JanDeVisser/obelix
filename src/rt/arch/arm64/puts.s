@@ -40,4 +40,4 @@ __puts_print_null:
 __str_nullptr:
     .string "[[null]]"
 
-.equ str_nullptr_len,9
+.equ str_nullptr_len,8
