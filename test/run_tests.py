@@ -132,9 +132,10 @@ def config_test(name, *args):
     os.remove("stderr")
 
 
-def remove_test(name):
-    fname = name + ".json"
-    os.path.exists(fname) and os.remove(fname)
+def remove_test(name, destroy=False):
+    if destroy:
+        fname = name + ".json"
+        os.path.exists(fname) and os.remove(fname)
     scripts = load_test_names()
     if name in scripts:
         scripts.remove(name)
@@ -142,11 +143,12 @@ def remove_test(name):
             json.dump(scripts, fd)
 
 
-def remove_all_tests():
+def remove_all_tests(nuke=False):
     scripts = load_test_names()
-    for script in scripts:
-        fname = script + ".json"
-        os.path.exists(fname) and os.remove(fname)
+    if nuke:
+        for script in scripts:
+            fname = script + ".json"
+            os.path.exists(fname) and os.remove(fname)
     if os.path.exists("tests.json"):
         os.remove("tests.json")
 
@@ -179,15 +181,23 @@ group.add_argument(
 group.add_argument("-a", "--execute-all", action='store_true', help="Execute all tests in the registry")
 group.add_argument("-x", "--execute", nargs="+", metavar="Test", help="Execute the specified tests")
 group.add_argument(
-    "-c", "--create", nargs="+", metavar=("Test", "Test Argument"),
+    "-c", "--create", nargs="+", metavar=("Test", "Argument"),
     help="Add the specified test script with optional arguments to the test registry, and executes them")
 group.add_argument(
     "-f", "--add-all", metavar="File",
     help="Add all tests in <File>. <File> should contain test script names, one per line")
 group.add_argument(
     "-d", "--delete", nargs="+", metavar="Test",
-    help="Remove the specified tests from the registry")
-group.add_argument("--clear", action='store_true', help="Clear the test registry")
+    help="Remove the specified tests from the registry. The expected outcome .json files will be retained")
+group.add_argument(
+    "--destroy", nargs="+", metavar="Test",
+    help="Remove the specified tests from the registry. The expected outcome .json files will be deleted as well")
+group.add_argument(
+    "--clear", action='store_true',
+    help="Clear the test registry. The expected outcome .json files will be retained")
+group.add_argument(
+    "--nuke", action='store_true',
+    help="Clear the test registry. The expected outcome .json files will be deleted as well")
 args = arg_parser.parse_args()
 
 if args.execute_all:
@@ -202,7 +212,10 @@ if args.add_all:
 if args.delete:
     for name in args.delete:
         remove_test(name)
-if args.clear:
-    remove_all_tests()
+if args.destroy:
+    for name in args.destroy:
+        remove_test(name, True)
+if args.clear or args.nuke:
+    remove_all_tests(args.nuke)
 if args.index:
     print_index()
