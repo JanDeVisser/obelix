@@ -1,6 +1,6 @@
 func main(): int
 {
-  for (x in 0 .. 5) {
+  for (x in 0..5) {
     puti(x); putln("");
   }
   return 0;

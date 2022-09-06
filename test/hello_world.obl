@@ -1,6 +1,5 @@
-func main() : int
+func main(): s32
 {
-   static var s = "Hello, World!";
-   const x = putln(s);
-   return 1;
+   putln("Hello, World!")
+   return 0
 }

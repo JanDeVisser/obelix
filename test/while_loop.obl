@@ -1,6 +1,6 @@
 func main(): int
 {
-  var x: int = 0;
+  var x: s64 = 0;
   while (x < 5) {
     puti(x); putln("");
     ++x;

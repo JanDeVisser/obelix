@@ -1,6 +1,6 @@
 {
   "name": "hello_world",
-  "exit": 1,
+  "exit": 0,
   "stdout": [
     "Hello, World!"
   ],
