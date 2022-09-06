@@ -250,7 +250,7 @@ public:
 
     [[nodiscard]] std::string label() const
     {
-        if (parameters().empty())
+        if (parameters().empty() || name() == "main")
             return name();
         size_t hash = 0u;
         for (auto const& param : parameters()) {
