@@ -525,18 +525,21 @@ NODE_PROCESSOR(MaterializedVariableDecl)
     auto static_address = std::dynamic_pointer_cast<StaticVariableAddress>(var_decl->address());
     if (static_address) {
         switch (var_decl->type()->type()) {
-            case PrimitiveType::IntegerNumber: {
-                int initial_value = 0;
-                auto literal = std::dynamic_pointer_cast<BoundIntLiteral>(var_decl->expression());
-                if (literal != nullptr)
-                    initial_value = literal->value();
-                ctx.assembly().add_data(static_address->label(), true, ".long", true, initial_value);
-                break;
-            }
-            case PrimitiveType::Array: {
-                ctx.assembly().add_data(static_address->label(), true, ".space",
-                    var_decl->type()->template_argument<std::shared_ptr<ObjectType>>("base_type")->size() * true, var_decl->type()->template_argument<long>("size"));
-                break;
+        case PrimitiveType::IntegerNumber:
+        case PrimitiveType::SignedIntegerNumber:
+        case PrimitiveType::Boolean:
+        case PrimitiveType::Pointer: {
+            int initial_value = 0;
+            auto literal = std::dynamic_pointer_cast<BoundIntLiteral>(var_decl->expression());
+            if (literal != nullptr)
+                initial_value = literal->value();
+            ctx.assembly().add_data(static_address->label(), true, ".long", true, initial_value);
+            break;
+        }
+        case PrimitiveType::Array: {
+            ctx.assembly().add_data(static_address->label(), true, ".space",
+                var_decl->type()->template_argument<std::shared_ptr<ObjectType>>("base_type")->size() * true, var_decl->type()->template_argument<long>("size"));
+            break;
             }
             case PrimitiveType::Struct: {
                 // ctx.assembly().add_comment("Reserving space for static struct");
