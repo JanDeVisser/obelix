@@ -38,8 +38,8 @@ ARM64FunctionType const& get_arm64_intrinsic(IntrinsicType type)
 // This is a mmap syscall
 INTRINSIC(allocate)
 {
-    ctx.assembly().add_text(
-R"(
+    ctx.assembly()->add_text(
+        R"(
     mov     x1,x0
     mov     x0,xzr
     mov     w2,#3
@@ -54,8 +54,8 @@ R"(
 
 INTRINSIC(eputs)
 {
-    ctx.assembly().add_text(
-R"(
+    ctx.assembly()->add_text(
+        R"(
     mov     x2,x0
     mov     x0,#2
     mov     x16,#0x04
@@ -66,8 +66,8 @@ R"(
 
 INTRINSIC(fputs)
 {
-    ctx.assembly().add_text(
-R"(
+    ctx.assembly()->add_text(
+        R"(
     mov     x4,x2
     mov     x2,x1
     mov     x2,x4
@@ -79,8 +79,8 @@ R"(
 
 INTRINSIC(int_to_string)
 {
-    ctx.assembly().add_text(
-R"(
+    ctx.assembly()->add_text(
+        R"(
     mov     x2,x0
     sub     sp,sp,32
     mov     x1,sp
@@ -95,50 +95,49 @@ R"(
 
 INTRINSIC(putchar)
 {
-    ctx.assembly().add_instruction("strb", "w0,[sp,-16]!");
-    ctx.assembly().add_instruction("mov", "x0,#1"); // x0: stdin
-    ctx.assembly().add_instruction("mov", "x1,sp"); // x1: SP
-    ctx.assembly().add_instruction("mov", "x2,#1"); // x2: Number of characters
-    ctx.assembly().syscall(0x04);
-    ctx.assembly().add_instruction("add", "sp,sp,16");
+    ctx.assembly()->add_instruction("strb", "w0,[sp,-16]!");
+    ctx.assembly()->add_instruction("mov", "x0,#1"); // x0: stdin
+    ctx.assembly()->add_instruction("mov", "x1,sp"); // x1: SP
+    ctx.assembly()->add_instruction("mov", "x2,#1"); // x2: Number of characters
+    ctx.assembly()->syscall(0x04);
+    ctx.assembly()->add_instruction("add", "sp,sp,16");
     return {};
 }
 
-
 INTRINSIC(ptr_math)
 {
-    ctx.assembly().add_instruction("add", "x0,x0,x1");
+    ctx.assembly()->add_instruction("add", "x0,x0,x1");
     return {};
 }
 
 INTRINSIC(dereference)
 {
-    ctx.assembly().add_instruction("ldr", "x1,[x0]");
-    ctx.assembly().add_instruction("mov", "x0,x1");
+    ctx.assembly()->add_instruction("ldr", "x1,[x0]");
+    ctx.assembly()->add_instruction("mov", "x0,x1");
     return {};
 }
 
 INTRINSIC(add_int_int)
 {
-    ctx.assembly().add_instruction("add", "x0,x0,x1");
+    ctx.assembly()->add_instruction("add", "x0,x0,x1");
     return {};
 }
 
 INTRINSIC(subtract_int_int)
 {
-    ctx.assembly().add_instruction("sub", "x0,x0,x1");
+    ctx.assembly()->add_instruction("sub", "x0,x0,x1");
     return {};
 }
 
 INTRINSIC(multiply_int_int)
 {
-    ctx.assembly().add_instruction("mul", "x0,x0,x1");
+    ctx.assembly()->add_instruction("mul", "x0,x0,x1");
     return {};
 }
 
 INTRINSIC(divide_int_int)
 {
-    ctx.assembly().add_instruction("sdiv", "x0,x0,x1");
+    ctx.assembly()->add_instruction("sdiv", "x0,x0,x1");
     return {};
 }
 
@@ -146,8 +145,8 @@ void relational_op(ARM64Context& ctx, std::string branch)
 {
     auto set_true = format("lbl_{}", Obelix::Label::reserve_id());
     auto done = format("lbl_{}", Obelix::Label::reserve_id());
-    ctx.assembly().add_text(format(
-R"(
+    ctx.assembly()->add_text(format(
+        R"(
     cmp     x0,x1
     {}      {}
     mov     w0,wzr
@@ -155,7 +154,8 @@ R"(
 {}:
     mov     w0,#0x01
 {}:
-)", branch, set_true, done, set_true, done));
+)",
+        branch, set_true, done, set_true, done));
 }
 
 INTRINSIC(equals_int_int)
@@ -178,51 +178,51 @@ INTRINSIC(less_int_int)
 
 INTRINSIC(negate_int)
 {
-    ctx.assembly().add_instruction("neg", "x0,x0");
+    ctx.assembly()->add_instruction("neg", "x0,x0");
     return {};
 }
 
 INTRINSIC(invert_int)
 {
-    ctx.assembly().add_instruction("mvn", "x0,x0");
+    ctx.assembly()->add_instruction("mvn", "x0,x0");
     return {};
 }
 
 INTRINSIC(invert_bool)
 {
-    ctx.assembly().add_instruction("eor", "w0,w0,#0x01"); // a is 0b00000001 (a was true) or 0b00000000 (a was false
+    ctx.assembly()->add_instruction("eor", "w0,w0,#0x01"); // a is 0b00000001 (a was true) or 0b00000000 (a was false
     return {};
 }
 
 INTRINSIC(and_bool_bool)
 {
-    ctx.assembly().add_instruction("and", "w0,w0,w1");
+    ctx.assembly()->add_instruction("and", "w0,w0,w1");
     return {};
 }
 
 INTRINSIC(or_bool_bool)
 {
-    ctx.assembly().add_instruction("orr", "w0,w0,w1");
+    ctx.assembly()->add_instruction("orr", "w0,w0,w1");
     return {};
 }
 
 INTRINSIC(xor_bool_bool)
 {
-    ctx.assembly().add_instruction("eor", "w0,w0,w1");
+    ctx.assembly()->add_instruction("eor", "w0,w0,w1");
     return {};
 }
 
 INTRINSIC(equals_bool_bool)
 {
-    ctx.assembly().add_instruction("eor", "w0,w0,w1");    // a is 0b00000000 (a == b) or 0b00000001 (a != b)
-    ctx.assembly().add_instruction("eor", "w0,w0,#0x01"); // a is 0b00000001 (a == b) or 0b00000000 (a != b)
+    ctx.assembly()->add_instruction("eor", "w0,w0,w1");    // a is 0b00000000 (a == b) or 0b00000001 (a != b)
+    ctx.assembly()->add_instruction("eor", "w0,w0,#0x01"); // a is 0b00000001 (a == b) or 0b00000000 (a != b)
     return {};
 }
 
 INTRINSIC(add_str_str)
 {
-    ctx.assembly().add_text(
-R"(
+    ctx.assembly()->add_text(
+        R"(
     mov     w9,w0
     mov     x10,x1
     mov     w11,w2

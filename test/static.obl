@@ -1,6 +1,14 @@
-static var x = 12
+func foo(x: s64): s64
+{
+  static var y: s64 = 12
+  var ret = y
+  y = x
+  return ret
+}
 
 func main(argc: int, argv: ptr<ptr<char>>) : s32
 {
-  return x
+  foo(42)
+  return foo(13)
 }
+

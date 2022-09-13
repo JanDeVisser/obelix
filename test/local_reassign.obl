@@ -1,0 +1,7 @@
+var x = 12
+
+func main(argc: int, argv: ptr<ptr<char>>) : s32
+{
+  x = 42
+  return x
+}

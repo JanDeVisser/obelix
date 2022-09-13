@@ -1,0 +1,7 @@
+var s = "Hello, World!"
+
+func main(): s32
+{
+  putln(s)
+  return 0
+}

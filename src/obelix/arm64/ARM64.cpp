@@ -13,81 +13,18 @@
 #include <core/Error.h>
 #include <core/Logging.h>
 #include <core/Process.h>
+#include <core/ScopeGuard.h>
+#include <obelix/Parser.h>
+#include <obelix/Processor.h>
 #include <obelix/arm64/ARM64.h>
 #include <obelix/arm64/ARM64Context.h>
 #include <obelix/arm64/ARM64Intrinsics.h>
-#include <obelix/MaterializedSyntaxNode.h>
-#include <obelix/Parser.h>
-#include <obelix/Processor.h>
+#include <obelix/arm64/MaterializedSyntaxNode.h>
+#include <obelix/arm64/Mnemonic.h>
 
 namespace Obelix {
 
 logging_category(arm64);
-
-struct TypeMnemonicMap {
-    PrimitiveType type;
-    bool is_signed;
-    int size;
-    char const* load_mnemonic;
-    char const* store_mnemonic;
-    char const* reg_width;
-};
-
-static TypeMnemonicMap mnemonic_map[] = {
-    { PrimitiveType::SignedIntegerNumber, true, 8, "ldr", "str", "x" },
-    { PrimitiveType::IntegerNumber, false, 8, "ldr", "str", "x" },
-    { PrimitiveType::Enum, false, 8, "ldr", "str", "x" },
-    { PrimitiveType::Pointer, false, 8, "ldr", "str", "x" },
-    { PrimitiveType::SignedIntegerNumber, true, 4, "ldr", "str", "w" },
-    { PrimitiveType::IntegerNumber, false, 4, "ldr", "str", "w" },
-    { PrimitiveType::SignedIntegerNumber, true, 1, "ldrsb", "strsb", "w" },
-    { PrimitiveType::IntegerNumber, false, 1, "ldrb", "strb", "w" },
-};
-
-TypeMnemonicMap const* get_type_mnemonic_map(std::shared_ptr<ObjectType> const& type)
-{
-    bool is_signed = (type->has_template_argument("signed")) && type->template_argument<bool>("signed");
-    auto size = (type->has_template_argument("size")) ? type->template_argument<long>("size") : type->size();
-    for (auto const& mm : mnemonic_map) {
-        if (mm.type != type->type())
-            continue;
-        if (mm.is_signed == is_signed && mm.size == size) {
-            return &mm;
-        }
-    }
-    return nullptr;
-}
-
-ErrorOr<void, SyntaxError> zero_initialize(ARM64Context &ctx, std::shared_ptr<ObjectType> type, int offset)
-{
-    switch (type->type()) {
-    case PrimitiveType::Pointer:
-    case PrimitiveType::SignedIntegerNumber:
-    case PrimitiveType::IntegerNumber:
-    case PrimitiveType::Boolean: {
-        auto mm = get_type_mnemonic_map(type);
-        assert(mm != nullptr);
-        ctx.assembly().add_instruction("mov", "{}0,{}zr", mm->reg_width, mm->reg_width);
-        ctx.assembly().add_instruction("str", "{}0,[fp,#{}]", mm->reg_width, ctx.stack_depth() - offset);
-        break;
-    }
-    case PrimitiveType::Struct: {
-        auto off = ctx.stack_depth() - offset;
-        for (auto const& field : type->fields()) {
-            TRY_RETURN(zero_initialize(ctx, field.type, off));
-            off -= field.type->size();
-        }
-        break;
-    }
-    case PrimitiveType::Array: {
-        // Arrays are not initialized now. Maybe that should be fixed
-        break;
-    }
-    default:
-        return SyntaxError { ErrorCode::NotYetImplemented, Token { }, format("Cannot initialize variables of type {} yet", type) };
-    }
-    return {};
-}
 
 INIT_NODE_PROCESSOR(ARM64Context);
 
@@ -118,7 +55,7 @@ NODE_PROCESSOR(MaterializedFunctionDef)
     }
 
     if (func_def->declaration()->node_type() == SyntaxNodeType::MaterializedFunctionDecl) {
-        ctx.enter_function(func_def);
+        TRY_RETURN(ctx.enter_function(func_def));
         TRY_RETURN(process(func_def->statement(), ctx));
         ctx.leave_function();
     }
@@ -130,8 +67,8 @@ ErrorOr<void, SyntaxError> evaluate_arguments(ARM64Context& ctx, std::shared_ptr
     int nsaa = decl->nsaa();
     if (nsaa > 0) {
         push(ctx, "x10");
-        ctx.assembly().add_instruction("mov", "x10,sp");
-        ctx.assembly().add_instruction("sub", "sp,sp,#{}", nsaa);
+        ctx.assembly()->add_instruction("mov", "x10,sp");
+        ctx.assembly()->add_instruction("sub", "sp,sp,#{}", nsaa);
     }
     auto param_defs = decl->parameters();
     int param_ix = 0;
@@ -169,15 +106,14 @@ ErrorOr<void, SyntaxError> evaluate_arguments(ARM64Context& ctx, std::shared_ptr
                         case PrimitiveType::IntegerNumber:
                         case PrimitiveType::SignedIntegerNumber:
                         case PrimitiveType::Pointer:
-                            ctx.assembly().add_instruction("str", "x0,[x10,#-{}]", param_defs[param_ix]->where());
+                            ctx.assembly()->add_instruction("str", "x0,[x10,#-{}]", param_defs[param_ix]->where());
                             break;
                         case PrimitiveType::Struct:
                         default:
-                            ctx.assembly().add_text(
-                            R"(
+                            ctx.assembly()->add_text(
+                                R"(
 
-                            )"
-                            );
+                            )");
                             fatal("Type '{}' cannot passed on the stack in {}", param_defs[param_ix]->type(), __func__);
                     }
                     break;
@@ -204,7 +140,7 @@ ErrorOr<void, SyntaxError> evaluate_arguments(ARM64Context& ctx, std::shared_ptr
 void reset_sp_after_call(ARM64Context& ctx, std::shared_ptr<MaterializedFunctionDecl> const& decl)
 {
     if (decl->nsaa() > 0) {
-        ctx.assembly().add_instruction("mov", "sp,x10");
+        ctx.assembly()->add_instruction("mov", "sp,x10");
         pop(ctx, "x10");
     }
 }
@@ -213,7 +149,7 @@ NODE_PROCESSOR(MaterializedFunctionCall)
 {
     auto call = std::dynamic_pointer_cast<MaterializedFunctionCall>(tree);
     TRY_RETURN(evaluate_arguments(ctx, call->declaration(), call->arguments()));
-    ctx.assembly().add_instruction("bl", call->declaration()->label());
+    ctx.assembly()->add_instruction("bl", call->declaration()->label());
     reset_sp_after_call(ctx, call->declaration());
     return tree;
 }
@@ -223,7 +159,7 @@ NODE_PROCESSOR(MaterializedNativeFunctionCall)
     auto native_func_call = std::dynamic_pointer_cast<MaterializedNativeFunctionCall>(tree);
     auto func_decl = std::dynamic_pointer_cast<MaterializedNativeFunctionDecl>(native_func_call->declaration());
     TRY_RETURN(evaluate_arguments(ctx, func_decl, native_func_call->arguments()));
-    ctx.assembly().add_instruction("bl", func_decl->native_function_name());
+    ctx.assembly()->add_instruction("bl", func_decl->native_function_name());
     reset_sp_after_call(ctx, func_decl);
     return tree;
 }
@@ -251,7 +187,7 @@ NODE_PROCESSOR(BoundIntLiteral)
         return SyntaxError { ErrorCode::NotYetImplemented, literal->token(),
             format("Cannot push values of variables of type {} yet", literal->type()) };
 
-    ctx.assembly().add_instruction("mov", "{}0,#{}", mm->reg_width, literal->value());
+    ctx.assembly()->add_instruction("mov", "{}0,#{}", mm->reg_width, literal->value());
     return tree;
 }
 
@@ -263,208 +199,16 @@ NODE_PROCESSOR(BoundEnumValue)
         return SyntaxError { ErrorCode::NotYetImplemented, enum_value->token(),
             format("Cannot push values of variables of type {} yet", enum_value->type()) };
 
-    ctx.assembly().add_instruction("mov", "{}0,#{}", mm->reg_width, enum_value->value());
+    ctx.assembly()->add_instruction("mov", "{}0,#{}", mm->reg_width, enum_value->value());
     return tree;
-}
-
-ErrorOr<void, SyntaxError> StackVariableAddress::load_variable(std::shared_ptr<ObjectType> type, ARM64Context& ctx, int target) const
-{
-    if (type->type() != PrimitiveType::Struct) {
-        auto mm = get_type_mnemonic_map(type);
-        if (mm == nullptr)
-            return SyntaxError { ErrorCode::NotYetImplemented, Token {},
-                format("Cannot load values of variables of type {} yet", type) };
-        ctx.assembly().add_comment(format("Loading variable: stack_depth {} offset {}", ctx.stack_depth(), offset()));
-        ctx.assembly().add_instruction(mm->load_mnemonic, "{}{},[fp,#{}]", mm->reg_width, target, ctx.stack_depth() - offset());
-        return {};
-    }
-    ctx.assembly().add_comment(format("Loading struct variable: stack_depth {} offset {}", ctx.stack_depth(), offset()));
-    for (auto const& field : type->fields()) {
-        auto reg_width = "w";
-        if (field.type->size() > 4)
-            reg_width = "x";
-        ctx.assembly().add_instruction("ldr", format("{}{},[fp,#{}]", reg_width, target++, ctx.stack_depth() - offset() + type->offset_of(field.name)));
-    }
-    return {};
-}
-
-ErrorOr<void, SyntaxError> StackVariableAddress::store_variable(std::shared_ptr<ObjectType> type, ARM64Context& ctx, int from) const
-{
-    if (type->type() != PrimitiveType::Struct) {
-        auto mm = get_type_mnemonic_map(type);
-        if (mm == nullptr)
-            return SyntaxError { ErrorCode::NotYetImplemented, Token {},
-                format("Cannot store values of type {} yet", type) };
-        ctx.assembly().add_comment(format("Storing to variable: stack_depth {} offset {}", ctx.stack_depth(), offset()));
-        ctx.assembly().add_instruction(mm->store_mnemonic, "{}{},[fp,#{}]", mm->reg_width, from, ctx.stack_depth() - offset());
-        return {};
-    }
-    ctx.assembly().add_comment(format("Storing struct variable: stack_depth {} offset {}", ctx.stack_depth(), offset()));
-    for (auto const& field : type->fields()) {
-        auto reg_width = "w";
-        if (field.type->size() > 4)
-            reg_width = "x";
-        ctx.assembly().add_instruction("str", format("{}{},[fp,#{}]", reg_width, from++, ctx.stack_depth() - offset() + type->offset_of(field.name)));
-    }
-    return {};
-}
-
-ErrorOr<void, SyntaxError> StackVariableAddress::prepare_pointer(ARM64Context& ctx) const
-{
-    ctx.assembly().add_instruction("add", "x8,fp,#{}", ctx.stack_depth() - offset());
-    return {};
-}
-
-ErrorOr<void, SyntaxError> StructMemberAddress::load_variable(std::shared_ptr<ObjectType> type, ARM64Context& ctx, int target) const
-{
-    auto mm = get_type_mnemonic_map(type);
-    if (mm == nullptr)
-        return SyntaxError { ErrorCode::NotYetImplemented, Token {},
-            format("Cannot push values of variables of type {} yet", type) };
-
-    if (auto error_maybe = structure()->prepare_pointer(ctx); error_maybe.is_error()) {
-        return error_maybe.error();
-    }
-    if (offset() > 0)
-        ctx.assembly().add_instruction("sub", "x8,x8,#{}", ctx.stack_depth() - offset());
-    ctx.assembly().add_instruction(mm->load_mnemonic, "{}{},[x8]", mm->reg_width, target);
-    return {};
-}
-
-ErrorOr<void, SyntaxError> StructMemberAddress::store_variable(std::shared_ptr<ObjectType> type, ARM64Context& ctx, int from) const
-{
-    auto mm = get_type_mnemonic_map(type);
-    if (mm == nullptr)
-        return SyntaxError { ErrorCode::NotYetImplemented, Token {},
-            format("Cannot store values type {} yet", type) };
-    if (auto error_maybe = structure()->prepare_pointer(ctx); error_maybe.is_error()) {
-        return error_maybe.error();
-    }
-    if (offset() > 0)
-        ctx.assembly().add_instruction("add", "x8,x8,#{}", ctx.stack_depth() - offset());
-    ctx.assembly().add_instruction(mm->store_mnemonic, "{}{},[x8]", mm->reg_width, from);
-    return {};
-}
-
-ErrorOr<void, SyntaxError> StructMemberAddress::prepare_pointer(ARM64Context& ctx) const
-{
-    ctx.assembly().add_instruction("add", "x8,x8,#{}", ctx.stack_depth() - offset());
-    return {};
-}
-
-ErrorOr<void, SyntaxError> ArrayElementAddress::load_variable(std::shared_ptr<ObjectType> type, ARM64Context& ctx, int target) const
-{
-    auto mm = get_type_mnemonic_map(type);
-    if (mm == nullptr)
-        return SyntaxError { ErrorCode::NotYetImplemented, Token {},
-            format("Cannot push values of variables of type {} yet", type) };
-
-    TRY_RETURN(array()->prepare_pointer(ctx));
-    TRY_RETURN(prepare_pointer(ctx));
-    pop(ctx, "x0");
-    ctx.assembly().add_instruction(mm->load_mnemonic, "{}{},[x8]", mm->reg_width, target);
-    return {};
-}
-
-ErrorOr<void, SyntaxError> ArrayElementAddress::store_variable(std::shared_ptr<ObjectType> type, ARM64Context& ctx, int from) const
-{
-    auto mm = get_type_mnemonic_map(type);
-    if (mm == nullptr)
-        return SyntaxError { ErrorCode::NotYetImplemented, Token {},
-            format("Cannot store values type {} yet", type) };
-    TRY_RETURN(array()->prepare_pointer(ctx));
-    TRY_RETURN(prepare_pointer(ctx));
-    pop(ctx, "x0");
-    ctx.assembly().add_instruction(mm->store_mnemonic, "{}{},[x8]", mm->reg_width, from);
-    return {};
-}
-
-ErrorOr<void, SyntaxError> ArrayElementAddress::prepare_pointer(ARM64Context& ctx) const
-{
-    // x0 will hold the array index. Here we add that index, multiplied by the element size,
-    // to x8, which should hold the array base address
-
-    switch (element_size()) {
-        case 1:
-            ctx.assembly().add_instruction("add", "x8,x8,x0");
-            break;
-        case 2:
-            ctx.assembly().add_instruction("add", "x8,x8,x0,lsl #1");
-            break;
-        case 4:
-            ctx.assembly().add_instruction("add", "x8,x8,x0,lsl #2");
-            break;
-        case 8:
-            ctx.assembly().add_instruction("add", "x8,x8,x0,lsl #3");
-            break;
-        case 16:
-            ctx.assembly().add_instruction("add", "x8,x8,x0,lsl #4");
-            break;
-        default:
-            return SyntaxError { ErrorCode::InternalError, Token {}, "Cannot access arrays with elements of size {} yet", element_size()};
-    }
-    return {};
-}
-
-ErrorOr<void, SyntaxError> StaticVariableAddress::load_variable(std::shared_ptr<ObjectType> type, ARM64Context& ctx, int target) const
-{
-    if (type->type() != PrimitiveType::Struct) {
-        auto mm = get_type_mnemonic_map(type);
-        if (mm == nullptr)
-            return SyntaxError { ErrorCode::NotYetImplemented, Token {},
-                format("Cannot push values of variables of type {} yet", type) };
-
-        ctx.assembly().add_instruction("adrp", "x8,{}@PAGE", label());
-        ctx.assembly().add_instruction(mm->load_mnemonic, "{}{},[x8,{}@PAGEOFF]", mm->reg_width, target, label());
-        return {};
-    }
-    ctx.assembly().add_comment("Loading static struct variable");
-    ctx.assembly().add_instruction("adrp", "x8,{}@PAGE", label());
-    for (auto const& field : type->fields()) {
-        auto reg_width = "w";
-        if (field.type->size() > 4)
-            reg_width = "x";
-        ctx.assembly().add_instruction("ldr", format("{}{},[x8,{}@PAGEOFF+{}]", reg_width, target++, label(), type->offset_of(field.name)));
-    }
-    return {};
-}
-
-ErrorOr<void, SyntaxError> StaticVariableAddress::store_variable(std::shared_ptr<ObjectType> type, ARM64Context& ctx, int from) const
-{
-    if (type->type() != PrimitiveType::Struct) {
-        auto mm = get_type_mnemonic_map(type);
-        if (mm == nullptr)
-            return SyntaxError { ErrorCode::NotYetImplemented, Token {},
-                format("Cannot store values of type {} yet", type) };
-
-        ctx.assembly().add_instruction("adrp", "x8,{}@PAGE", label());
-        ctx.assembly().add_instruction(mm->store_mnemonic, "{}{},[x8,{}@PAGEOFF]", mm->reg_width, from, label());
-        return {};
-    }
-    ctx.assembly().add_comment("Storing static struct variable");
-    ctx.assembly().add_instruction("adrp", "x8,{}@PAGE", label());
-    for (auto const& field : type->fields()) {
-        auto reg_width = "w";
-        if (field.type->size() > 4)
-            reg_width = "x";
-        ctx.assembly().add_instruction("str", format("{}{},[x8,{}@PAGEOFF+{}]", reg_width, from++, label(), type->offset_of(field.name)));
-    }
-    return {};
-}
-
-ErrorOr<void, SyntaxError> StaticVariableAddress::prepare_pointer(ARM64Context& ctx) const
-{
-    ctx.assembly().add_instruction("adrp", "x8,{}@PAGE", label());
-    ctx.assembly().add_instruction("add", "x8,x8,{}@PAGEOFF", label());
-    return {};
 }
 
 NODE_PROCESSOR(BoundStringLiteral)
 {
     auto literal = std::dynamic_pointer_cast<BoundStringLiteral>(tree);
-    auto str_id = ctx.assembly().add_string(literal->value());
-    ctx.assembly().add_instruction("mov", "w0,#{}", literal->value().length());
-    ctx.assembly().add_instruction("adr", "x1,str_{}", str_id);
+    auto str_id = ctx.assembly()->add_string(literal->value());
+    ctx.assembly()->add_instruction("mov", "w0,#{}", literal->value().length());
+    ctx.assembly()->add_instruction("adr", "x1,str_{}", str_id);
     return tree;
 }
 
@@ -520,76 +264,110 @@ NODE_PROCESSOR(BoundAssignment)
 NODE_PROCESSOR(MaterializedVariableDecl)
 {
     auto var_decl = std::dynamic_pointer_cast<MaterializedVariableDecl>(tree);
-    ctx.assembly().add_comment(var_decl->to_string());
+    ctx.assembly()->add_comment(var_decl->to_string());
 
-    auto static_address = std::dynamic_pointer_cast<StaticVariableAddress>(var_decl->address());
-    if (static_address) {
-        switch (var_decl->type()->type()) {
-        case PrimitiveType::IntegerNumber:
-        case PrimitiveType::SignedIntegerNumber:
-        case PrimitiveType::Boolean:
-        case PrimitiveType::Pointer: {
-            int initial_value = 0;
-            auto literal = std::dynamic_pointer_cast<BoundIntLiteral>(var_decl->expression());
-            if (literal != nullptr)
-                initial_value = literal->value();
-            ctx.assembly().add_data(static_address->label(), true, ".long", true, initial_value);
-            break;
-        }
-        case PrimitiveType::Array: {
-            ctx.assembly().add_data(static_address->label(), true, ".space",
-                var_decl->type()->template_argument<std::shared_ptr<ObjectType>>("base_type")->size() * true, var_decl->type()->template_argument<long>("size"));
-            break;
-            }
-            case PrimitiveType::Struct: {
-                // ctx.assembly().add_comment("Reserving space for static struct");
-                ctx.assembly().add_data(static_address->label(), true, ".space", true, var_decl->type()->size());
-                break;
-            }
-            default:
-                fatal("Can't emit static variables of type {} yet", var_decl->type()->type());
-        }
-    }
-
-    // ctx.assembly().add_comment("Initializing variable");
+    ctx.assembly()->add_comment("Initializing variable");
     if (var_decl->expression() != nullptr) {
-        auto skip_label = Obelix::Label::reserve_id();
-        if (static_address) {
-            ctx.assembly().add_instruction("adrp", "x8,{}@PAGE", static_address->label());
-            ctx.assembly().add_instruction("ldr", "w0,[x8,{}@PAGEOFF+{}]", static_address->label(), var_decl->type()->size());
-            ctx.assembly().add_instruction("cmp", "w0,0x00");
-            ctx.assembly().add_instruction("b.ne", "lbl_{}", skip_label);
-        }
         TRY_RETURN(process(var_decl->expression(), ctx));
-        auto error_maybe = var_decl->address()->store_variable(var_decl->type(), ctx, 0);
+        auto error_maybe = ctx.store_variable(var_decl->type(), var_decl->offset(), 0);
         if (error_maybe.is_error()) {
             ctx.add_error(error_maybe.error());
             return error_maybe.error();
         }
-        if (static_address) {
-            ctx.assembly().add_instruction("mov", "w0,1");
-            ctx.assembly().add_instruction("str", "w0,[x8,{}@PAGEOFF+{}]", static_address->label(), var_decl->type()->size());
-            ctx.assembly().add_label(format("lbl_{}", skip_label));
-        }
     } else {
-        auto stack_address = std::dynamic_pointer_cast<StackVariableAddress>(var_decl->address());
-        TRY_RETURN(zero_initialize(ctx, var_decl->type(), stack_address->offset()));
+        TRY_RETURN(ctx.zero_initialize(var_decl->type(), var_decl->offset()));
     }
     return tree;
 }
+
+NODE_PROCESSOR(MaterializedStaticVariableDecl)
+{
+    auto var_decl = std::dynamic_pointer_cast<MaterializedStaticVariableDecl>(tree);
+    ctx.assembly()->add_comment(var_decl->to_string());
+    TRY_RETURN(ctx.define_static_storage(var_decl->label(), var_decl->type(), false, var_decl->expression()));
+
+    ctx.assembly()->add_comment("Initializing variable");
+    if (var_decl->expression() != nullptr) {
+        auto skip_label = Obelix::Label::reserve_id();
+        ctx.assembly()->add_instruction("adrp", "x8,{}@PAGE", var_decl->label());
+        ctx.assembly()->add_instruction("ldr", "w0,[x8,{}@PAGEOFF+{}]", var_decl->label(), var_decl->type()->size());
+        ctx.assembly()->add_instruction("cmp", "w0,0x00");
+        ctx.assembly()->add_instruction("b.ne", "lbl_{}", skip_label);
+        TRY_RETURN(process(var_decl->expression(), ctx));
+        if (var_decl->type()->type() != PrimitiveType::Struct) {
+            auto mm = get_type_mnemonic_map(var_decl->type());
+            if (mm == nullptr)
+                return SyntaxError { ErrorCode::NotYetImplemented, Token {},
+                    format("Cannot store values of type {} yet", var_decl->type()) };
+
+            ctx.assembly()->add_instruction("adrp", "x8,{}@PAGE", var_decl->label());
+            ctx.assembly()->add_instruction(mm->store_mnemonic, "{}0,[x8,{}@PAGEOFF]", mm->reg_width, var_decl->label());
+        } else {
+            ctx.assembly()->add_comment("Storing static struct variable");
+            ctx.assembly()->add_instruction("adrp", "x8,{}@PAGE", var_decl->label());
+            auto from = 0u;
+            for (auto const& field : var_decl->type()->fields()) {
+                auto reg_width = "w";
+                if (field.type->size() > 4)
+                    reg_width = "x";
+                ctx.assembly()->add_instruction("str", format("{}{},[x8,{}@PAGEOFF+{}]", reg_width, from++, var_decl->label(), var_decl->type()->offset_of(field.name)));
+            }
+        }
+        ctx.assembly()->add_instruction("mov", "w0,1");
+        ctx.assembly()->add_instruction("str", "w0,[x8,{}@PAGEOFF+{}]", var_decl->label(), var_decl->type()->size());
+        ctx.assembly()->add_label(format("lbl_{}", skip_label));
+    }
+    return tree;
+}
+
+NODE_PROCESSOR(MaterializedGlobalVariableDecl)
+{
+    auto var_decl = std::dynamic_pointer_cast<MaterializedStaticVariableDecl>(tree);
+    TRY_RETURN(ctx.define_static_storage(var_decl->label(), var_decl->type(),
+        var_decl->node_type() == SyntaxNodeType::MaterializedGlobalVariableDecl, var_decl->expression()));
+    ctx.assembly()->target_static();
+    ctx.assembly()->add_comment(var_decl->to_string());
+    ScopeGuard sg([&ctx]() { ctx.assembly()->target_code(); });
+    ctx.assembly()->add_comment("Initializing variable");
+    if (var_decl->expression() != nullptr) {
+        TRY_RETURN(process(var_decl->expression(), ctx));
+        if (var_decl->type()->type() != PrimitiveType::Struct) {
+            auto mm = get_type_mnemonic_map(var_decl->type());
+            if (mm == nullptr)
+                return SyntaxError { ErrorCode::NotYetImplemented, Token {},
+                    format("Cannot store values of type {} yet", var_decl->type()) };
+
+            ctx.assembly()->add_instruction("adrp", "x8,{}@PAGE", var_decl->label());
+            ctx.assembly()->add_instruction(mm->store_mnemonic, "{}0,[x8,{}@PAGEOFF]", mm->reg_width, var_decl->label());
+        } else {
+            ctx.assembly()->add_comment("Storing static struct variable");
+            ctx.assembly()->add_instruction("adrp", "x8,{}@PAGE", var_decl->label());
+            auto from = 0u;
+            for (auto const& field : var_decl->type()->fields()) {
+                auto reg_width = "w";
+                if (field.type->size() > 4)
+                    reg_width = "x";
+                ctx.assembly()->add_instruction("str", format("{}{},[x8,{}@PAGEOFF+{}]", reg_width, from++, var_decl->label(), var_decl->type()->offset_of(field.name)));
+            }
+        }
+    }
+    return tree;
+}
+
+ALIAS_NODE_PROCESSOR(MaterializedLocalVariableDecl, MaterializedGlobalVariableDecl)
 
 NODE_PROCESSOR(BoundExpressionStatement)
 {
     auto expr_stmt = std::dynamic_pointer_cast<BoundExpressionStatement>(tree);
     debug(parser, "{}", expr_stmt->to_string());
-    ctx.assembly().add_comment(expr_stmt->to_string());
+    ctx.assembly()->add_comment(expr_stmt->to_string());
     if (expr_stmt->expression()->type()->type() == PrimitiveType::Struct) {
-        ctx.assembly().add_instruction("sub", "sp,sp,#{}", expr_stmt->expression()->type()->size());
-        ctx.assembly().add_instruction("mov", "x8,sp");
+        ctx.assembly()->add_instruction("sub", "sp,sp,#{}", expr_stmt->expression()->type()->size());
+        ctx.assembly()->add_instruction("mov", "x8,sp");
     }
     TRY_RETURN(process(expr_stmt->expression(), ctx));
     if (expr_stmt->expression()->type()->type() == PrimitiveType::Struct) {
-        ctx.assembly().add_instruction("add", "sp,sp,#{}", expr_stmt->expression()->type()->size());
+        ctx.assembly()->add_instruction("add", "sp,sp,#{}", expr_stmt->expression()->type()->size());
     }
     return tree;
 }
@@ -598,7 +376,7 @@ NODE_PROCESSOR(BoundReturn)
 {
     auto ret = std::dynamic_pointer_cast<BoundReturn>(tree);
     debug(parser, "{}", ret->to_string());
-    ctx.assembly().add_comment(ret->to_string());
+    ctx.assembly()->add_comment(ret->to_string());
     TRY_RETURN(process(ret->expression(), ctx));
     ctx.function_return();
 
@@ -609,8 +387,8 @@ NODE_PROCESSOR(Label)
 {
     auto label = std::dynamic_pointer_cast<Obelix::Label>(tree);
     debug(parser, "{}", label->to_string());
-    ctx.assembly().add_comment(label->to_string());
-    ctx.assembly().add_label(format("lbl_{}", label->label_id()));
+    ctx.assembly()->add_comment(label->to_string());
+    ctx.assembly()->add_label(format("lbl_{}", label->label_id()));
     return tree;
 }
 
@@ -618,8 +396,8 @@ NODE_PROCESSOR(Goto)
 {
     auto goto_stmt = std::dynamic_pointer_cast<Goto>(tree);
     debug(parser, "{}", goto_stmt->to_string());
-    ctx.assembly().add_comment(goto_stmt->to_string());
-    ctx.assembly().add_instruction("b", "lbl_{}", goto_stmt->label_id());
+    ctx.assembly()->add_comment(goto_stmt->to_string());
+    ctx.assembly()->add_instruction("b", "lbl_{}", goto_stmt->label_id());
     return tree;
 }
 
@@ -633,21 +411,21 @@ NODE_PROCESSOR(BoundIfStatement)
         auto else_label = (count) ? Obelix::Label::reserve_id() : end_label;
         if (branch->condition()) {
             debug(parser, "if ({})", branch->condition()->to_string());
-            ctx.assembly().add_comment(format("if ({})", branch->condition()->to_string()));
+            ctx.assembly()->add_comment(format("if ({})", branch->condition()->to_string()));
             auto cond = TRY_AND_CAST(BoundExpression, process(branch->condition(), ctx));
-            ctx.assembly().add_instruction("cmp", "w0,0x00");
-            ctx.assembly().add_instruction("b.eq", "lbl_{}", else_label);
+            ctx.assembly()->add_instruction("cmp", "w0,0x00");
+            ctx.assembly()->add_instruction("b.eq", "lbl_{}", else_label);
         } else {
-            ctx.assembly().add_comment("else");
+            ctx.assembly()->add_comment("else");
         }
         auto stmt = TRY_AND_CAST(Statement, process(branch->statement(), ctx));
         if (count) {
-            ctx.assembly().add_instruction("b", "lbl_{}", end_label);
-            ctx.assembly().add_label(format("lbl_{}", else_label));
+            ctx.assembly()->add_instruction("b", "lbl_{}", end_label);
+            ctx.assembly()->add_label(format("lbl_{}", else_label));
         }
         count--;
     }
-    ctx.assembly().add_label(format("lbl_{}", end_label));
+    ctx.assembly()->add_label(format("lbl_{}", end_label));
     return tree;
 }
 
@@ -673,22 +451,43 @@ ErrorOrNode output_arm64(std::shared_ptr<SyntaxNode> const& tree, Config const& 
     namespace fs = std::filesystem;
     fs::create_directory(".obelix");
 
+    std::shared_ptr<Assembly> main { nullptr };
+    for (auto& module_assembly : ARM64Context::assemblies()) {
+        auto& assembly = module_assembly.second;
+        if (assembly->has_main()) {
+            main = assembly;
+        }
+    }
+    if (main == nullptr) {
+        return SyntaxError { ErrorCode::FunctionUndefined, Token {}, "No main() function found" };
+    }
+
+    main->enter_function("static_initializer");
+    for (auto& module_assembly : ARM64Context::assemblies()) {
+        auto& module = module_assembly.first;
+        auto& assembly = module_assembly.second;
+        if (assembly->static_initializer().empty() || !assembly->has_exports())
+            continue;
+        main->add_instruction("bl", format("static_{}", module));
+    }
+    main->leave_function();
+
     std::vector<std::string> modules;
     for (auto& module_assembly : ARM64Context::assemblies()) {
         auto& module = module_assembly.first;
         auto& assembly = module_assembly.second;
 
-        if (assembly.has_exports()) {
+        if (assembly->has_exports()) {
             auto file_name_parts = split(module, '.');
             auto bare_file_name = ".obelix/" + file_name_parts.front();
 
             if (config.cmdline_flag("show-assembly")) {
                 std::cout << bare_file_name << ".s:"
                           << "\n";
-                std::cout << assembly.to_string();
+                std::cout << assembly->to_string();
             }
 
-            TRY_RETURN(assembly.save_and_assemble(bare_file_name));
+            TRY_RETURN(assembly->save_and_assemble(bare_file_name));
             if (!config.cmdline_flag("keep-assembly")) {
                 auto assembly_file = bare_file_name + ".s";
                 unlink(assembly_file.c_str());

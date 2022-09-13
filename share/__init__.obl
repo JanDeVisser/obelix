@@ -44,6 +44,6 @@ func cstrlen(s: ptr<char>) : u64 -> "cstrlen"
 func cputs(s: ptr<char>) : u64 -> "cputs"
 func cputln(s: ptr<char>) : u64 -> "cputln"
 
-const O_RDONLY: u32 = 0x0000u32
-const O_RDWR: u32 = 0x0002u32
-const O_WRONLY: u32 = 0x0001u32
+global const O_RDONLY: u32 = 0x0000u32
+global const O_RDWR: u32 = 0x0002u32
+global const O_WRONLY: u32 = 0x0001u32

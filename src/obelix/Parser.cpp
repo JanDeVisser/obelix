@@ -75,6 +75,7 @@ void Parser::initialize()
         Token(KeywordStruct, "struct"),
         Token(KeywordStatic, "static"),
         Token(KeywordEnum, "enum"),
+        Token(KeywordGlobal, "global"),
         TokenCode::BinaryIncrement,
         TokenCode::BinaryDecrement,
         TokenCode::UnaryIncrement,
@@ -148,12 +149,12 @@ std::shared_ptr<Statement> Parser::parse_top_level_statement()
         return parse_import_statement(lex());
     case KeywordStruct:
         return parse_struct(lex());
-    case KeywordStatic:
+    case KeywordGlobal:
         lex();
-        return parse_static_variable_declaration();
+        return parse_global_variable_declaration();
     case KeywordVar:
     case KeywordConst:
-        return parse_variable_declaration(lex(), token.code() == KeywordConst, true);
+        return parse_variable_declaration(lex(), token.code() == KeywordConst, VariableKind::ModuleLocal);
     case KeywordFunc:
     case KeywordIntrinsic:
         return parse_function_definition(lex());
@@ -487,17 +488,31 @@ std::shared_ptr<Statement> Parser::parse_struct(Token const& struct_token)
 
 std::shared_ptr<VariableDeclaration> Parser::parse_static_variable_declaration()
 {
-    switch (current_code()) {
+    auto code = current_code();
+    switch (code) {
     case KeywordVar:
     case KeywordConst:
-        return parse_variable_declaration(lex(), current_code() == KeywordConst, true);
+        return parse_variable_declaration(lex(), code == KeywordConst, VariableKind::Static);
     default:
         add_error(peek(), format("Syntax Error: Expected 'const' or 'var' after 'static', got '{}' ({})", peek().value(), peek().code_name()));
         return nullptr;
     }
 }
 
-std::shared_ptr<VariableDeclaration> Parser::parse_variable_declaration(Token const& var_token, bool constant, bool is_static)
+std::shared_ptr<VariableDeclaration> Parser::parse_global_variable_declaration()
+{
+    auto code = current_code();
+    switch (code) {
+    case KeywordVar:
+    case KeywordConst:
+        return parse_variable_declaration(lex(), code == KeywordConst, VariableKind::Global);
+    default:
+        add_error(peek(), format("Syntax Error: Expected 'const' or 'var' after 'static', got '{}' ({})", peek().value(), peek().code_name()));
+        return nullptr;
+    }
+}
+
+std::shared_ptr<VariableDeclaration> Parser::parse_variable_declaration(Token const& var_token, bool constant, VariableKind variable_kind)
 {
     auto identifier_maybe = match(TokenCode::Identifier);
     if (!identifier_maybe.has_value()) {
@@ -515,22 +530,28 @@ std::shared_ptr<VariableDeclaration> Parser::parse_variable_declaration(Token co
         type = var_type;
     }
     auto var_ident = std::make_shared<Identifier>(identifier, identifier.value(), type);
-    if (current_code() != TokenCode::Equals) {
+    std::shared_ptr<Expression> expr { nullptr };
+    if (current_code() == TokenCode::Equals) {
+        lex();
+        expr = parse_expression();
+        if (!expr)
+            return nullptr;
+    } else {
         if (constant) {
             add_error(peek(), format("Syntax Error: Expected expression after constant declaration, got '{}' ({})", peek().value(), peek().code_name()));
             return nullptr;
         }
-        if (is_static)
-            return make_node<StaticVariableDeclaration>(var_token, var_ident, nullptr, constant);
-        return make_node<VariableDeclaration>(var_token, var_ident, nullptr, constant);
     }
-    lex();
-    auto expr = parse_expression();
-    if (!expr)
-        return nullptr;
-    if (is_static)
+    switch (variable_kind) {
+    case VariableKind::Local:
+        return make_node<VariableDeclaration>(var_token, var_ident, expr, constant);
+    case VariableKind::Static:
         return make_node<StaticVariableDeclaration>(var_token, var_ident, expr, constant);
-    return make_node<VariableDeclaration>(var_token, var_ident, expr, constant);
+    case VariableKind::ModuleLocal:
+        return make_node<LocalVariableDeclaration>(var_token, var_ident, expr, constant);
+    case VariableKind::Global:
+        return make_node<GlobalVariableDeclaration>(var_token, var_ident, expr, constant);
+    }
 }
 
 std::shared_ptr<Import> Parser::parse_import_statement(Token const& import_token)

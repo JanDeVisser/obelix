@@ -13,7 +13,7 @@
 #include <core/Error.h>
 #include <obelix/BoundSyntaxNode.h>
 #include <obelix/Context.h>
-#include <obelix/MaterializedSyntaxNode.h>
+#include <obelix/arm64/MaterializedSyntaxNode.h>
 #include <obelix/Syntax.h>
 
 namespace Obelix {
@@ -276,11 +276,56 @@ ErrorOrNode process_tree(std::shared_ptr<SyntaxNode> const& tree, Context& ctx, 
         break;
     }
 
+    case SyntaxNodeType::StaticVariableDeclaration: {
+        auto var_decl = std::dynamic_pointer_cast<StaticVariableDeclaration>(tree);
+        auto expr = TRY_AND_CAST(Expression, processor(var_decl->expression(), ctx));
+        ret = std::make_shared<StaticVariableDeclaration>(var_decl->token(), var_decl->identifier(), expr);
+        break;
+    }
+
+    case SyntaxNodeType::LocalVariableDeclaration: {
+        auto var_decl = std::dynamic_pointer_cast<LocalVariableDeclaration>(tree);
+        auto expr = TRY_AND_CAST(Expression, processor(var_decl->expression(), ctx));
+        ret = std::make_shared<LocalVariableDeclaration>(var_decl->token(), var_decl->identifier(), expr);
+        break;
+    }
+
+    case SyntaxNodeType::GlobalVariableDeclaration: {
+        auto var_decl = std::dynamic_pointer_cast<GlobalVariableDeclaration>(tree);
+        auto expr = TRY_AND_CAST(Expression, processor(var_decl->expression(), ctx));
+        ret = std::make_shared<GlobalVariableDeclaration>(var_decl->token(), var_decl->identifier(), expr);
+        break;
+    }
+
     case SyntaxNodeType::BoundVariableDeclaration: {
         auto var_decl = std::dynamic_pointer_cast<BoundVariableDeclaration>(tree);
         auto identifier = TRY_AND_CAST(BoundIdentifier, processor(var_decl->variable(), ctx));
         auto expr = TRY_AND_CAST(BoundExpression, processor(var_decl->expression(), ctx));
         ret = std::make_shared<BoundVariableDeclaration>(var_decl->token(), identifier, var_decl->is_const(), expr);
+        break;
+    }
+
+    case SyntaxNodeType::BoundStaticVariableDeclaration: {
+        auto var_decl = std::dynamic_pointer_cast<BoundStaticVariableDeclaration>(tree);
+        auto identifier = TRY_AND_CAST(BoundIdentifier, processor(var_decl->variable(), ctx));
+        auto expr = TRY_AND_CAST(BoundExpression, processor(var_decl->expression(), ctx));
+        ret = std::make_shared<BoundStaticVariableDeclaration>(var_decl->token(), identifier, var_decl->is_const(), expr);
+        break;
+    }
+
+    case SyntaxNodeType::BoundLocalVariableDeclaration: {
+        auto var_decl = std::dynamic_pointer_cast<BoundLocalVariableDeclaration>(tree);
+        auto identifier = TRY_AND_CAST(BoundIdentifier, processor(var_decl->variable(), ctx));
+        auto expr = TRY_AND_CAST(BoundExpression, processor(var_decl->expression(), ctx));
+        ret = std::make_shared<BoundLocalVariableDeclaration>(var_decl->token(), identifier, var_decl->is_const(), expr);
+        break;
+    }
+
+    case SyntaxNodeType::BoundGlobalVariableDeclaration: {
+        auto var_decl = std::dynamic_pointer_cast<BoundGlobalVariableDeclaration>(tree);
+        auto identifier = TRY_AND_CAST(BoundIdentifier, processor(var_decl->variable(), ctx));
+        auto expr = TRY_AND_CAST(BoundExpression, processor(var_decl->expression(), ctx));
+        ret = std::make_shared<BoundGlobalVariableDeclaration>(var_decl->token(), identifier, var_decl->is_const(), expr);
         break;
     }
 

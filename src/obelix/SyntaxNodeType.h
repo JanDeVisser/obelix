@@ -49,6 +49,8 @@ namespace Obelix {
     S(ExpressionStatement)              \
     S(VariableDeclaration)              \
     S(StaticVariableDeclaration)        \
+    S(LocalVariableDeclaration)         \
+    S(GlobalVariableDeclaration)        \
     S(StructDefinition)                 \
     S(StructForward)                    \
     S(Return)                           \
@@ -66,6 +68,8 @@ namespace Obelix {
     S(MaterializedFunctionDef)          \
     S(MaterializedVariableDecl)         \
     S(MaterializedStaticVariableDecl)   \
+    S(MaterializedLocalVariableDecl)    \
+    S(MaterializedGlobalVariableDecl)   \
     S(MaterializedNativeFunctionDecl)   \
     S(MaterializedIntrinsicDecl)        \
     S(MaterializedIdentifier)           \
@@ -96,6 +100,8 @@ namespace Obelix {
     S(BoundIntrinsicCall)               \
     S(BoundVariableDeclaration)         \
     S(BoundStaticVariableDeclaration)   \
+    S(BoundLocalVariableDeclaration)    \
+    S(BoundGlobalVariableDeclaration)   \
     S(BoundStructDefinition)            \
     S(BoundEnumDef)                     \
     S(BoundEnumValueDef)                \

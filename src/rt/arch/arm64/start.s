@@ -15,6 +15,7 @@ _start:
     adrp    x8,_string_pool_pointer@PAGE
     str     w9,[x8, _string_pool_pointer@PAGEOFF]
 
+    bl      static_initializer
     bl      main
     mov     x16,#0x01
     svc     0

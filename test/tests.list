@@ -9,3 +9,12 @@ enum
 expr
 func
 nullptr
+promote
+for_loop
+while_loop
+static
+static_string
+global_string
+local_string
+global_reassign
+local_reassign

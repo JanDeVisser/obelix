@@ -1,0 +1,9 @@
+{
+  "name": "local_string",
+  "exit": 0,
+  "stdout": [
+    "Hello, World!"
+  ],
+  "stderr": [],
+  "args": []
+}

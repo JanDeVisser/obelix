@@ -883,6 +883,38 @@ public:
     [[nodiscard]] SyntaxNodeType node_type() const override { return SyntaxNodeType::BoundStaticVariableDeclaration; }
 };
 
+class BoundLocalVariableDeclaration : public BoundVariableDeclaration {
+public:
+    BoundLocalVariableDeclaration(std::shared_ptr<VariableDeclaration> const& decl, std::shared_ptr<BoundIdentifier> variable, std::shared_ptr<BoundExpression> expr)
+        : BoundVariableDeclaration(decl, move(variable), move(expr))
+    {
+    }
+
+    BoundLocalVariableDeclaration(Token token, std::shared_ptr<BoundIdentifier> variable, bool is_const, std::shared_ptr<BoundExpression> expr)
+        : BoundVariableDeclaration(std::move(token), move(variable), is_const, move(expr))
+    {
+    }
+
+    [[nodiscard]] std::string to_string() const override { return "global " + BoundVariableDeclaration::to_string(); }
+    [[nodiscard]] SyntaxNodeType node_type() const override { return SyntaxNodeType::BoundLocalVariableDeclaration; }
+};
+
+class BoundGlobalVariableDeclaration : public BoundVariableDeclaration {
+public:
+    BoundGlobalVariableDeclaration(std::shared_ptr<VariableDeclaration> const& decl, std::shared_ptr<BoundIdentifier> variable, std::shared_ptr<BoundExpression> expr)
+        : BoundVariableDeclaration(decl, move(variable), move(expr))
+    {
+    }
+
+    BoundGlobalVariableDeclaration(Token token, std::shared_ptr<BoundIdentifier> variable, bool is_const, std::shared_ptr<BoundExpression> expr)
+        : BoundVariableDeclaration(std::move(token), move(variable), is_const, move(expr))
+    {
+    }
+
+    [[nodiscard]] std::string to_string() const override { return "global " + BoundVariableDeclaration::to_string(); }
+    [[nodiscard]] SyntaxNodeType node_type() const override { return SyntaxNodeType::BoundGlobalVariableDeclaration; }
+};
+
 class BoundReturn : public Statement {
 public:
     BoundReturn(std::shared_ptr<SyntaxNode> const& ret, std::shared_ptr<BoundExpression> expression)

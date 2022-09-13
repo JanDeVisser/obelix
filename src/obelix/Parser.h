@@ -23,6 +23,13 @@ public:
         RightToLeft,
     };
 
+    enum class VariableKind {
+        Local,
+        Static,
+        ModuleLocal,
+        Global
+    };
+
     constexpr static TokenCode KeywordVar = TokenCode::Keyword0;
     constexpr static TokenCode KeywordFunc = TokenCode::Keyword1;
     constexpr static TokenCode KeywordIf = TokenCode::Keyword2;
@@ -50,6 +57,7 @@ public:
     constexpr static TokenCode KeywordStruct = TokenCode::Keyword24;
     constexpr static TokenCode KeywordStatic = TokenCode::Keyword25;
     constexpr static TokenCode KeywordEnum = TokenCode::Keyword26;
+    constexpr static TokenCode KeywordGlobal = TokenCode::Keyword27;
 
     Parser(Config const& parser_config, StringBuffer& src);
     Parser(Config const& parser_config, std::string const& file_name);
@@ -82,7 +90,8 @@ private:
     std::shared_ptr<WhileStatement> parse_while_statement(Token const&);
     std::shared_ptr<ForStatement> parse_for_statement(Token const&);
     std::shared_ptr<VariableDeclaration> parse_static_variable_declaration();
-    std::shared_ptr<VariableDeclaration> parse_variable_declaration(Token const&, bool, bool = false);
+    std::shared_ptr<VariableDeclaration> parse_global_variable_declaration();
+    std::shared_ptr<VariableDeclaration> parse_variable_declaration(Token const&, bool, VariableKind = VariableKind::Local);
     std::shared_ptr<Statement> parse_struct(Token const&);
     std::shared_ptr<Import> parse_import_statement(Token const&);
     std::shared_ptr<Expression> parse_expression();

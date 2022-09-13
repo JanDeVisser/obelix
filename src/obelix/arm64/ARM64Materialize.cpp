@@ -9,7 +9,7 @@
 #include <obelix/arm64/ARM64.h>
 #include <obelix/BoundSyntaxNode.h>
 #include <obelix/Context.h>
-#include <obelix/MaterializedSyntaxNode.h>
+#include <obelix/arm64/MaterializedSyntaxNode.h>
 #include <obelix/Processor.h>
 #include <obelix/Syntax.h>
 #include <utility>
@@ -292,7 +292,7 @@ NODE_PROCESSOR(BoundVariableDeclaration)
     auto var_decl = std::dynamic_pointer_cast<BoundVariableDeclaration>(tree);
     auto expression = TRY_AND_CAST(BoundExpression, process(var_decl->expression(), ctx));
     ctx.increase_offset(var_decl->type()->size());
-    auto ret = make_node<MaterializedVariableDecl>(var_decl, std::make_shared<StackVariableAddress>(ctx.offset()), expression);
+    auto ret = make_node<MaterializedVariableDecl>(var_decl, ctx.offset(), expression);
     ctx.declare(var_decl->name(), ret);
     return ret;
 }
@@ -301,7 +301,25 @@ NODE_PROCESSOR(BoundStaticVariableDeclaration)
 {
     auto var_decl = std::dynamic_pointer_cast<BoundStaticVariableDeclaration>(tree);
     auto expression = TRY_AND_CAST(BoundExpression, process(var_decl->expression(), ctx));
-    auto ret = make_node<MaterializedVariableDecl>(var_decl, std::make_shared<StaticVariableAddress>(format("_{}", var_decl->name())), expression);
+    auto ret = make_node<MaterializedStaticVariableDecl>(var_decl, expression);
+    ctx.declare(var_decl->name(), ret);
+    return ret;
+}
+
+NODE_PROCESSOR(BoundLocalVariableDeclaration)
+{
+    auto var_decl = std::dynamic_pointer_cast<BoundLocalVariableDeclaration>(tree);
+    auto expression = TRY_AND_CAST(BoundExpression, process(var_decl->expression(), ctx));
+    auto ret = make_node<MaterializedLocalVariableDecl>(var_decl, expression);
+    ctx.declare(var_decl->name(), ret);
+    return ret;
+}
+
+NODE_PROCESSOR(BoundGlobalVariableDeclaration)
+{
+    auto var_decl = std::dynamic_pointer_cast<BoundGlobalVariableDeclaration>(tree);
+    auto expression = TRY_AND_CAST(BoundExpression, process(var_decl->expression(), ctx));
+    auto ret = make_node<MaterializedGlobalVariableDecl>(var_decl, expression);
     ctx.declare(var_decl->name(), ret);
     return ret;
 }

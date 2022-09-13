@@ -971,7 +971,36 @@ public:
     }
 
     [[nodiscard]] SyntaxNodeType node_type() const override { return SyntaxNodeType::StaticVariableDeclaration; }
+};
 
+class LocalVariableDeclaration : public VariableDeclaration {
+public:
+    LocalVariableDeclaration(Token token, std::shared_ptr<Identifier> identifier, std::shared_ptr<Expression> expr = nullptr, bool constant = false)
+        : VariableDeclaration(std::move(token), move(identifier), move(expr), constant)
+    {
+    }
+
+    [[nodiscard]] std::string to_string() const override
+    {
+        return format("local {}", VariableDeclaration::to_string());
+    }
+
+    [[nodiscard]] SyntaxNodeType node_type() const override { return SyntaxNodeType::LocalVariableDeclaration; }
+};
+
+class GlobalVariableDeclaration : public VariableDeclaration {
+public:
+    GlobalVariableDeclaration(Token token, std::shared_ptr<Identifier> identifier, std::shared_ptr<Expression> expr = nullptr, bool constant = false)
+        : VariableDeclaration(std::move(token), move(identifier), move(expr), constant)
+    {
+    }
+
+    [[nodiscard]] std::string to_string() const override
+    {
+        return format("global {}", VariableDeclaration::to_string());
+    }
+
+    [[nodiscard]] SyntaxNodeType node_type() const override { return SyntaxNodeType::GlobalVariableDeclaration; }
 };
 
 class Return : public Statement {

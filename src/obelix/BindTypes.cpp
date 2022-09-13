@@ -207,6 +207,10 @@ NODE_PROCESSOR(VariableDeclaration)
     std::shared_ptr<BoundVariableDeclaration> ret;
     if (tree->node_type() == SyntaxNodeType::StaticVariableDeclaration)
         ret = make_node<BoundStaticVariableDeclaration>(var_decl, identifier, expr);
+    else if (tree->node_type() == SyntaxNodeType::LocalVariableDeclaration)
+        ret = make_node<BoundLocalVariableDeclaration>(var_decl, identifier, expr);
+    else if (tree->node_type() == SyntaxNodeType::GlobalVariableDeclaration)
+        ret = make_node<BoundGlobalVariableDeclaration>(var_decl, identifier, expr);
     else
         ret = make_node<BoundVariableDeclaration>(var_decl, identifier, expr);
     ctx.declare(var_decl->name(), ret);
@@ -214,6 +218,8 @@ NODE_PROCESSOR(VariableDeclaration)
 }
 
 ALIAS_NODE_PROCESSOR(StaticVariableDeclaration, VariableDeclaration);
+ALIAS_NODE_PROCESSOR(LocalVariableDeclaration, VariableDeclaration);
+ALIAS_NODE_PROCESSOR(GlobalVariableDeclaration, VariableDeclaration);
 
 NODE_PROCESSOR(FunctionDecl)
 {

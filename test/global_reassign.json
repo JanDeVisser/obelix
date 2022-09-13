@@ -1,5 +1,5 @@
 {
-  "name": "static",
+  "name": "global_reassign",
   "exit": 42,
   "stdout": [],
   "stderr": [],

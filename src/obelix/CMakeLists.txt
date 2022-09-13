@@ -20,16 +20,18 @@ add_executable(
         Type.cpp
         BoundSyntaxNode.h
         Context.h
-        MaterializedSyntaxNode.h
         Symbol.h
         SyntaxNodeType.h
         arm64/ARM64.cpp
         arm64/ARM64Context.cpp
         arm64/ARM64Intrinsics.cpp
         arm64/ARM64Materialize.cpp
+        arm64/MaterializedSyntaxNode.h
+        arm64/Mnemonic.cpp
+        arm64/VariableAddress.cpp
         interp/InterpIntrinsics.cpp
         interp/Interpret.cpp
-)
+        arm64/MaterializedSyntaxNode.cpp)
 
 target_link_libraries(
         obelix

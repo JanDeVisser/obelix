@@ -12,160 +12,16 @@
 #include <obelix/BoundSyntaxNode.h>
 #include <obelix/Syntax.h>
 #include <obelix/SyntaxNodeType.h>
+#include <obelix/arm64/VariableAddress.h>
 
 namespace Obelix {
 
-#define ENUMERATE_VARIABLEADDRESSTYPES(S) \
-    S(StackVariableAddress)               \
-    S(StaticVariableAddress)              \
-    S(StructMemberAddress)
-
-enum class VariableAddressType {
-#undef __VARIABLEADDRESSTYPE
-#define __VARIABLEADDRESSTYPE(type) type,
-    ENUMERATE_VARIABLEADDRESSTYPES(__VARIABLEADDRESSTYPE)
-#undef __VARIABLEADDRESSTYPE
-};
-
-constexpr char const* VariableAddressType_name(VariableAddressType type)
-{
-    switch (type) {
-#undef __VARIABLEADDRESSTYPE
-#define __VARIABLEADDRESSTYPE(type) \
-    case VariableAddressType::type: \
-        return #type;
-        ENUMERATE_VARIABLEADDRESSTYPES(__VARIABLEADDRESSTYPE)
-#undef __VARIABLEADDRESSTYPE
-    }
-}
-
-template<>
-struct Converter<VariableAddressType> {
-    static std::string to_string(VariableAddressType val)
-    {
-        return VariableAddressType_name(val);
-    }
-
-    static double to_double(VariableAddressType val)
-    {
-        return static_cast<double>(val);
-    }
-
-    static long to_long(VariableAddressType val)
-    {
-        return static_cast<long>(val);
-    }
-};
-
-class ARM64Context;
-
-class VariableAddress {
-public:
-    virtual ~VariableAddress() = default;
-    virtual std::string to_string() const = 0;
-    virtual VariableAddressType address_type() const = 0;
-    virtual ErrorOr<void, SyntaxError> store_variable(std::shared_ptr<ObjectType>, ARM64Context&, int) const = 0;
-    virtual ErrorOr<void, SyntaxError> load_variable(std::shared_ptr<ObjectType>, ARM64Context&, int) const = 0;
-    virtual ErrorOr<void, SyntaxError> prepare_pointer(ARM64Context&) const = 0;
-};
-
-class StackVariableAddress : public VariableAddress {
-public:
-    StackVariableAddress(int offset)
-        : m_offset(offset)
-    {
-    }
-    [[nodiscard]] int offset() const { return m_offset; }
-    [[nodiscard]] std::string to_string() const override
-    {
-        return format("StackVariableAddress: [{}]", m_offset);
-    }
-    [[nodiscard]] VariableAddressType address_type() const override { return VariableAddressType::StackVariableAddress; }
-    ErrorOr<void, SyntaxError> store_variable(std::shared_ptr<ObjectType>, ARM64Context&, int) const override;
-    ErrorOr<void, SyntaxError> load_variable(std::shared_ptr<ObjectType>, ARM64Context&, int) const override;
-    ErrorOr<void, SyntaxError> prepare_pointer(ARM64Context&) const override;
-
-private:
-    int m_offset;
-};
-
-struct StaticVariableAddress : public VariableAddress {
-public:
-    StaticVariableAddress(std::string label)
-        : m_label(move(label))
-    {
-    }
-    [[nodiscard]] std::string const& label() const { return m_label; }
-    [[nodiscard]] std::string to_string() const override
-    {
-        return format("StaticVariableAddress: [.{}]", m_label);
-    }
-    [[nodiscard]] VariableAddressType address_type() const override { return VariableAddressType::StaticVariableAddress; }
-    ErrorOr<void, SyntaxError> store_variable(std::shared_ptr<ObjectType>, ARM64Context&, int) const override;
-    ErrorOr<void, SyntaxError> load_variable(std::shared_ptr<ObjectType>, ARM64Context&, int) const override;
-    ErrorOr<void, SyntaxError> prepare_pointer(ARM64Context&) const override;
-
-private:
-    std::string m_label;
-};
-
-struct StructMemberAddress : public VariableAddress {
-public:
-    StructMemberAddress(std::shared_ptr<VariableAddress> strukt, int offset)
-        : m_struct(move(strukt))
-        , m_offset(offset)
-    {
-    }
-    [[nodiscard]] std::shared_ptr<VariableAddress> const& structure() const { return m_struct; }
-    [[nodiscard]] int offset() const { return m_offset; }
-    [[nodiscard]] std::string to_string() const override
-    {
-        return format("StructMemberAddress: [{}]", m_offset);
-    }
-    [[nodiscard]] VariableAddressType address_type() const override { return VariableAddressType::StructMemberAddress; }
-    ErrorOr<void, SyntaxError> store_variable(std::shared_ptr<ObjectType>, ARM64Context&, int) const override;
-    ErrorOr<void, SyntaxError> load_variable(std::shared_ptr<ObjectType>, ARM64Context&, int) const override;
-    ErrorOr<void, SyntaxError> prepare_pointer(ARM64Context&) const override;
-
-private:
-    std::shared_ptr<VariableAddress> m_struct;
-    int m_offset;
-};
-
-class ArrayElementAddress : public VariableAddress {
-public:
-    ArrayElementAddress(std::shared_ptr<VariableAddress> array, int element_size)
-        : m_array(move(array))
-        , m_element_size(element_size)
-    {
-    }
-    [[nodiscard]] std::shared_ptr<VariableAddress> const& array() const { return m_array; }
-    [[nodiscard]] int element_size() const { return m_element_size; }
-    [[nodiscard]] std::string to_string() const override
-    {
-        return format("ArrayElementAddress: [{}]", m_element_size);
-    }
-    [[nodiscard]] VariableAddressType address_type() const override { return VariableAddressType::StructMemberAddress; }
-    ErrorOr<void, SyntaxError> store_variable(std::shared_ptr<ObjectType>, ARM64Context&, int) const override;
-    ErrorOr<void, SyntaxError> load_variable(std::shared_ptr<ObjectType>, ARM64Context&, int) const override;
-    ErrorOr<void, SyntaxError> prepare_pointer(ARM64Context&) const override;
-
-private:
-    std::shared_ptr<VariableAddress> m_array;
-    int m_element_size;
-};
-
 class MaterializedDeclaration {
 public:
-    MaterializedDeclaration(std::shared_ptr<VariableAddress> address)
-        : m_address(move(address))
-    {
-    }
+    explicit MaterializedDeclaration() = default;
 
-    [[nodiscard]] std::shared_ptr<VariableAddress> const& address() const { return m_address; }
+    [[nodiscard]] virtual std::shared_ptr<VariableAddress> address() const = 0;
     [[nodiscard]] virtual std::shared_ptr<ObjectType> const& declared_type() const = 0;
-private:
-    std::shared_ptr<VariableAddress> m_address;
 };
 
 class MaterializedFunctionParameter : public BoundIdentifier, public MaterializedDeclaration {
@@ -177,7 +33,8 @@ public:
 
     MaterializedFunctionParameter(std::shared_ptr<BoundIdentifier> const& param, std::shared_ptr<VariableAddress> address, ParameterPassingMethod method, int where)
         : BoundIdentifier(param->token(), param->name(), param->type())
-        , MaterializedDeclaration(move(address))
+        , MaterializedDeclaration()
+        , m_address(move(address))
         , m_method(method)
         , m_where(where)
     {
@@ -198,10 +55,12 @@ public:
         return type();
     }
 
+    [[nodiscard]] std::shared_ptr<VariableAddress> address() const override { return m_address; }
     [[nodiscard]] ParameterPassingMethod method() const { return m_method; }
     [[nodiscard]] int where() const { return m_where; }
 
 private:
+    std::shared_ptr<VariableAddress> m_address;
     ParameterPassingMethod m_method;
     int m_where;
 };
@@ -438,11 +297,21 @@ private:
     IntrinsicType m_intrinsic;
 };
 
-class MaterializedVariableDecl : public Statement, public MaterializedDeclaration {
+class MaterializedVariableDecl : public Statement
+    , public MaterializedDeclaration {
 public:
-    explicit MaterializedVariableDecl(std::shared_ptr<BoundVariableDeclaration> const& var_decl, std::shared_ptr<VariableAddress> address, std::shared_ptr<BoundExpression> expression)
+    explicit MaterializedVariableDecl(std::shared_ptr<BoundVariableDeclaration> const& var_decl, size_t offset, std::shared_ptr<BoundExpression> expression)
         : Statement(var_decl->token())
-        , MaterializedDeclaration(move(address))
+        , MaterializedDeclaration()
+        , m_variable(var_decl->variable())
+        , m_const(var_decl->is_const())
+        , m_expression(move(expression))
+        , m_offset(offset)
+    {
+    }
+
+    explicit MaterializedVariableDecl(std::shared_ptr<BoundVariableDeclaration> const& var_decl, std::shared_ptr<BoundExpression> expression)
+        : Statement(var_decl->token())
         , m_variable(var_decl->variable())
         , m_const(var_decl->is_const())
         , m_expression(move(expression))
@@ -451,7 +320,7 @@ public:
 
     [[nodiscard]] std::string attributes() const override
     {
-        return format(R"(name="{}" type="{}" is_const="{}" address="{}")", name(), type(), is_const(), address()->to_string());
+        return format(R"(name="{}" type="{}" is_const="{}" offset="{}")", name(), type(), is_const(), offset());
     }
 
     [[nodiscard]] Nodes children() const override
@@ -465,8 +334,8 @@ public:
     {
         auto keyword = (m_const) ? "const" : "var";
         if (m_expression)
-            return format("{} {}: {} {}", keyword, m_variable, m_expression, address()->to_string());
-        return format("{} {} {}", keyword, m_variable, address()->to_string());
+            return format("{} {}: {} {}", keyword, m_variable, m_expression, offset());
+        return format("{} {} {}", keyword, m_variable, offset());
     }
 
     [[nodiscard]] SyntaxNodeType node_type() const override { return SyntaxNodeType::MaterializedVariableDecl; }
@@ -474,17 +343,48 @@ public:
     [[nodiscard]] std::string const& name() const { return variable()->name(); }
     [[nodiscard]] std::shared_ptr<ObjectType> const& type() const { return variable()->type(); }
     [[nodiscard]] bool is_const() const { return m_const; }
+    [[nodiscard]] size_t offset() const { return m_offset; }
     [[nodiscard]] std::shared_ptr<BoundExpression> const& expression() const { return m_expression; }
-
-    [[nodiscard]] std::shared_ptr<ObjectType> const& declared_type() const override
-    {
-        return type();
-    }
+    [[nodiscard]] std::shared_ptr<VariableAddress> address() const override;
+    [[nodiscard]] std::shared_ptr<ObjectType> const& declared_type() const override { return type(); }
 
 private:
     std::shared_ptr<BoundIdentifier> m_variable;
     bool m_const { false };
     std::shared_ptr<BoundExpression> m_expression;
+    size_t m_offset { 0 };
+};
+
+class MaterializedStaticVariableDecl : public MaterializedVariableDecl {
+public:
+    MaterializedStaticVariableDecl(std::shared_ptr<BoundVariableDeclaration> const& var_decl, std::shared_ptr<BoundExpression> expression)
+        : MaterializedVariableDecl(var_decl, move(expression))
+    {
+    }
+
+    [[nodiscard]] SyntaxNodeType node_type() const override { return SyntaxNodeType::MaterializedStaticVariableDecl; }
+    [[nodiscard]] virtual std::string label() const { return format("_{}", name()); }
+    [[nodiscard]] std::shared_ptr<VariableAddress> address() const override;
+};
+
+class MaterializedLocalVariableDecl : public MaterializedStaticVariableDecl {
+public:
+    MaterializedLocalVariableDecl(std::shared_ptr<BoundVariableDeclaration> const& var_decl, std::shared_ptr<BoundExpression> expression)
+        : MaterializedStaticVariableDecl(var_decl, move(expression))
+    {
+    }
+
+    [[nodiscard]] SyntaxNodeType node_type() const override { return SyntaxNodeType::MaterializedLocalVariableDecl; }
+};
+
+class MaterializedGlobalVariableDecl : public MaterializedStaticVariableDecl {
+public:
+    MaterializedGlobalVariableDecl(std::shared_ptr<BoundVariableDeclaration> const& var_decl, std::shared_ptr<BoundExpression> expression)
+        : MaterializedStaticVariableDecl(var_decl, move(expression))
+    {
+    }
+
+    [[nodiscard]] SyntaxNodeType node_type() const override { return SyntaxNodeType::MaterializedGlobalVariableDecl; }
 };
 
 class MaterializedVariableAccess : public BoundVariableAccess {
@@ -496,6 +396,7 @@ public:
     }
 
     [[nodiscard]] std::shared_ptr<VariableAddress> const address() const { return m_address; }
+
 private:
     std::shared_ptr<VariableAddress> m_address;
 };
