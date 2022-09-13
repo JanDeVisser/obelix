@@ -554,6 +554,8 @@ size_t ObjectType::size() const
     size_t ret = 0;
     for (auto const& field : m_fields) {
         ret += field.type->size();
+        if (ret % 8)
+            ret += 8 - (ret % 8);
     }
     return ret;
 }
@@ -561,23 +563,27 @@ size_t ObjectType::size() const
 ssize_t ObjectType::offset_of(std::string const& name) const
 {
     if (m_type != PrimitiveType::Struct)
-        return (size_t) -1;
+        return (ssize_t)-1;
     size_t ret = 0;
     for (auto const& field : m_fields) {
         if (field.name == name)
-            return ret;
+            return (ssize_t)ret;
         ret += field.type->size();
+        if (ret % 8)
+            ret += 8 - (ret % 8);
     }
-    return (size_t) -1;
+    return (ssize_t)-1;
 }
 
 ssize_t ObjectType::offset_of(size_t field) const
 {
     if ((field < 0) || (field >= m_fields.size()))
-        return (size_t) -1;
-    size_t ret = 0;
+        return (ssize_t)-1;
+    ssize_t ret = 0;
     for (auto ix = 0u; ix < field; ix++) {
-        ret += m_fields[ix].type->size();
+        ret += (ssize_t)m_fields[ix].type->size();
+        if (ret % 8)
+            ret += 8 - (ret % 8);
     }
     return ret;
 }
