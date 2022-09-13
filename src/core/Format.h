@@ -53,6 +53,24 @@ struct Converter<std::string> {
 };
 
 template<>
+struct Converter<std::string*> {
+    static std::string to_string(std::string* val)
+    {
+        return *val;
+    }
+
+    static double to_double(std::string* val)
+    {
+        return std::stod(*val);
+    }
+
+    static long to_long(std::string* val)
+    {
+        return std::stol(*val);
+    }
+};
+
+template<>
 struct Converter<std::string const&> {
     static std::string to_string(std::string const& val)
     {
