@@ -18,3 +18,5 @@ global_string
 local_string
 global_reassign
 local_reassign
+struct
+array

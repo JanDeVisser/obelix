@@ -1,8 +1,9 @@
-func main(argc: int, argv: ptr<ptr<char>>): int
+func main(): s32
 {
-  var a: array<int, 5>;
-  for (i in 0 .. 4) {
-    a[i] = 2*i;
+  var a: array<s32, 5>
+  var i: s32
+  for (i in 0s32 .. 4s32) {
+    a[i] = 2s32*i
   }
-  return a[3];
+  return a[3]
 }
