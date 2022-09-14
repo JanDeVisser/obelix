@@ -39,7 +39,7 @@ ErrorOr<void, SyntaxError> StructMemberAddress::load_variable(std::shared_ptr<Ob
         return error_maybe.error();
     }
     if (offset() > 0)
-        ctx.assembly()->add_instruction("sub", "x8,x8,#{}", ctx.stack_depth() - offset());
+        ctx.assembly()->add_instruction("add", "x8,x8,#{}", offset());
     ctx.assembly()->add_instruction(mm->load_mnemonic, "{}{},[x8]", mm->reg_width, target);
     return {};
 }
@@ -54,7 +54,7 @@ ErrorOr<void, SyntaxError> StructMemberAddress::store_variable(std::shared_ptr<O
         return error_maybe.error();
     }
     if (offset() > 0)
-        ctx.assembly()->add_instruction("add", "x8,x8,#{}", ctx.stack_depth() - offset());
+        ctx.assembly()->add_instruction("add", "x8,x8,#{}", offset());
     ctx.assembly()->add_instruction(mm->store_mnemonic, "{}{},[x8]", mm->reg_width, from);
     return {};
 }

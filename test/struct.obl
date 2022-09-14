@@ -1,12 +1,12 @@
 struct A {
-  foo: int;
-  bar: int;
+  foo: s64
+  bar: s64
 };
 
-func main(argc: int, argv: ptr<ptr<char>>): int
+func main(): s32
 {
-  var a: A;
-  a.foo = 2;
-  a.bar = 5;
-  return a.foo + a.bar;
+  var a: A
+  a.foo = 2
+  a.bar = 5
+  return a.foo + a.bar
 }

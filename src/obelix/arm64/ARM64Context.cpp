@@ -56,10 +56,8 @@ ErrorOr<void, SyntaxError> ARM64Context::zero_initialize(std::shared_ptr<ObjectT
         break;
     }
     case PrimitiveType::Struct: {
-        auto off = stack_depth() - offset;
         for (auto const& field : type->fields()) {
-            TRY_RETURN(zero_initialize(field.type, off));
-            off -= field.type->size();
+            TRY_RETURN(zero_initialize(field.type, offset - type->offset_of(field.name)));
         }
         break;
     }
