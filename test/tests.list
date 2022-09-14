@@ -3,13 +3,13 @@ hello_world
 const
 decl
 decl_init
+decl_init_downcasted_int
 decl_init_reassign
 decl_then_double
 enum
 expr
 func
 nullptr
-promote
 for_loop
 while_loop
 static

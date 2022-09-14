@@ -14,6 +14,7 @@
 #include <optional>
 #include <string>
 
+#include <core/Error.h>
 #include <core/Format.h>
 #include <core/Logging.h>
 
@@ -260,46 +261,57 @@ private:
     std::string m_value {};
 };
 
-template <typename T>
-inline T token_value(Token const& token)
+using SyntaxError = Error<Token>;
+
+template<typename T>
+inline ErrorOr<T, SyntaxError> token_value(Token const& token)
 {
     fatal("Specialize token_value(Token const&) for type '{}'", typeid(T).name());
 }
 
-template <>
-inline std::string const& token_value(Token const& token)
+template<>
+inline ErrorOr<std::string, SyntaxError> token_value(Token const& token)
 {
     return token.value();
 }
 
-template <>
-inline int token_value(Token const& token)
+template<>
+inline ErrorOr<int, SyntaxError> token_value(Token const& token)
 {
-    assert(token.code() == TokenCode::Float || token.code() == TokenCode::Integer || token.code() == TokenCode::HexNumber);
+    if (token.code() != TokenCode::Float && token.code() != TokenCode::Integer && token.code() != TokenCode::HexNumber)
+        return SyntaxError { ErrorCode::TypeMismatch, token, "Cannot get {} value as int", token.code() };
+    auto v = to_long_unconditional(token.value());
+    if (v < std::numeric_limits<int>::min() || v > std::numeric_limits<int>::max())
+        return SyntaxError { ErrorCode::TypeMismatch, token, "Long value {} overflows int", v };
+    return static_cast<int>(v);
+}
+
+template<>
+inline ErrorOr<long, SyntaxError> token_value(Token const& token)
+{
+    if (token.code() != TokenCode::Float && token.code() != TokenCode::Integer && token.code() != TokenCode::HexNumber)
+        return SyntaxError { ErrorCode::TypeMismatch, token, "Cannot get {} value as long", token.code() };
     return to_long_unconditional(token.value());
 }
 
-template <>
-inline long token_value(Token const& token)
+template<>
+inline ErrorOr<double, SyntaxError> token_value(Token const& token)
 {
-    assert(token.code() == TokenCode::Float || token.code() == TokenCode::Integer || token.code() == TokenCode::HexNumber);
-    return to_long_unconditional(token.value());
-}
-
-template <>
-inline double token_value(Token const& token)
-{
-    assert(token.code() == TokenCode::Float || token.code() == TokenCode::Integer || token.code() == TokenCode::HexNumber);
+    if (token.code() != TokenCode::Float && token.code() != TokenCode::Integer && token.code() != TokenCode::HexNumber)
+        return SyntaxError { ErrorCode::TypeMismatch, token, "Cannot get {} value as double", token.code() };
     return to_double_unconditional(token.value());
 }
 
-template <>
-inline bool token_value(Token const& token)
+template<>
+inline ErrorOr<bool, SyntaxError> token_value(Token const& token)
 {
     auto number_maybe = token.to_long();
     if (number_maybe.has_value())
         return number_maybe.value() != 0;
-    return Obelix::to_bool_unconditional(token.value());
+    auto bool_maybe = Obelix::to_bool(token.value());
+    if (bool_maybe.has_value())
+        return bool_maybe.value();
+    return SyntaxError { ErrorCode::TypeMismatch, token, "Cannot convert get {} with value {} as bool", token.code(), token.value() };
 }
 
 template<>

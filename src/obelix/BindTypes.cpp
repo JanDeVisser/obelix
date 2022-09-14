@@ -187,15 +187,22 @@ NODE_PROCESSOR(VariableDeclaration)
     if (var_decl->expression()) {
         auto processed_expr = TRY(process(var_decl->expression(), ctx));
         assert(processed_expr != nullptr);
-        auto processed_expr_as_bound_expr = std::dynamic_pointer_cast<BoundExpression>(processed_expr);
-        if (processed_expr_as_bound_expr == nullptr) {
+        expr = std::dynamic_pointer_cast<BoundExpression>(processed_expr);
+        if (expr == nullptr) {
             return tree;
         }
-        expr = std::dynamic_pointer_cast<BoundExpression>(processed_expr);
 
-        if (var_type && var_type->type() != PrimitiveType::Any && (*(expr->type()) != *var_type)) {
-            ObjectType::dump();
-            return SyntaxError { ErrorCode::TypeMismatch, var_decl->token(), var_decl->name(), var_decl->type(), expr->type() };
+        if (var_type && var_type->type() != PrimitiveType::Any && !expr->type()->is_assignable_to(var_type)) {
+            auto int_literal = std::dynamic_pointer_cast<BoundIntLiteral>(expr);
+            if (int_literal != nullptr) {
+                auto casted_maybe = BoundIntLiteral::cast(int_literal, var_type);
+                if (casted_maybe.is_error())
+                    return SyntaxError { ErrorCode::TypeMismatch, var_decl->token(), var_decl->name(), var_decl->type(), expr->type() };
+                expr = casted_maybe.value();
+            } else {
+                ObjectType::dump();
+                return SyntaxError { ErrorCode::TypeMismatch, var_decl->token(), var_decl->name(), var_decl->type(), expr->type() };
+            }
         }
         if (!var_type)
             var_type = expr->type();

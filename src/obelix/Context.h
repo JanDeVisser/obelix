@@ -20,8 +20,6 @@ namespace Obelix {
 
 extern_logging_category(parser);
 
-using SyntaxError = Error<Token>;
-
 template <typename T>
 std::string dump_value(T const& value)
 {

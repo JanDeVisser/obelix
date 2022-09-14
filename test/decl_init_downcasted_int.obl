@@ -1,0 +1,5 @@
+func main() : s32
+{
+  const x: s32 = 23
+  return x
+}

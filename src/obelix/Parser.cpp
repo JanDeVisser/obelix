@@ -856,7 +856,7 @@ std::shared_ptr<ExpressionType> Parser::parse_type()
             case TokenCode::Integer:
             case TokenCode::HexNumber: {
                 auto token = lex();
-                arguments.push_back(make_node<IntegerTemplateArgument>(token, token_value<long>(token)));
+                arguments.push_back(make_node<IntegerTemplateArgument>(token, token_value<long>(token).value()));
                 break;
             }
             case TokenCode::Identifier: {

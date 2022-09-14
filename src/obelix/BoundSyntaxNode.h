@@ -360,7 +360,15 @@ public:
     explicit BoundIntLiteral(std::shared_ptr<IntLiteral> const& literal, std::shared_ptr<ObjectType> type = nullptr)
         : BoundLiteral(literal->token(), (type) ? move(type) : ObjectType::get("s64"))
     {
-        m_int = token_value<long>(token());
+        auto int_maybe = token_value<long>(token());
+        if (int_maybe.is_error())
+            fatal("Error instantiating BoundIntLiteral: {}", int_maybe.error());
+        m_int = int_maybe.value();
+    }
+
+    explicit BoundIntLiteral(std::shared_ptr<BoundIntLiteral> const& literal, std::shared_ptr<ObjectType> type = nullptr)
+        : BoundLiteral(literal->token(), (type) ? move(type) : ObjectType::get("s64"))
+    {
     }
 
     BoundIntLiteral(Token t, long value, std::shared_ptr<ObjectType> type)
@@ -423,11 +431,13 @@ public:
     {
     }
 
+    static ErrorOr<std::shared_ptr<BoundIntLiteral>, SyntaxError> cast(std::shared_ptr<BoundIntLiteral> const&, std::shared_ptr<ObjectType> const&);
+
     [[nodiscard]] SyntaxNodeType node_type() const override { return SyntaxNodeType::BoundIntLiteral; }
     [[nodiscard]] std::string attributes() const override { return format(R"(value="{}" type="{}")", value(), type()); }
     [[nodiscard]] std::string to_string() const override { return format("{}: {}", value(), type()); }
 
-    template <typename IntType=int>
+    template<typename IntType = int>
     [[nodiscard]] IntType value() const { return static_cast<IntType>(m_int); }
 
     [[nodiscard]] long int_value() const override
@@ -469,7 +479,7 @@ private:
 class BoundBooleanLiteral : public BoundLiteral {
 public:
     explicit BoundBooleanLiteral(std::shared_ptr<BooleanLiteral> const& literal)
-        : BoundBooleanLiteral(literal->token(), token_value<bool>(literal->token()))
+        : BoundBooleanLiteral(literal->token(), token_value<bool>(literal->token()).value())
     {
     }
 

@@ -28,7 +28,9 @@ public:
             Obelix::TokenCode::Whitespace,
             code,
             Obelix::TokenCode::EndOfFile);
-        EXPECT_EQ(token_value<T>(tokens[4]), out);
+        Obelix::ErrorOr<T, Obelix::SyntaxError> value_or_error = Obelix::token_value<T>(tokens[4]);
+        EXPECT_FALSE(value_or_error.is_error());
+        EXPECT_EQ(value_or_error.value(), out);
     }
 
     bool debugOn() override
@@ -70,6 +72,10 @@ TEST_F(NumberTest, double_period)
         Obelix::TokenCode::Keyword18,
         Obelix::TokenCode::Integer,
         Obelix::TokenCode::EndOfFile);
-    EXPECT_EQ(token_value<int>(tokens[0]), 0);
-    EXPECT_EQ(token_value<int>(tokens[2]), 10);
+    auto token0_value_or_error = Obelix::token_value<int>(tokens[0]);
+    EXPECT_FALSE(token0_value_or_error.is_error());
+    EXPECT_EQ(token0_value_or_error.value(), 0);
+    auto token2_value_or_error = Obelix::token_value<int>(tokens[2]);
+    EXPECT_FALSE(token2_value_or_error.is_error());
+    EXPECT_EQ(token2_value_or_error.value(), 10);
 }
