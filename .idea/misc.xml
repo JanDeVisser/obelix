@@ -1,13 +1,4 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
   <component name="CMakeWorkspace" PROJECT_DIR="$PROJECT_DIR$" />
-  <component name="CidrRootsConfiguration">
-    <excludeRoots>
-      <file path="$PROJECT_DIR$/c" />
-      <file path="$PROJECT_DIR$/cmake-build-debug" />
-      <file path="$PROJECT_DIR$/install" />
-      <file path="$PROJECT_DIR$/share_x" />
-      <file path="$PROJECT_DIR$/test_x" />
-    </excludeRoots>
-  </component>
 </project>

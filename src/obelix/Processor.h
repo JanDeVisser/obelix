@@ -375,9 +375,8 @@ ErrorOrNode process_tree(std::shared_ptr<SyntaxNode> const& tree, Context& ctx, 
         auto if_stmt = std::dynamic_pointer_cast<BoundIfStatement>(tree);
         BoundBranches branches;
         for (auto& branch : if_stmt->branches()) {
-            auto branch_maybe = processor(branch, ctx);
-            if (branch_maybe.has_value())
-                branches.push_back(std::dynamic_pointer_cast<BoundBranch>(branch_maybe.value()));
+            auto branch_processed = TRY_AND_CAST(BoundBranch, processor(branch, ctx));
+            branches.push_back(branch_processed);
         }
         ret = std::make_shared<BoundIfStatement>(if_stmt->token(), branches);
         break;
@@ -403,17 +402,19 @@ ErrorOrNode process_tree(std::shared_ptr<SyntaxNode> const& tree, Context& ctx, 
 
     case SyntaxNodeType::ForStatement: {
         auto for_stmt = std::dynamic_pointer_cast<ForStatement>(tree);
+        auto variable = TRY_AND_CAST(Variable, processor(for_stmt->variable(), ctx));
         auto range = TRY_AND_CAST(Expression, processor(for_stmt->range(), ctx));
         auto stmt = TRY_AND_CAST(Statement, processor(for_stmt->statement(), ctx));
-        ret = std::make_shared<ForStatement>(for_stmt->token(), for_stmt->variable(), range, stmt);
+        ret = std::make_shared<ForStatement>(for_stmt->token(), variable, range, stmt);
         break;
     }
 
     case SyntaxNodeType::BoundForStatement: {
         auto for_stmt = std::dynamic_pointer_cast<BoundForStatement>(tree);
+        auto variable = TRY_AND_CAST(BoundVariable, processor(for_stmt->variable(), ctx));
         auto range = TRY_AND_CAST(BoundExpression, processor(for_stmt->range(), ctx));
         auto stmt = TRY_AND_CAST(Statement, processor(for_stmt->statement(), ctx));
-        ret = std::make_shared<BoundForStatement>(for_stmt, range, stmt);
+        ret = std::make_shared<BoundForStatement>(for_stmt, variable, range, stmt);
         break;
     }
 

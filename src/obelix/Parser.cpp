@@ -446,6 +446,12 @@ std::shared_ptr<ForStatement> Parser::parse_for_statement(Token const& for_token
     auto variable = match(TokenCode::Identifier, " in 'for' ststement");
     if (!variable.has_value())
         return nullptr;
+
+    std::shared_ptr<ExpressionType> type = nullptr;
+    if (current_code() == TokenCode::Colon) {
+        lex();
+        type = parse_type();
+    }
     if (!expect("in", " in 'for' statement"))
         return nullptr;
     auto expr = parse_expression();
@@ -456,7 +462,8 @@ std::shared_ptr<ForStatement> Parser::parse_for_statement(Token const& for_token
     auto stmt = parse_statement();
     if (!stmt)
         return nullptr;
-    return make_node<ForStatement>(for_token, variable.value().value(), expr, stmt);
+    auto variable_node = make_node<Variable>(variable.value(), variable.value().value(), type);
+    return make_node<ForStatement>(for_token, variable_node, expr, stmt);
 }
 
 std::shared_ptr<Statement> Parser::parse_struct(Token const& struct_token)

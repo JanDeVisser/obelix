@@ -1196,7 +1196,7 @@ private:
 
 class ForStatement : public Statement {
 public:
-    ForStatement(Token token, std::string variable, std::shared_ptr<Expression> range, std::shared_ptr<Statement> stmt)
+    ForStatement(Token token, std::shared_ptr<Variable> variable, std::shared_ptr<Expression> range, std::shared_ptr<Statement> stmt)
         : Statement(std::move(token))
         , m_variable(move(variable))
         , m_range(move(range))
@@ -1207,7 +1207,7 @@ public:
     [[nodiscard]] SyntaxNodeType node_type() const override { return SyntaxNodeType::ForStatement; }
     [[nodiscard]] std::string attributes() const override { return format(R"(variable="{}")", m_variable); }
     [[nodiscard]] Nodes children() const override { return { m_range, m_stmt }; }
-    [[nodiscard]] std::string const& variable() const { return m_variable; }
+    [[nodiscard]] std::shared_ptr<Variable> const& variable() const { return m_variable; }
     [[nodiscard]] std::shared_ptr<Expression> const& range() const { return m_range; }
     [[nodiscard]] std::shared_ptr<Statement> const& statement() const { return m_stmt; }
 
@@ -1217,7 +1217,7 @@ public:
     }
 
 private:
-    std::string m_variable {};
+    std::shared_ptr<Variable> m_variable;
     std::shared_ptr<Expression> m_range;
     std::shared_ptr<Statement> m_stmt;
 };

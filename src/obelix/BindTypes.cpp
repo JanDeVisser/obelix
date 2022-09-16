@@ -195,10 +195,7 @@ NODE_PROCESSOR(VariableDeclaration)
         if (var_type && var_type->type() != PrimitiveType::Any && !expr->type()->is_assignable_to(var_type)) {
             auto int_literal = std::dynamic_pointer_cast<BoundIntLiteral>(expr);
             if (int_literal != nullptr) {
-                auto casted_maybe = BoundIntLiteral::cast(int_literal, var_type);
-                if (casted_maybe.is_error())
-                    return SyntaxError { ErrorCode::TypeMismatch, var_decl->token(), var_decl->name(), var_decl->type(), expr->type() };
-                expr = casted_maybe.value();
+                expr = TRY(int_literal->cast(var_type));
             } else {
                 ObjectType::dump();
                 return SyntaxError { ErrorCode::TypeMismatch, var_decl->token(), var_decl->name(), var_decl->type(), expr->type() };
@@ -421,8 +418,14 @@ NODE_PROCESSOR(BinaryExpression)
             if (var_decl->is_const())
                 return SyntaxError { ErrorCode::CannotAssignToConstant, lhs->token(), var_decl->name() };
         }
-        if (*(lhs->type()) != *(rhs_bound->type()))
-            return SyntaxError { ErrorCode::TypeMismatch, expr->token(), rhs->to_string(), lhs->type(), rhs_bound->type() };
+        if (!rhs_bound->type()->is_assignable_to(lhs->type())) {
+            auto int_literal = std::dynamic_pointer_cast<BoundIntLiteral>(rhs_bound);
+            if (int_literal != nullptr) {
+                rhs_bound = TRY(int_literal->cast(lhs->type()));
+            } else {
+                return SyntaxError { ErrorCode::TypeMismatch, expr->token(), rhs->to_string(), lhs->type(), rhs_bound->type() };
+            }
+        }
 
         if (op == BinaryOperator::Assign)
             return make_node<BoundAssignment>(expr->token(), assignee, rhs_bound);
@@ -434,9 +437,9 @@ NODE_PROCESSOR(BinaryExpression)
     }
 
     auto return_type = lhs->type()->return_type_of(to_operator(op), rhs_bound->type());
-    if (!return_type.has_value())
-        return SyntaxError { ErrorCode::ReturnTypeUnresolved, expr->token(), format("{} {} {}", lhs, op, rhs) };
-    return make_node<BoundBinaryExpression>(expr, lhs, op, rhs_bound, return_type.value());
+    if (return_type.has_value())
+        return make_node<BoundBinaryExpression>(expr, lhs, op, rhs_bound, return_type.value());
+    return SyntaxError { ErrorCode::ReturnTypeUnresolved, expr->token(), format("{} {} {}", lhs, op, rhs) };
 }
 
 NODE_PROCESSOR(UnaryExpression)
@@ -490,7 +493,7 @@ NODE_PROCESSOR(Variable)
     }
     auto type_decl = std::dynamic_pointer_cast<BoundVariableDeclaration>(type_decl_maybe.value());
     if (type_decl == nullptr)
-        return SyntaxError { ErrorCode::SyntaxError, variable->token(), format("Function {} cannot be referenced as a variable", variable->name()) };
+        return SyntaxError { ErrorCode::SyntaxError, variable->token(), format("Function {} ({})cannot be referenced as a variable", variable, variable->node_type()) };
     auto var_decl = std::dynamic_pointer_cast<BoundVariableDeclaration>(type_decl);
     return make_node<BoundVariable>(variable, var_decl->type());
 }
@@ -614,6 +617,28 @@ NODE_PROCESSOR(WhileStatement)
 NODE_PROCESSOR(ForStatement)
 {
     auto stmt = std::dynamic_pointer_cast<ForStatement>(tree);
+
+    bool must_declare_variable = true;
+    auto t = stmt->variable()->type();
+    std::shared_ptr<ObjectType> var_type { nullptr };
+    if (t) {
+        auto var_type_maybe = t->resolve_type();
+        if (var_type_maybe.is_error()) {
+            auto err = var_type_maybe.error();
+            return SyntaxError { err.code(), stmt->variable()->token(), err.message() };
+        }
+        var_type = var_type_maybe.value();
+    } else {
+        auto var_decl_maybe = ctx.get(stmt->variable()->name());
+        if (var_decl_maybe.has_value()) {
+            auto var_decl = std::dynamic_pointer_cast<BoundVariableDeclaration>(var_decl_maybe.value());
+            if (var_decl != nullptr) {
+                var_type = var_decl->type();
+                must_declare_variable = false;
+            }
+        }
+    }
+
     auto bound_range = TRY_AND_CAST(BoundExpression, process(stmt->range(), ctx));
     if (bound_range == nullptr)
         return tree;
@@ -622,28 +647,31 @@ NODE_PROCESSOR(ForStatement)
         return SyntaxError { ErrorCode::SyntaxError, stmt->token(), "Invalid for-loop range" };
     if (range_binary_expr->op() != BinaryOperator::Range)
         return SyntaxError { ErrorCode::SyntaxError, stmt->token(), "Invalid for-loop range" };
-    auto variable_type = range_binary_expr->lhs()->type();
+    auto range_type = range_binary_expr->lhs()->type();
 
-    bool must_declare_variable = true;
-    auto type_decl_maybe = ctx.get(stmt->variable());
-    if (type_decl_maybe.has_value()) {
-        auto var_decl = std::dynamic_pointer_cast<BoundVariableDeclaration>(type_decl_maybe.value());
-        if (var_decl != nullptr) {
-            if (*(var_decl->type()) != *variable_type) {
-                return SyntaxError { ErrorCode::TypeMismatch, var_decl->token(), var_decl->name(), var_decl->type(), variable_type };
-            }
-            must_declare_variable = false;
+    if (var_type && var_type->type() != PrimitiveType::Any && !range_type->is_assignable_to(var_type)) {
+        auto int_literal = std::dynamic_pointer_cast<BoundIntLiteral>(range_binary_expr->lhs());
+        if (int_literal != nullptr) {
+            auto casted = TRY(int_literal->cast(var_type));
+            range_binary_expr = std::make_shared<BoundBinaryExpression>(range_binary_expr->token(), casted,
+                range_binary_expr->op(), range_binary_expr->rhs(), range_binary_expr->type());
+        } else {
+            return SyntaxError { ErrorCode::TypeMismatch, stmt->token(), stmt->variable()->name(), var_type, range_type };
         }
+    }
+    if (var_type == nullptr) {
+        var_type = range_type;
     }
 
     BindContext for_ctx(ctx);
+    auto bound_var_decl = std::make_shared<BoundVariableDeclaration>(stmt->token(),
+        std::make_shared<BoundIdentifier>(stmt->token(), stmt->variable()->name(), var_type),
+        false, nullptr);
+    auto bound_var = std::make_shared<BoundVariable>(stmt->variable(), var_type);
     if (must_declare_variable)
-        for_ctx.declare(stmt->variable(),
-            std::make_shared<BoundVariableDeclaration>(stmt->token(),
-                std::make_shared<BoundIdentifier>(stmt->token(), stmt->variable(), variable_type),
-                false, nullptr));
+        for_ctx.declare(stmt->variable()->name(), bound_var_decl);
     auto bound_statement = TRY_AND_CAST(Statement, process(stmt->statement(), for_ctx));
-    return make_node<BoundForStatement>(stmt, bound_range, bound_statement, must_declare_variable);
+    return std::make_shared<BoundForStatement>(stmt, bound_var, range_binary_expr, bound_statement, must_declare_variable);
 }
 
 NODE_PROCESSOR(CaseStatement)

@@ -431,7 +431,7 @@ public:
     {
     }
 
-    static ErrorOr<std::shared_ptr<BoundIntLiteral>, SyntaxError> cast(std::shared_ptr<BoundIntLiteral> const&, std::shared_ptr<ObjectType> const&);
+    ErrorOr<std::shared_ptr<BoundIntLiteral>, SyntaxError> cast(std::shared_ptr<ObjectType> const&) const;
 
     [[nodiscard]] SyntaxNodeType node_type() const override { return SyntaxNodeType::BoundIntLiteral; }
     [[nodiscard]] std::string attributes() const override { return format(R"(value="{}" type="{}")", value(), type()); }
@@ -996,53 +996,16 @@ private:
     std::shared_ptr<Statement> m_statement;
 };
 
-typedef std::vector<std::shared_ptr<BoundBranch>> BoundBranches;
+using BoundBranches = std::vector<std::shared_ptr<BoundBranch>>;
 
 class BoundIfStatement : public Statement {
 public:
-    BoundIfStatement(std::shared_ptr<IfStatement> const& if_stmt, BoundBranches branches, std::shared_ptr<Statement> else_stmt)
-        : Statement(if_stmt->token())
-        , m_branches(move(branches))
-        , m_else(move(else_stmt))
-    {
-    }
-
-    BoundIfStatement(Token token, BoundBranches branches, std::shared_ptr<Statement> else_stmt = nullptr)
-        : Statement(std::move(token))
-        , m_branches(move(branches))
-        , m_else(move(else_stmt))
-    {
-    }
-
-    [[nodiscard]] SyntaxNodeType node_type() const override { return SyntaxNodeType::BoundIfStatement; }
-
-    [[nodiscard]] Nodes children() const override
-    {
-        Nodes ret;
-        for (auto& branch : m_branches) {
-            ret.push_back(branch);
-        }
-        return ret;
-    }
-
-    [[nodiscard]] std::string to_string() const override
-    {
-        std::string ret;
-        bool first;
-        for (auto& branch : m_branches) {
-            if (first)
-                ret = branch->to_string();
-            else
-                ret += "el" + branch->to_string();
-            first = false;
-        }
-        if (m_else)
-            ret += "else\n" + m_else->to_string();
-        return ret;
-    }
-
-    [[nodiscard]] BoundBranches const& branches() const { return m_branches; }
-
+    BoundIfStatement(std::shared_ptr<IfStatement> const& if_stmt, BoundBranches branches, std::shared_ptr<Statement> else_stmt);
+    BoundIfStatement(Token token, BoundBranches branches, std::shared_ptr<Statement> else_stmt = nullptr);
+    [[nodiscard]] SyntaxNodeType node_type() const override;
+    [[nodiscard]] Nodes children() const override;
+    [[nodiscard]] std::string to_string() const override;
+    [[nodiscard]] BoundBranches const& branches() const;
 private:
     BoundBranches m_branches {};
     std::shared_ptr<Statement> m_else {};
@@ -1050,23 +1013,12 @@ private:
 
 class BoundWhileStatement : public Statement {
 public:
-    BoundWhileStatement(std::shared_ptr<SyntaxNode> const& node, std::shared_ptr<BoundExpression> condition, std::shared_ptr<Statement> stmt)
-        : Statement(node->token())
-        , m_condition(move(condition))
-        , m_stmt(move(stmt))
-    {
-    }
-
-    [[nodiscard]] SyntaxNodeType node_type() const override { return SyntaxNodeType::BoundWhileStatement; }
-    [[nodiscard]] Nodes children() const override { return { m_condition, m_stmt }; }
-    [[nodiscard]] std::shared_ptr<BoundExpression> const& condition() const { return m_condition; }
-    [[nodiscard]] std::shared_ptr<Statement> const& statement() const { return m_stmt; }
-
-    [[nodiscard]] std::string to_string() const override
-    {
-        return format("while ({})\n{}", m_condition->to_string(), m_stmt->to_string());
-    }
-
+    BoundWhileStatement(std::shared_ptr<SyntaxNode> const& node, std::shared_ptr<BoundExpression> condition, std::shared_ptr<Statement> stmt);
+    [[nodiscard]] SyntaxNodeType node_type() const override;
+    [[nodiscard]] Nodes children() const override;
+    [[nodiscard]] std::shared_ptr<BoundExpression> const& condition() const;
+    [[nodiscard]] std::shared_ptr<Statement> const& statement() const;
+    [[nodiscard]] std::string to_string() const override;
 private:
     std::shared_ptr<BoundExpression> m_condition;
     std::shared_ptr<Statement> m_stmt;
@@ -1074,18 +1026,18 @@ private:
 
 class BoundForStatement : public Statement {
 public:
-    BoundForStatement(std::shared_ptr<ForStatement> const& orig_for_stmt, std::shared_ptr<BoundExpression> range, std::shared_ptr<Statement> stmt, bool must_declare)
+    BoundForStatement(std::shared_ptr<ForStatement> const& orig_for_stmt, std::shared_ptr<BoundVariable> variable, std::shared_ptr<BoundExpression> range, std::shared_ptr<Statement> stmt, bool must_declare)
         : Statement(orig_for_stmt->token())
-        , m_variable(orig_for_stmt->variable())
+        , m_variable(move(variable))
         , m_range(move(range))
         , m_stmt(move(stmt))
         , m_must_declare_variable(must_declare)
     {
     }
 
-    BoundForStatement(std::shared_ptr<BoundForStatement> const& orig_for_stmt, std::shared_ptr<BoundExpression> range, std::shared_ptr<Statement> stmt)
+    BoundForStatement(std::shared_ptr<BoundForStatement> const& orig_for_stmt, std::shared_ptr<BoundVariable> variable, std::shared_ptr<BoundExpression> range, std::shared_ptr<Statement> stmt)
         : Statement(orig_for_stmt->token())
-        , m_variable(orig_for_stmt->variable())
+        , m_variable(move(variable))
         , m_range(move(range))
         , m_stmt(move(stmt))
         , m_must_declare_variable(orig_for_stmt->must_declare_variable())
@@ -1095,7 +1047,7 @@ public:
     [[nodiscard]] SyntaxNodeType node_type() const override { return SyntaxNodeType::BoundForStatement; }
     [[nodiscard]] std::string attributes() const override { return format(R"(variable="{}")", m_variable); }
     [[nodiscard]] Nodes children() const override { return { m_range, m_stmt }; }
-    [[nodiscard]] std::string const& variable() const { return m_variable; }
+    [[nodiscard]] std::shared_ptr<BoundVariable> const& variable() const { return m_variable; }
     [[nodiscard]] std::shared_ptr<BoundExpression> const& range() const { return m_range; }
     [[nodiscard]] std::shared_ptr<Statement> const& statement() const { return m_stmt; }
     [[nodiscard]] bool must_declare_variable() const { return m_must_declare_variable; }
@@ -1106,7 +1058,7 @@ public:
     }
 
 private:
-    std::string m_variable {};
+    std::shared_ptr<BoundVariable> m_variable;
     std::shared_ptr<BoundExpression> m_range;
     std::shared_ptr<Statement> m_stmt;
     bool m_must_declare_variable { false };
