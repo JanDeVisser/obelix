@@ -18,7 +18,6 @@ add_executable(
         Parser.cpp
         ResolveOperators.cpp
         Syntax.cpp
-        Type.cpp
         BoundSyntaxNode.h
         Context.h
         Symbol.h
@@ -32,6 +31,9 @@ add_executable(
         arm64/VariableAddress.cpp
         interp/InterpIntrinsics.cpp
         interp/Interpret.cpp
+        type/MethodDescription.cpp
+        type/Template.cpp
+        type/Type.cpp
 )
 
 target_link_libraries(
