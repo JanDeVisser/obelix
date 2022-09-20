@@ -85,6 +85,10 @@ NODE_PROCESSOR(BoundBinaryExpression)
         return process(make_node<BoundIntrinsicCall>(expr->token(), decl, BoundExpressions { lhs, offset }, IntrinsicType::ptr_math), ctx);
     }
 
+    if ((rhs->node_type() == SyntaxNodeType::BoundIntLiteral) && (rhs->type()->type() == lhs->type()->type()) && (rhs->type()->size() > lhs->type()->size()))
+        rhs = TRY(std::dynamic_pointer_cast<BoundIntLiteral>(rhs)->cast(lhs->type()));
+    if ((lhs->node_type() == SyntaxNodeType::BoundIntLiteral) && (rhs->type()->type() == lhs->type()->type()) && (lhs->type()->size() > rhs->type()->size()))
+        lhs = TRY(std::dynamic_pointer_cast<BoundIntLiteral>(rhs)->cast(rhs->type()));
     auto method_descr_maybe = lhs->type()->get_method(to_operator(expr->op()), { rhs->type() });
     if (!method_descr_maybe.has_value())
         return SyntaxError { ErrorCode::InternalError, lhs->token(), format("No method defined for binary operator {}::{}({})", lhs->type()->to_string(), expr->op(), rhs->type()->to_string()) };
