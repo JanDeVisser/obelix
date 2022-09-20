@@ -156,15 +156,21 @@ def remove_all_tests(nuke=False):
 def print_index():
     scripts = load_test_names()
     for script in scripts:
-        print(script)
+        s = [script]
+        with open(script + ".json") as fd:
+            script_data = json.load(fd)
+            if "args" in script_data:
+                s.extend(script_data["args"])
+        print(" ".join(s))
 
 
 def config_tests(tests):
     with open(tests) as fd:
         # FIXME Why does this map() not work?
         # map(config_test, [stripped for stripped in [name.strip() for name in fd] if not stripped.startswith("#")])
-        for x in [stripped for stripped in [name.strip() for name in fd] if not stripped.startswith("#")]:
-            config_test(x)
+        for tests in [stripped for stripped in [test.strip() for test in fd] if not stripped.startswith("#")]:
+            name_args = filter(None, tests.split(" "))
+            config_test(*name_args)
 
 
 def initialize():

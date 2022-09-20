@@ -1,9 +1,9 @@
-func fib(i: s32) : s32
+func fib(i: s64) : s64
 {
   if ((i == 0) || (i == 1)) {
     return i;
   }
-  var ret: s32 = fib(i-1) + fib(i-2);
+  var ret: s64 = fib(i-1) + fib(i-2);
   return ret;
 }
 

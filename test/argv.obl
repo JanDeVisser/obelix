@@ -1,7 +1,7 @@
-func main(argc: int, argv: ptr<ptr<char>>): int
+func main(argc: s32, argv: ptr<ptr<char>>): s32
 {
   puts("argc: "); puti(argc); putln("");
-  for (ix in 0u64 .. argc) {
+  for (ix: u64 in 0..argc) {
     cputln(*(argv + ix));
   }
   return 0;

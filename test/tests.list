@@ -20,3 +20,4 @@ global_reassign
 local_reassign
 struct
 array
+argv arg1 arg2 arg3
