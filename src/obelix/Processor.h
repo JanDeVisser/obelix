@@ -540,8 +540,8 @@ ErrorOrNode process(std::shared_ptr<SyntaxNode> const& tree, Ctx& ctx)
     std::string log_message;
     debug(parser, "Process <{} {}>", tree->node_type(), tree);
     switch (tree->node_type()) {
-#undef __SYNTAXNODETYPE
-#define __SYNTAXNODETYPE(type)                                                 \
+#undef ENUM_SYNTAXNODETYPE
+#define ENUM_SYNTAXNODETYPE(type)                                                 \
     case SyntaxNodeType::type: {                                               \
         log_message = format("<{} {}> => ", #type, tree);                      \
         ErrorOrNode ret = process_node<Ctx, SyntaxNodeType::type>(tree, ctx);  \
@@ -555,8 +555,8 @@ ErrorOrNode process(std::shared_ptr<SyntaxNode> const& tree, Ctx& ctx)
         debug(parser, "{}", log_message);                                      \
         return ret;                                                            \
     }
-        ENUMERATE_SYNTAXNODETYPES(__SYNTAXNODETYPE)
-#undef __SYNTAXNODETYPE
+        ENUMERATE_SYNTAXNODETYPES(ENUM_SYNTAXNODETYPE)
+#undef ENUM_SYNTAXNODETYPE
     default:
         fatal("Unkown SyntaxNodeType '{}'", (int) tree->node_type());
     }
