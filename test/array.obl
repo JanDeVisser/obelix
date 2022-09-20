@@ -2,7 +2,7 @@ func main(): s32
 {
   var a: array<s32, 5>
   for (i: s32 in 0..4) {
-    a[i] = i*2s32
+    a[i] = i*2
   }
   return a[3]
 }
