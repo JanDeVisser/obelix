@@ -437,9 +437,9 @@ NODE_PROCESSOR(BinaryExpression)
     }
 
     if ((rhs_bound->node_type() == SyntaxNodeType::BoundIntLiteral) && (rhs_bound->type()->type() == lhs->type()->type()) && (rhs_bound->type()->size() > lhs->type()->size())) {
-        rhs_bound = TRY(std::dynamic_pointer_cast<BoundIntLiteral>(rhs)->cast(lhs->type()));
+        rhs_bound = TRY(std::dynamic_pointer_cast<BoundIntLiteral>(rhs_bound)->cast(lhs->type()));
     } else if ((lhs->node_type() == SyntaxNodeType::BoundIntLiteral) && (rhs_bound->type()->type() == lhs->type()->type()) && (lhs->type()->size() > rhs_bound->type()->size())) {
-        lhs = TRY(std::dynamic_pointer_cast<BoundIntLiteral>(rhs)->cast(rhs_bound->type()));
+        lhs = TRY(std::dynamic_pointer_cast<BoundIntLiteral>(lhs)->cast(rhs_bound->type()));
     }
     auto return_type_maybe = lhs->type()->return_type_of(to_operator(op), rhs_bound->type());
     if (return_type_maybe.has_value())
