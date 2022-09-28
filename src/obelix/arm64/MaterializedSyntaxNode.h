@@ -163,12 +163,12 @@ public:
     [[nodiscard]] std::shared_ptr<VariableAddress> address() const override;
 };
 
-NODE_CLASS(MaterializedLocalVariableDecl, MaterializedVariableDecl)
+NODE_CLASS(MaterializedLocalVariableDecl, MaterializedStaticVariableDecl)
 public:
     MaterializedLocalVariableDecl(std::shared_ptr<BoundVariableDeclaration> const&, std::shared_ptr<BoundExpression>);
 };
 
-NODE_CLASS(MaterializedGlobalVariableDecl, MaterializedVariableDecl)
+NODE_CLASS(MaterializedGlobalVariableDecl, MaterializedStaticVariableDecl)
 public:
     MaterializedGlobalVariableDecl(std::shared_ptr<BoundVariableDeclaration> const&, std::shared_ptr<BoundExpression>);
 };

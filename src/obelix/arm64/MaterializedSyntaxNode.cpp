@@ -413,14 +413,14 @@ std::shared_ptr<VariableAddress> MaterializedStaticVariableDecl::address() const
 // -- MaterializedLocalVariableDecl --------------------------------------------------------
 
 MaterializedLocalVariableDecl::MaterializedLocalVariableDecl(std::shared_ptr<BoundVariableDeclaration> const& var_decl, std::shared_ptr<BoundExpression> expression)
-    : MaterializedVariableDecl(var_decl, std::move(expression))
+    : MaterializedStaticVariableDecl(var_decl, std::move(expression))
 {
 }
 
 // -- MaterializedGlobalVariableDecl --------------------------------------------------------
 
 MaterializedGlobalVariableDecl::MaterializedGlobalVariableDecl(std::shared_ptr<BoundVariableDeclaration> const& var_decl, std::shared_ptr<BoundExpression> expression)
-    : MaterializedVariableDecl(var_decl, std::move(expression))
+    : MaterializedStaticVariableDecl(var_decl, std::move(expression))
 {
 }
 

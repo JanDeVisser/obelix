@@ -141,11 +141,11 @@ ErrorOr<std::shared_ptr<ObjectType>, SyntaxError> ExpressionType::resolve_type()
     auto ix = 0;
     for (auto& arg : template_arguments()) {
         auto param = type->template_parameter(ix);
-        if (param.type != TemplateParameterType::Type)
-            return SyntaxError { ErrorCode::TypeMismatch, token(),
-                format("Template parameter {} of '{}' has parameter type '{}', not '{}'", ix, type_name(), param.type, arg->parameter_type()) };
         switch (arg->node_type()) {
         case SyntaxNodeType::ExpressionType: {
+            if (param.type != TemplateParameterType::Type)
+                return SyntaxError { ErrorCode::TypeMismatch, token(),
+                    format("Template parameter {} of '{}' has parameter type '{}', not '{}'", ix, type_name(), param.type, arg->parameter_type()) };
             auto expr_type = std::dynamic_pointer_cast<ExpressionType>(arg);
             auto arg_type_or_error = expr_type->resolve_type();
             if (arg_type_or_error.is_error())
@@ -154,9 +154,15 @@ ErrorOr<std::shared_ptr<ObjectType>, SyntaxError> ExpressionType::resolve_type()
             break;
         }
         case SyntaxNodeType::StringTemplateArgument:
+            if (param.type != TemplateParameterType::String)
+                return SyntaxError { ErrorCode::TypeMismatch, token(),
+                    format("Template parameter {} of '{}' has parameter type '{}', not '{}'", ix, type_name(), param.type, arg->parameter_type()) };
             args[param.name] = std::dynamic_pointer_cast<StringTemplateArgument>(arg)->value();
             break;
         case SyntaxNodeType::IntegerTemplateArgument:
+            if (param.type != TemplateParameterType::Integer)
+                return SyntaxError { ErrorCode::TypeMismatch, token(),
+                    format("Template parameter {} of '{}' has parameter type '{}', not '{}'", ix, type_name(), param.type, arg->parameter_type()) };
             args[param.name] = std::dynamic_pointer_cast<IntegerTemplateArgument>(arg)->value();
             break;
         default:

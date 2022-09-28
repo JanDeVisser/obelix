@@ -967,7 +967,7 @@ std::shared_ptr<ObjectType> ObjectType::make_enum_type(std::string const& name, 
     for (auto const& nvp : values) {
         arg_values.push_back(nvp);
     }
-    TemplateArguments args { { "values", TemplateArgument(TemplateParameterType::NameValue, arg_values) } };
+    TemplateArguments args { { "base_type", TemplateArgument { ObjectType::get("u64") } }, { "values", TemplateArgument { TemplateParameterType::NameValue, arg_values } } };
     return register_type(name, s_enum, args);
 }
 
