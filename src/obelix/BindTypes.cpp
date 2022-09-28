@@ -28,10 +28,10 @@ public:
     std::shared_ptr<ObjectType> return_type { nullptr };
     int stage { 0 };
 
-    void add_unresolved_function(std::shared_ptr<FunctionCall> func_call)
+    void add_unresolved_function(std::shared_ptr<FunctionCall> const& func_call)
     {
         if (parent() != nullptr) {
-            (static_cast<BindContext*>(parent()))->add_unresolved_function(func_call);
+            dynamic_cast<BindContext*>(parent())->add_unresolved_function(func_call);
             return;
         }
         m_unresolved_functions.push_back(func_call);
@@ -40,7 +40,7 @@ public:
     [[nodiscard]] std::vector<std::shared_ptr<FunctionCall>> const& unresolved_functions() const
     {
         if (parent() != nullptr) {
-            return (static_cast<BindContext*>(parent()))->unresolved_functions();
+            return dynamic_cast<BindContext*>(parent())->unresolved_functions();
         }
         return m_unresolved_functions;
     }
@@ -48,13 +48,13 @@ public:
     void clear_unresolved_functions()
     {
         if (parent() != nullptr) {
-            (static_cast<BindContext*>(parent()))->clear_unresolved_functions();
+            dynamic_cast<BindContext*>(parent())->clear_unresolved_functions();
             return;
         }
         m_unresolved_functions.clear();
     }
 
-    void add_declared_function(std::string const& name, std::shared_ptr<BoundFunctionDecl> func)
+    void add_declared_function(std::string const& name, std::shared_ptr<BoundFunctionDecl> const& func)
     {
         if (parent() != nullptr) {
             (dynamic_cast<BindContext*>(parent()))->add_declared_function(name, func);
@@ -77,10 +77,6 @@ public:
             return (dynamic_cast<BindContext*>(parent()))->match(name, arg_types);
         }
         debug(parser, "matching function {}({})", name, arg_types);
-        //        debug(parser, "Current declared functions:");
-        //        for (auto const& f : m_declared_functions) {
-        //            debug(parser, "{} {}", f.second->node_type(), f.second->to_string());
-        //        }
         std::shared_ptr<BoundFunctionDecl> func_decl = nullptr;
         auto range = m_declared_functions.equal_range(name);
         for (auto iter = range.first; iter != range.second; ++iter) {
@@ -396,10 +392,10 @@ NODE_PROCESSOR(BinaryExpression)
         if (rhs_bound->node_type() == SyntaxNodeType::BoundIntLiteral) {
             auto literal = std::dynamic_pointer_cast<BoundIntLiteral>(rhs_bound);
             auto value = literal->value<int>();
-            if ((value < 0) || (lhs->type()->template_arguments()[1].as_integer() <= value))
-                return SyntaxError { ErrorCode::IndexOutOfBounds, rhs->token(), value, lhs->type()->template_arguments()[1].as_integer() };
+            if ((value < 0) || (lhs->type()->template_argument<long>("size") <= value))
+                return SyntaxError { ErrorCode::IndexOutOfBounds, rhs->token(), value, lhs->type()->template_argument<long>("size") };
         }
-        return std::make_shared<BoundArrayAccess>(lhs, rhs_bound, lhs->type()->template_arguments()[0].as_type());
+        return std::make_shared<BoundArrayAccess>(lhs, rhs_bound, lhs->type()->template_argument<std::shared_ptr<ObjectType>>("base_type"));
     }
 
     if (op == BinaryOperator::Assign || BinaryOperator_is_assignment(op)) {
@@ -486,6 +482,21 @@ NODE_PROCESSOR(UnaryExpression)
     return make_node<BoundUnaryExpression>(expr, operand, op, return_type.value());
 }
 
+NODE_PROCESSOR(CastExpression)
+{
+    auto cast = std::dynamic_pointer_cast<CastExpression>(tree);
+    auto expr = TRY_AND_CAST(BoundExpression, process(cast->expression(), ctx));
+    auto type_maybe = cast->type()->resolve_type();
+    if (type_maybe.is_error()) {
+        auto err = type_maybe.error();
+        return SyntaxError { err.code(), cast->token(), err.message() };
+    }
+    auto type = type_maybe.value();
+    if (expr->type()->can_cast_to(type) == ObjectType::CanCast::Never)
+        return SyntaxError { ErrorCode::TypeMismatch, cast->token(), format("Cannot cast {} to {}", expr->type(), type) };
+    return std::make_shared<BoundCastExpression>(cast->token(), expr, type_maybe.value());
+}
+
 NODE_PROCESSOR(Variable)
 {
     auto variable = std::dynamic_pointer_cast<Variable>(tree);
@@ -563,7 +574,8 @@ NODE_PROCESSOR(FunctionCall)
 NODE_PROCESSOR(ExpressionStatement)
 {
     auto expr_stmt = std::dynamic_pointer_cast<ExpressionStatement>(tree);
-    auto bound_expr = TRY_AND_CAST(BoundExpression, process(expr_stmt->expression(), ctx));
+    auto expr = TRY(process(expr_stmt->expression(), ctx));
+    auto bound_expr = std::dynamic_pointer_cast<BoundExpression>(expr);
     if (bound_expr == nullptr)
         return tree;
     return make_node<BoundExpressionStatement>(expr_stmt, bound_expr);
@@ -711,15 +723,28 @@ NODE_PROCESSOR(SwitchStatement)
     return make_node<BoundSwitchStatement>(stmt, bound_expression, bound_case_statements, bound_default_case);
 }
 
-ErrorOrNode bind_types(std::shared_ptr<SyntaxNode> const& tree)
+ErrorOrNode bind_types(std::shared_ptr<SyntaxNode> const& tree, Config const& config)
 {
     BindContext root;
     for (root.stage = 0; root.stage < 2; ++root.stage) {
         root.clear_unresolved_functions();
         auto ret = process(tree, root);
 
-        if (ret.is_error() || root.unresolved_functions().empty())
+        if (ret.is_error() || root.unresolved_functions().empty()) {
+            if (!ret.is_error() && config.cmdline_flag("show-tree"))
+                std::cout << "\n\nTypes bound:\n" << ret.value()->to_xml() << "\n";
             return ret;
+        }
+        if (config.cmdline_flag("show-tree") && !root.unresolved_functions().empty()) {
+            std::cout << "Unresolved after stage " << root.stage << ":\n";
+            for (auto const& unresolved : root.unresolved_functions()) {
+                std::cout << unresolved->to_string() << "\n";
+            }
+            std::cout << "Current declared functions:\n";
+            for (auto const& f : root.declared_functions()) {
+                std::cout << f.second->to_string() << "\n";
+            }
+        }
     }
     auto func_call = root.unresolved_functions().back();
     // FIXME Deal with multiple unresolved functions

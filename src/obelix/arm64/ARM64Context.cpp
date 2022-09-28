@@ -79,6 +79,8 @@ ErrorOr<void, SyntaxError> ARM64Context::load_variable(std::shared_ptr<ObjectTyp
             return SyntaxError { ErrorCode::NotYetImplemented, Token {},
                 format("Cannot load values of variables of type {} yet", type) };
         assembly()->add_comment(format("Loading variable: stack_depth {} offset {}", stack_depth(), offset));
+        if (type->size() < 8)
+            assembly()->add_instruction("mov", "x{},xzr", target);
         assembly()->add_instruction(mm->load_mnemonic, "{}{},[fp,#{}]", mm->reg_width, target, stack_depth() - offset);
         return {};
     }
@@ -139,6 +141,19 @@ ErrorOr<void, SyntaxError> ARM64Context::define_static_storage(std::string const
     }
     default:
         fatal("Can't emit static variables of type {} yet", type->type());
+    }
+    return {};
+}
+
+ErrorOr<void, SyntaxError> ARM64Context::load_immediate(std::shared_ptr<ObjectType> const& type, uint64_t value, int target)
+{
+    auto width = (type->size() == 8) ? "x" : "w";
+    auto words = (type->size() + 1) / 2;
+    assembly()->add_instruction("mov", "{}{},{}zr", width, target, width);
+    for (auto ix = 0u; value && ix < words; ix++) {
+        uint16_t w = value & 0xFFFF;
+        value >>= 16;
+        assembly()->add_instruction("movk", "{}{},#{},lsl #{}", width, target, w, ix*16);
     }
     return {};
 }

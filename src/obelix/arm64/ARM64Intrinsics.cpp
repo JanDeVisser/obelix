@@ -4,8 +4,6 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
-#include <sys/stat.h>
-
 #include <obelix/arm64/ARM64Intrinsics.h>
 #include <obelix/Intrinsics.h>
 
@@ -17,7 +15,7 @@ static std::array<ARM64FunctionType, IntrinsicType::count> s_intrinsics = {};
 
 bool register_arm64_intrinsic(IntrinsicType type, ARM64FunctionType intrinsic)
 {
-    s_intrinsics[type] = move(intrinsic);
+    s_intrinsics[type] = std::move(intrinsic);
     return true;
 }
 
@@ -176,9 +174,27 @@ INTRINSIC(less_int_int)
     return {};
 }
 
-INTRINSIC(negate_int)
+INTRINSIC(negate_s64)
 {
     ctx.assembly()->add_instruction("neg", "x0,x0");
+    return {};
+}
+
+INTRINSIC(negate_s32)
+{
+    ctx.assembly()->add_instruction("neg", "w0,w0");
+    return {};
+}
+
+INTRINSIC(negate_s16)
+{
+    ctx.assembly()->add_instruction("neg", "w0,w0");
+    return {};
+}
+
+INTRINSIC(negate_s8)
+{
+    ctx.assembly()->add_instruction("neg", "w0,w0");
     return {};
 }
 

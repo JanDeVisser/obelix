@@ -114,6 +114,8 @@ TemplateArgument::TemplateArgument(TemplateParameterType type, TemplateArgumentV
             return std::holds_alternative<std::shared_ptr<ObjectType>>(arg);
         case TemplateParameterType::NameValue:
             return std::holds_alternative<NVP>(arg);
+        default:
+            fatal("Unknown TemplateParameterType {}", type);
         }
     }));
     assert(value.size() <= 1 || multiplicity == TemplateParameterMultiplicity::Multiple);

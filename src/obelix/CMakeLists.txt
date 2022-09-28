@@ -11,16 +11,15 @@ add_executable(
         main.cpp
         Architecture.cpp
         BindTypes.cpp
-        BoundSyntaxNode.cpp
         Config.cpp
         FoldConstants.cpp
         Lower.cpp
         Parser.cpp
         ResolveOperators.cpp
-        Syntax.cpp
         BoundSyntaxNode.h
         Context.h
         Symbol.h
+        Syntax.h
         SyntaxNodeType.h
         arm64/ARM64.cpp
         arm64/ARM64Context.cpp
@@ -29,8 +28,23 @@ add_executable(
         arm64/MaterializedSyntaxNode.cpp
         arm64/Mnemonic.cpp
         arm64/VariableAddress.cpp
+        boundsyntax/ControlFlow.cpp
+        boundsyntax/Expression.cpp
+        boundsyntax/Function.cpp
+        boundsyntax/Literal.cpp
+        boundsyntax/Typedef.cpp
+        boundsyntax/Variable.cpp
         interp/InterpIntrinsics.cpp
         interp/Interpret.cpp
+        syntax/ControlFlow.cpp
+        syntax/Expression.cpp
+        syntax/Function.cpp
+        syntax/Literal.cpp
+        syntax/Statement.cpp
+        syntax/Syntax.cpp
+        syntax/Type.cpp
+        syntax/Typedef.cpp
+        syntax/Variable.cpp
         type/MethodDescription.cpp
         type/Template.cpp
         type/Type.cpp

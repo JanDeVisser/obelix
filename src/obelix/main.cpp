@@ -106,9 +106,7 @@ private:
                 std::cout << "\n\nOriginal:\n" << tree->to_xml() << "\n";
             if (!m_config.bind)
                 return tree;
-            auto transformed = TRY(bind_types(tree));
-            if (config().cmdline_flag("show-tree"))
-                std::cout << "\n\nTypes bound:\n" << transformed->to_xml() << "\n";
+            auto transformed = TRY(bind_types(tree, config()));
             if (!m_config.lower)
                 return transformed;
             transformed = TRY(lower(transformed));

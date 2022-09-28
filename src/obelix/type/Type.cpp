@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
+#include <algorithm>
 #include <iostream>
 #include <memory>
 #include <string>
@@ -30,7 +31,7 @@ const char* PrimitiveType_name(PrimitiveType t)
         ENUMERATE_PRIMITIVE_TYPES(ENUM_PRIMITIVE_TYPE)
 #undef ENUM_PRIMITIVE_TYPE
     default:
-        fatal("Unknowm PrimitiveType '{}'", (int)t);
+        fatal("Unknown PrimitiveType '{}'", (int)t);
     }
 }
 
@@ -47,6 +48,20 @@ std::optional<PrimitiveType> PrimitiveType_by_name(std::string const& t)
     return {};
 }
 
+const char* TemplateParameterType_name(TemplateParameterType t)
+{
+    switch (t) {
+#undef ENUM_TEMPLATE_PARAMETER_TYPE
+#define ENUM_TEMPLATE_PARAMETER_TYPE(t) \
+    case TemplateParameterType::t:      \
+        return #t;
+        ENUMERATE_TEMPLATE_PARAMETER_TYPES(ENUM_TEMPLATE_PARAMETER_TYPE)
+#undef ENUM_TEMPLATE_PARAMETER_TYPE
+    default:
+        fatal("Unknown TemplateParameterType '{}'", (int)t);
+    }
+}
+
 FieldDef::FieldDef(std::string n, PrimitiveType t)
     : name(std::move(n))
     , type(ObjectType::get(t))
@@ -57,6 +72,11 @@ FieldDef::FieldDef(std::string n, std::shared_ptr<ObjectType> t)
     : name(std::move(n))
     , type(std::move(t))
 {
+}
+
+bool FieldDef::operator==(Obelix::FieldDef const& other) const
+{
+    return name == other.name && *type == *other.type;
 }
 
 std::unordered_map<PrimitiveType, std::shared_ptr<ObjectType>> ObjectType::s_types_by_id {};
@@ -161,54 +181,57 @@ static void initialize_types()
             type->has_template_parameter({ "signed", TemplateParameterType::Boolean });
             type->has_template_parameter({ "size", TemplateParameterType::Integer });
 
-            type->add_method(MethodDescription { Operator::Negate, PrimitiveType::Self, IntrinsicType::negate_int, {}, true });
             type->will_be_a(s_integer_number);
         });
 
-    s_integer = ObjectType::register_type("s32", s_signed_integer_number, TemplateArguments { { true }, { 4 } },
+    s_integer = ObjectType::register_type("s32", s_signed_integer_number, TemplateArguments { { "signed", true }, { "size", 4 } },
         [](std::shared_ptr<ObjectType> const& type) {
             type->has_alias("int");
             type->has_size(4);
+            type->add_method(MethodDescription { Operator::Negate, PrimitiveType::Self, IntrinsicType::negate_s32, {}, true });
         });
 
-    s_unsigned = ObjectType::register_type("u32", s_integer_number, TemplateArguments { { false }, { 4 } },
+    s_unsigned = ObjectType::register_type("u32", s_integer_number, TemplateArguments { { "signed", false }, { "size", 4 } },
         [](std::shared_ptr<ObjectType> const& type) {
             type->has_alias("uint");
             type->has_size(4);
         });
 
-    s_long = ObjectType::register_type("s64", s_signed_integer_number, TemplateArguments { { true }, { 8 } },
+    s_long = ObjectType::register_type("s64", s_signed_integer_number, TemplateArguments { { "signed", true }, { "size", 8 } },
         [](std::shared_ptr<ObjectType> const& type) {
             type->has_alias("long");
             type->has_size(8);
+            type->add_method(MethodDescription { Operator::Negate, PrimitiveType::Self, IntrinsicType::negate_s64, {}, true });
         });
 
     s_ulong = ObjectType::register_type("u64", s_integer_number,
-        TemplateArguments { { false }, { 8 } },
+        TemplateArguments { { "signed", false }, { "size", 8 } },
         [](std::shared_ptr<ObjectType> const& type) {
             type->has_alias("ulong");
             type->has_size(8);
         });
 
-    s_word = ObjectType::register_type("s16", s_signed_integer_number, TemplateArguments { { true }, { 2 } },
+    s_word = ObjectType::register_type("s16", s_signed_integer_number, TemplateArguments { { "signed", true }, { "size", 2 } },
         [](std::shared_ptr<ObjectType> const& type) {
             type->has_alias("word");
             type->has_size(8);
+            type->add_method(MethodDescription { Operator::Negate, PrimitiveType::Self, IntrinsicType::negate_s16, {}, true });
         });
 
-    s_uword = ObjectType::register_type("u16", s_integer_number, TemplateArguments { { false }, { 2 } },
+    s_uword = ObjectType::register_type("u16", s_integer_number, TemplateArguments { { "signed", false }, { "size", 2 } },
         [](std::shared_ptr<ObjectType> const& type) {
             type->has_alias("uword");
             type->has_size(8);
         });
 
-    s_byte = ObjectType::register_type("s8", s_signed_integer_number, TemplateArguments { { true }, { 1 } },
+    s_byte = ObjectType::register_type("s8", s_signed_integer_number, TemplateArguments { { "signed", true }, { "size", 1 } },
         [](std::shared_ptr<ObjectType> const& type) {
             type->has_alias("byte");
             type->has_size(1);
+            type->add_method(MethodDescription { Operator::Negate, PrimitiveType::Self, IntrinsicType::negate_s8, {}, true });
         });
 
-    s_char = ObjectType::register_type("u8", s_integer_number, TemplateArguments { { false }, { 1 } },
+    s_char = ObjectType::register_type("u8", s_integer_number, TemplateArguments { { "signed", false }, { "size", 1 } },
         [](std::shared_ptr<ObjectType> const& type) {
             type->has_alias("char");
             type->has_size(1);
@@ -245,7 +268,7 @@ static void initialize_types()
             type->will_be_a(s_comparable);
 
             type->has_template_stamp([](std::shared_ptr<ObjectType> const& instantiation) {
-                instantiation->add_method(MethodDescription { Operator::Dereference, instantiation->template_arguments()[0].as_type() });
+                instantiation->add_method(MethodDescription { Operator::Dereference, instantiation->template_argument<std::shared_ptr<ObjectType>>("target") });
             });
         });
 
@@ -256,16 +279,17 @@ static void initialize_types()
             type->has_size(8);
 
             type->has_template_stamp([](std::shared_ptr<ObjectType> const& instantiation) {
-                instantiation->add_method(MethodDescription { Operator::Subscript, instantiation->template_arguments()[0].as_type(),
+                auto base_type = instantiation->template_argument<std::shared_ptr<ObjectType>>("base_type");
+                instantiation->add_method(MethodDescription { Operator::Subscript, base_type,
                     IntrinsicType::NotIntrinsic, { { "subscript", ObjectType::get("s32") } } });
-                instantiation->has_size(instantiation->template_arguments()[1].as_integer() * instantiation->template_arguments()[0].as_type()->size());
+                instantiation->has_size(instantiation->template_argument<long>("size") * base_type->size());
             });
         });
 
     s_string = ObjectType::register_struct_type("string",
         FieldDefs {
             FieldDef { std::string("length"), s_unsigned },
-            FieldDef { std::string("data"), ObjectType::specialize(s_pointer, { s_char }).value() } },
+            FieldDef { std::string("data"), ObjectType::specialize(s_pointer, { { "target", s_char } }).value() } },
         [](std::shared_ptr<ObjectType> const& type) {
             type->add_method(MethodDescription { Operator::Add, PrimitiveType::Self, IntrinsicType::add_str_str, { { "other", PrimitiveType::Self } }, true });
             type->add_method(MethodDescription { Operator::Multiply, PrimitiveType::Self, IntrinsicType::multiply_str_int, { { "other", s_unsigned } }, true });
@@ -274,6 +298,7 @@ static void initialize_types()
 
     s_enum = ObjectType::register_type(PrimitiveType::Enum,
         [](std::shared_ptr<ObjectType> const& type) {
+            type->has_template_parameter({ "base_type", TemplateParameterType::Type, TemplateParameterMultiplicity::Required, TemplateArgument(s_uword) });
             type->has_template_parameter({ "values", TemplateParameterType::NameValue, TemplateParameterMultiplicity::Multiple });
             type->has_size(4);
 
@@ -328,7 +353,8 @@ void ObjectType::will_be_a(std::shared_ptr<ObjectType> type)
 
 void ObjectType::has_template_parameter(TemplateParameter const& parameter)
 {
-    m_template_parameters.push_back(parameter);
+    m_template_parameters[parameter.name] = parameter;
+    m_template_parameters_by_index.push_back(parameter.name);
 }
 
 void ObjectType::has_size(size_t sz)
@@ -360,6 +386,18 @@ std::vector<std::string> const& ObjectType::aliases() const
 TemplateParameters const& ObjectType::template_parameters() const
 {
     return m_template_parameters;
+}
+
+TemplateParameter const& ObjectType::template_parameter(std::string const& name) const
+{
+    assert(m_template_parameters.contains(name));
+    return m_template_parameters.at(name);
+}
+
+TemplateParameter const& ObjectType::template_parameter(size_t ix) const
+{
+    assert(ix < m_template_parameters_by_index.size());
+    return m_template_parameters.at(m_template_parameters_by_index.at(ix));
 }
 
 bool ObjectType::is_template_specialization() const
@@ -397,17 +435,34 @@ bool ObjectType::is_compatible_with(std::shared_ptr<ObjectType> const& other) co
     return is_compatible_with(*other);
 }
 
+ObjectType::CanCast ObjectType::can_cast_to(std::shared_ptr<ObjectType> const& other) const
+{
+    return can_cast_to(*other);
+}
+
 bool ObjectType::operator==(ObjectType const& other) const
 {
-    if (name() != other.name())
+    if (type() != other.type())
+        return false;
+    if (specializes_template() == nullptr && other.specializes_template() != nullptr)
+        return false;
+    if (specializes_template() != nullptr && other.specializes_template() == nullptr)
+        return false;
+    if (specializes_template() == nullptr) {
+        switch (type()) {
+        case PrimitiveType::Struct:
+            return fields() == other.fields();
+        default:
+            return size() == other.size();
+        }
+    }
+    if (*specializes_template() != *other.specializes_template())
         return false;
     if (template_arguments().size() != other.template_arguments().size())
         return false;
-    for (auto ix = 0u; ix < template_arguments().size(); ++ix) {
-        if (template_arguments()[ix] != other.template_arguments()[ix])
-            return false;
-    }
-    return true;
+    return std::all_of(template_arguments().cbegin(), template_arguments().cend(), [&other](auto const& arg_item) {
+        return other.m_template_arguments.contains(arg_item.first) && other.m_template_arguments.at(arg_item.first) == arg_item.second;
+    });
 }
 
 /*
@@ -460,6 +515,36 @@ bool ObjectType::is_compatible_with(ObjectType const& other) const
     return *this == other;
 }
 
+ObjectType::CanCast ObjectType::can_cast_to(Obelix::ObjectType const& other) const
+{
+    auto from_pt = type();
+    auto to_pt = other.type();
+    switch (to_pt) {
+    case PrimitiveType::IntegerNumber:
+    case PrimitiveType::SignedIntegerNumber:
+    case PrimitiveType::Enum:
+    case PrimitiveType::Boolean: {
+        switch (from_pt) {
+        case PrimitiveType::IntegerNumber:
+        case PrimitiveType::SignedIntegerNumber:
+        case PrimitiveType::Pointer:
+        case PrimitiveType::Enum:
+        case PrimitiveType::Boolean:
+            return (other.size() >= size()) ? CanCast::Always : CanCast::Sometimes;
+        default:
+            return CanCast::Never;
+        }
+    case PrimitiveType::Pointer: {
+        if (from_pt != PrimitiveType::Pointer && (from_pt != PrimitiveType::IntegerNumber || size() != other.size()))
+            return CanCast::Never;
+        return CanCast::Always;
+    }
+    default:
+        return CanCast::Never;
+    }
+    }
+}
+
 size_t ObjectType::size() const
 {
     if (m_type != PrimitiveType::Struct)
@@ -490,7 +575,7 @@ ssize_t ObjectType::offset_of(std::string const& name) const
 
 ssize_t ObjectType::offset_of(size_t field) const
 {
-    if ((field < 0) || (field >= m_fields.size()))
+    if (field >= m_fields.size())
         return (ssize_t)-1;
     ssize_t ret = 0;
     for (auto ix = 0u; ix < field; ix++) {
@@ -524,11 +609,7 @@ bool ObjectType::has_template_argument(std::string const& arg) const
 {
     if (!is_template_specialization())
         return false;
-    auto const& parameters = m_specializes_template->template_parameters();
-    return std::any_of(parameters.begin(), parameters.end(),
-        [&arg](auto const& param) {
-            return param.name == arg;
-    });
+    return m_template_arguments.contains(arg);
 }
 
 bool ObjectType::is_compatible(MethodDescription const& mth, ObjectTypes const& argument_types) const
@@ -777,7 +858,7 @@ std::shared_ptr<ObjectType> ObjectType::register_type(PrimitiveType type, Object
     return register_type(type, PrimitiveType_name(type), builder);
 }
 
-std::shared_ptr<ObjectType> ObjectType::register_type(PrimitiveType type, char const* name, ObjectTypeBuilder const& builder) noexcept
+std::shared_ptr<ObjectType> ObjectType::register_type(PrimitiveType type, std::string const& name, ObjectTypeBuilder const& builder) noexcept
 {
     initialize_types();
     debug(type, "Registering primitive type {}", name);
@@ -788,11 +869,11 @@ std::shared_ptr<ObjectType> ObjectType::register_type(PrimitiveType type, char c
     return ptr;
 }
 
-std::shared_ptr<ObjectType> ObjectType::register_type(std::string name, std::shared_ptr<ObjectType> const& specialization_of, TemplateArguments template_args, ObjectTypeBuilder const& builder) noexcept
+std::shared_ptr<ObjectType> ObjectType::register_type(std::string name, std::shared_ptr<ObjectType> const& specialization_of, TemplateArguments const& template_args, ObjectTypeBuilder const& builder) noexcept
 {
     initialize_types();
     debug(type, "Registering {} as specialization of {} with arguments {}", name, specialization_of, template_args);
-    auto ret_or_error = ObjectType::specialize(specialization_of, std::move(template_args));
+    auto ret_or_error = ObjectType::specialize(specialization_of, template_args);
     if (ret_or_error.is_error())
         fatal("specialize '{}' failed: {}", name, ret_or_error.error());
     auto type = ret_or_error.value();
@@ -821,18 +902,11 @@ ErrorOr<std::shared_ptr<ObjectType>> ObjectType::specialize(std::shared_ptr<Obje
     if (!base_type->is_parameterized())
         return base_type;
     for (auto& template_specialization : s_template_specializations) {
-        if (template_specialization->specializes_template() == base_type) {
-            size_t ix;
-            for (ix = 0; ix < template_args.size(); ++ix) {
-                if (template_specialization->template_arguments()[ix] != template_args[ix])
-                    break;
-            }
-            if (ix >= template_args.size())
-                return template_specialization;
-        }
+        if (template_specialization->specializes_template() == base_type && template_specialization->template_arguments() == template_args)
+            return template_specialization;
     }
     debug(type, "Specializing {} with arguments {}", base_type, template_args);
-    auto specialization = register_type(base_type->type(), format("{}{}", base_type->name(), template_args).c_str(),
+    auto specialization = register_type(base_type->type(), format("{}{}", base_type->name(), template_args),
         [&template_args, &base_type](std::shared_ptr<ObjectType> const& new_type) {
             new_type->m_specializes_template = base_type;
             new_type->m_template_arguments = template_args;
@@ -886,15 +960,15 @@ ErrorOr<std::shared_ptr<ObjectType>> ObjectType::make_struct_type(std::string na
     return ret;
 }
 
-std::shared_ptr<ObjectType> ObjectType::make_enum_type(std::string name, NVPs values)
+std::shared_ptr<ObjectType> ObjectType::make_enum_type(std::string const& name, NVPs const& values)
 {
     initialize_types();
     TemplateArgumentValues arg_values;
     for (auto const& nvp : values) {
         arg_values.push_back(nvp);
     }
-    TemplateArguments args { TemplateArgument(TemplateParameterType::NameValue, arg_values) };
-    return register_type(name.c_str(), s_enum, args);
+    TemplateArguments args { { "values", TemplateArgument(TemplateParameterType::NameValue, arg_values) } };
+    return register_type(name, s_enum, args);
 }
 
 void ObjectType::register_type_in_caches(std::shared_ptr<ObjectType> const& type)

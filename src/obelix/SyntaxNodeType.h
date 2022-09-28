@@ -36,6 +36,7 @@ namespace Obelix {
     S(This)                             \
     S(BinaryExpression)                 \
     S(UnaryExpression)                  \
+    S(CastExpression)                   \
     S(Assignment)                       \
     S(FunctionCall)                     \
     S(Import)                           \
@@ -95,6 +96,7 @@ namespace Obelix {
     S(BoundTypeLiteral)                 \
     S(BoundBinaryExpression)            \
     S(BoundUnaryExpression)             \
+    S(BoundCastExpression)              \
     S(BoundFunctionCall)                \
     S(BoundNativeFunctionCall)          \
     S(BoundIntrinsicCall)               \
@@ -123,21 +125,21 @@ namespace Obelix {
     S(Count)
 
 enum class SyntaxNodeType {
-#undef __SYNTAXNODETYPE
-#define __SYNTAXNODETYPE(type) type,
-    ENUMERATE_SYNTAXNODETYPES(__SYNTAXNODETYPE)
-#undef __SYNTAXNODETYPE
+#undef ENUM_SYNTAXNODETYPE
+#define ENUM_SYNTAXNODETYPE(type) type,
+    ENUMERATE_SYNTAXNODETYPES(ENUM_SYNTAXNODETYPE)
+#undef ENUM_SYNTAXNODETYPE
 };
 
 constexpr char const* SyntaxNodeType_name(SyntaxNodeType type)
 {
     switch (type) {
-#undef __SYNTAXNODETYPE
-#define __SYNTAXNODETYPE(type) \
+#undef ENUM_SYNTAXNODETYPE
+#define ENUM_SYNTAXNODETYPE(type) \
     case SyntaxNodeType::type: \
         return #type;
-        ENUMERATE_SYNTAXNODETYPES(__SYNTAXNODETYPE)
-#undef __SYNTAXNODETYPE
+        ENUMERATE_SYNTAXNODETYPES(ENUM_SYNTAXNODETYPE)
+#undef ENUM_SYNTAXNODETYPE
     default:
         fatal("Unknown SyntaxNodeType value '{}'", (int)type);
     }

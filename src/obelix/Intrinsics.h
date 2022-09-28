@@ -38,7 +38,10 @@ namespace Obelix {
     S(equals_int_int)          \
     S(greater_int_int)         \
     S(less_int_int)            \
-    S(negate_int)              \
+    S(negate_s64)              \
+    S(negate_s32)              \
+    S(negate_s16)              \
+    S(negate_s8)               \
     S(invert_int)              \
     S(add_byte_byte)           \
     S(subtract_byte_byte)      \

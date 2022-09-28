@@ -60,31 +60,31 @@ namespace Obelix {
     S(AddressOf)
 
 enum class Operator {
-#undef __BINARY_OPERATOR
-#define __BINARY_OPERATOR(op, a, p) op,
-    ENUMERATE_BINARY_OPERATORS(__BINARY_OPERATOR)
-#undef __BINARY_OPERATOR
-#undef __UNARY_OPERATOR
-#define __UNARY_OPERATOR(op) op,
-        ENUMERATE_UNARY_OPERATORS(__UNARY_OPERATOR)
-#undef __UNARY_OPERATOR
+#undef ENUM_BINARY_OPERATOR
+#define ENUM_BINARY_OPERATOR(op, a, p) op,
+    ENUMERATE_BINARY_OPERATORS(ENUM_BINARY_OPERATOR)
+#undef ENUM_BINARY_OPERATOR
+#undef ENUM_UNARY_OPERATOR
+#define ENUM_UNARY_OPERATOR(op) op,
+        ENUMERATE_UNARY_OPERATORS(ENUM_UNARY_OPERATOR)
+#undef ENUM_UNARY_OPERATOR
 };
 
 constexpr char const* Operator_name(Operator op)
 {
     switch (op) {
-#undef __BINARY_OPERATOR
-#define __BINARY_OPERATOR(op, a, p) \
+#undef ENUM_BINARY_OPERATOR
+#define ENUM_BINARY_OPERATOR(op, a, p) \
     case Operator::op:              \
         return #op;
-        ENUMERATE_BINARY_OPERATORS(__BINARY_OPERATOR)
-#undef __BINARY_OPERATOR
-#undef __UNARY_OPERATOR
-#define __UNARY_OPERATOR(op) \
+        ENUMERATE_BINARY_OPERATORS(ENUM_BINARY_OPERATOR)
+#undef ENUM_BINARY_OPERATOR
+#undef ENUM_UNARY_OPERATOR
+#define ENUM_UNARY_OPERATOR(op) \
     case Operator::op:       \
         return #op;
-        ENUMERATE_UNARY_OPERATORS(__UNARY_OPERATOR)
-#undef __UNARY_OPERATOR
+        ENUMERATE_UNARY_OPERATORS(ENUM_UNARY_OPERATOR)
+#undef ENUM_UNARY_OPERATOR
     default:
         fatal("Unknowm Operator '{}'", (int) op);
     }
@@ -109,55 +109,55 @@ struct Converter<Operator> {
 };
 
 enum class BinaryOperator {
-#undef __BINARY_OPERATOR
-#define __BINARY_OPERATOR(op, a, p) op,
-    ENUMERATE_BINARY_OPERATORS(__BINARY_OPERATOR)
-#undef __BINARY_OPERATOR
+#undef ENUM_BINARY_OPERATOR
+#define ENUM_BINARY_OPERATOR(op, a, p) op,
+    ENUMERATE_BINARY_OPERATORS(ENUM_BINARY_OPERATOR)
+#undef ENUM_BINARY_OPERATOR
 };
 
 constexpr Operator to_operator(BinaryOperator op)
 {
     switch (op) {
-#undef __BINARY_OPERATOR
-#define __BINARY_OPERATOR(op, a, p) \
+#undef ENUM_BINARY_OPERATOR
+#define ENUM_BINARY_OPERATOR(op, a, p) \
     case BinaryOperator::op:        \
         return Operator::op;
-        ENUMERATE_BINARY_OPERATORS(__BINARY_OPERATOR)
-#undef __BINARY_OPERATOR
+        ENUMERATE_BINARY_OPERATORS(ENUM_BINARY_OPERATOR)
+#undef ENUM_BINARY_OPERATOR
     }
     return Operator::Invalid;
 }
 
-#undef __BINARY_OPERATOR
-#define __BINARY_OPERATOR(op, a, p) constexpr char const* Binary_##op = #op;
-ENUMERATE_BINARY_OPERATORS(__BINARY_OPERATOR)
-#undef __BINARY_OPERATOR
+#undef ENUM_BINARY_OPERATOR
+#define ENUM_BINARY_OPERATOR(op, a, p) constexpr char const* Binary_##op = #op;
+ENUMERATE_BINARY_OPERATORS(ENUM_BINARY_OPERATOR)
+#undef ENUM_BINARY_OPERATOR
 
 constexpr char const* BinaryOperator_name(BinaryOperator op)
 {
     switch (op) {
-#undef __BINARY_OPERATOR
-#define __BINARY_OPERATOR(op, a, p) \
+#undef ENUM_BINARY_OPERATOR
+#define ENUM_BINARY_OPERATOR(op, a, p) \
     case BinaryOperator::op:        \
         return #op;
-        ENUMERATE_BINARY_OPERATORS(__BINARY_OPERATOR)
-#undef __BINARY_OPERATOR
+        ENUMERATE_BINARY_OPERATORS(ENUM_BINARY_OPERATOR)
+#undef ENUM_BINARY_OPERATOR
     default:
-        fatal("Unknowm BinaryOperator '{}'", (int) op);
+        fatal("Unknown BinaryOperator '{}'", (int) op);
     }
 }
 
 constexpr bool BinaryOperator_is_assignment(BinaryOperator op)
 {
     switch (op) {
-#undef __BINARY_OPERATOR
-#define __BINARY_OPERATOR(op, assignment_op, p) \
+#undef ENUM_BINARY_OPERATOR
+#define ENUM_BINARY_OPERATOR(op, assignment_op, p) \
     case BinaryOperator::op:                    \
         return assignment_op;
-        ENUMERATE_BINARY_OPERATORS(__BINARY_OPERATOR)
-#undef __BINARY_OPERATOR
+        ENUMERATE_BINARY_OPERATORS(ENUM_BINARY_OPERATOR)
+#undef ENUM_BINARY_OPERATOR
     default:
-        fatal("Unknowm BinaryOperator '{}'", (int) op);
+        fatal("Unknown BinaryOperator '{}'", (int) op);
     }
 }
 
@@ -186,14 +186,14 @@ constexpr BinaryOperator BinaryOperator_for_assignment_operator(BinaryOperator o
 constexpr int BinaryOperator_precedence(BinaryOperator op)
 {
     switch (op) {
-#undef __BINARY_OPERATOR
-#define __BINARY_OPERATOR(op, a, precedence) \
+#undef ENUM_BINARY_OPERATOR
+#define ENUM_BINARY_OPERATOR(op, a, precedence) \
     case BinaryOperator::op:                 \
         return precedence;
-        ENUMERATE_BINARY_OPERATORS(__BINARY_OPERATOR)
-#undef __BINARY_OPERATOR
+        ENUMERATE_BINARY_OPERATORS(ENUM_BINARY_OPERATOR)
+#undef ENUM_BINARY_OPERATOR
     default:
-        fatal("Unknowm BinaryOperator '{}'", (int) op);
+        fatal("Unknown BinaryOperator '{}'", (int) op);
     }
 }
 
@@ -216,26 +216,26 @@ struct Converter<BinaryOperator> {
 };
 
 enum class UnaryOperator {
-#undef __UNARY_OPERATOR
-#define __UNARY_OPERATOR(op) op,
-    ENUMERATE_UNARY_OPERATORS(__UNARY_OPERATOR)
-#undef __UNARY_OPERATOR
+#undef ENUM_UNARY_OPERATOR
+#define ENUM_UNARY_OPERATOR(op) op,
+    ENUMERATE_UNARY_OPERATORS(ENUM_UNARY_OPERATOR)
+#undef ENUM_UNARY_OPERATOR
 };
 
-#undef __UNARY_OPERATOR
-#define __UNARY_OPERATOR(op) constexpr char const* Unary_##op = #op;
-ENUMERATE_UNARY_OPERATORS(__UNARY_OPERATOR)
-#undef __UNARY_OPERATOR
+#undef ENUM_UNARY_OPERATOR
+#define ENUM_UNARY_OPERATOR(op) constexpr char const* Unary_##op = #op;
+ENUMERATE_UNARY_OPERATORS(ENUM_UNARY_OPERATOR)
+#undef ENUM_UNARY_OPERATOR
 
 constexpr Operator to_operator(UnaryOperator op)
 {
     switch (op) {
-#undef __UNARY_OPERATOR
-#define __UNARY_OPERATOR(op) \
+#undef ENUM_UNARY_OPERATOR
+#define ENUM_UNARY_OPERATOR(op) \
     case UnaryOperator::op:  \
         return Operator::op;
-        ENUMERATE_UNARY_OPERATORS(__UNARY_OPERATOR)
-#undef __UNARY_OPERATOR
+        ENUMERATE_UNARY_OPERATORS(ENUM_UNARY_OPERATOR)
+#undef ENUM_UNARY_OPERATOR
     }
     return Operator::Invalid;
 }
@@ -243,14 +243,14 @@ constexpr Operator to_operator(UnaryOperator op)
 constexpr char const* UnaryOperator_name(UnaryOperator op)
 {
     switch (op) {
-#undef __UNARY_OPERATOR
-#define __UNARY_OPERATOR(op) \
+#undef ENUM_UNARY_OPERATOR
+#define ENUM_UNARY_OPERATOR(op) \
     case UnaryOperator::op:  \
         return #op;
-        ENUMERATE_UNARY_OPERATORS(__UNARY_OPERATOR)
-#undef __UNARY_OPERATOR
+        ENUMERATE_UNARY_OPERATORS(ENUM_UNARY_OPERATOR)
+#undef ENUM_UNARY_OPERATOR
     default:
-        fatal("Unknowm UnaryOperator '{}'", (int) op);
+        fatal("Unknown UnaryOperator '{}'", (int) op);
     }
 }
 

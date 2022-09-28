@@ -271,6 +271,7 @@ public:
     ErrorOr<void, SyntaxError> load_variable(std::shared_ptr<ObjectType> const&, size_t, int);
     ErrorOr<void, SyntaxError> store_variable(std::shared_ptr<ObjectType> const&, size_t, int);
     ErrorOr<void, SyntaxError> define_static_storage(std::string const&, std::shared_ptr<ObjectType> const&, bool global, std::shared_ptr<BoundExpression> const& = nullptr);
+    ErrorOr<void, SyntaxError> load_immediate(std::shared_ptr<ObjectType> const&, uint64_t, int);
 
     ErrorOr<void, SyntaxError> enter_function(std::shared_ptr<MaterializedFunctionDef> const& func);
     void function_return() const;

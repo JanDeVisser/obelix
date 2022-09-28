@@ -65,7 +65,7 @@ public:
         }
         if (increment % 16)
             increment += 16 - (increment % 16);
-        m_offset += increment;;
+        m_offset += increment;
     };
 
     [[nodiscard]] ContextLevel level() const { return m_level; }
@@ -168,7 +168,7 @@ private:
     std::multimap<std::string, std::shared_ptr<MaterializedFunctionDecl>> m_materialized_functions;
 };
 
-INIT_NODE_PROCESSOR(MaterializeContext);
+INIT_NODE_PROCESSOR(MaterializeContext)
 
 struct ParameterMaterializations {
     MaterializedFunctionParameters function_parameters;
@@ -361,8 +361,8 @@ NODE_PROCESSOR(BoundFunctionCall)
     }
 }
 
-ALIAS_NODE_PROCESSOR(BoundNativeFunctionCall, BoundFunctionCall);
-ALIAS_NODE_PROCESSOR(BoundIntrinsicCall, BoundFunctionCall);
+ALIAS_NODE_PROCESSOR(BoundNativeFunctionCall, BoundFunctionCall)
+ALIAS_NODE_PROCESSOR(BoundIntrinsicCall, BoundFunctionCall)
 
 std::shared_ptr<MaterializedIdentifier> make_materialized_identifier(std::shared_ptr<BoundIdentifier> const& identifier, std::shared_ptr<VariableAddress> const& address)
 {
@@ -418,7 +418,7 @@ NODE_PROCESSOR(BoundArrayAccess)
     auto array_access = std::dynamic_pointer_cast<BoundArrayAccess>(tree);
     auto array = TRY_AND_CAST(MaterializedVariableAccess, process(array_access->array(), ctx));
     auto subscript = TRY_AND_CAST(BoundExpression, process(array_access->subscript(), ctx));
-    auto type = array->type()->template_arguments()[0].as_type();
+    auto type = array->type()->template_argument<std::shared_ptr<ObjectType>>("base_type");
     auto element_size = type->size();
     return make_node<MaterializedArrayAccess>(array_access, array, subscript, element_size);
 }

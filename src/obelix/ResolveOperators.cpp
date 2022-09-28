@@ -4,10 +4,8 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
-#include "obelix/Operator.h"
 #include <obelix/Syntax.h>
 #include <obelix/BoundSyntaxNode.h>
-#include <obelix/Parser.h>
 #include <obelix/Processor.h>
 
 namespace Obelix {
@@ -62,7 +60,7 @@ NODE_PROCESSOR(BoundBinaryExpression)
 
     if (lhs->type()->type() == PrimitiveType::Pointer && (expr->op() == BinaryOperator::Add || expr->op() == BinaryOperator::Subtract)) {
         std::shared_ptr<BoundExpression> offset { nullptr };
-        auto target_type = (lhs->type()->is_template_specialization()) ? lhs->type()->template_arguments()[0].as_type() : get_type<uint8_t>();
+        auto target_type = (lhs->type()->is_template_specialization()) ? lhs->type()->template_argument<std::shared_ptr<ObjectType>>("target") : get_type<uint8_t>();
 
         if (rhs->node_type() == SyntaxNodeType::BoundIntLiteral) {
             auto offset_literal = std::dynamic_pointer_cast<BoundIntLiteral>(rhs);

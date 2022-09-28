@@ -771,14 +771,15 @@ std::shared_ptr<Expression> Parser::parse_postfix_unary_operator(std::shared_ptr
 
 std::shared_ptr<Expression> Parser::parse_primary_expression()
 {
+    std::shared_ptr<Expression> expr { nullptr };
     auto t = lex();
     switch (t.code()) {
     case TokenCode::OpenParen: {
-        auto ret = parse_expression();
+        expr = parse_expression();
         if (!expect(TokenCode::CloseParen)) {
             return nullptr;
         }
-        return ret;
+        break;
     }
     case TokenCode::Asterisk:
     case TokenCode::AtSign:
@@ -791,7 +792,11 @@ std::shared_ptr<Expression> Parser::parse_primary_expression()
         auto operand = parse_primary_expression();
         if (!operand)
             return nullptr;
-        return make_node<UnaryExpression>(t, operand);
+        auto literal = std::dynamic_pointer_cast<Literal>(operand);
+        if (literal != nullptr)
+            return literal->apply(t);
+        expr = make_node<UnaryExpression>(t, operand);
+        break;
     }
     case TokenCode::Integer:
     case TokenCode::HexNumber: {
@@ -818,30 +823,45 @@ std::shared_ptr<Expression> Parser::parse_primary_expression()
                 lex();
             }
         }
-        return make_node<IntLiteral>(t, ObjectType::get(type_mnemonic));
+        expr = make_node<IntLiteral>(t, ObjectType::get(type_mnemonic));
+        break;
     }
     case TokenCode::Float:
-        return make_node<FloatLiteral>(t);
+        expr = make_node<FloatLiteral>(t);
+        break;
     case TokenCode::DoubleQuotedString:
-        return make_node<StringLiteral>(t);
+        expr = std::make_shared<StringLiteral>(t);
+        break;
     case TokenCode::SingleQuotedString:
         if (t.value().length() != 1) {
             add_error(t, format("Syntax Error: Single-quoted string should only hold a single character, not '{}'", t.value()));
             return nullptr;
         }
-        return make_node<CharLiteral>(t);
+        expr = make_node<CharLiteral>(t);
+        break;
     case KeywordTrue:
     case KeywordFalse:
-        return make_node<BooleanLiteral>(t);
+        expr = make_node<BooleanLiteral>(t);
+        break;
     case TokenCode::Identifier: {
         if (current_code() != TokenCode::OpenParen)
-            return make_node<Variable>(t, t.value());
-        return parse_function_call(make_node<Identifier>(t, t.value()));
+            expr = make_node<Variable>(t, t.value());
+        else
+            expr = parse_function_call(make_node<Identifier>(t, t.value()));
+        break;
     }
     default:
         add_error(t, format("Syntax Error: Expected literal or variable, got '{}' ({})", t.value(), t.code_name()));
         return nullptr;
     }
+    if (current_code() != TokenCode::Identifier || peek().value() != "as")
+        return expr;
+    lex();
+    auto type = parse_type();
+    if (type == nullptr) {
+        return nullptr;
+    }
+    return make_node<CastExpression>(t, expr, type);
 }
 
 std::shared_ptr<ExpressionType> Parser::parse_type()

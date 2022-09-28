@@ -15,7 +15,9 @@ static TypeMnemonicMap mnemonic_map[] = {
     { PrimitiveType::Pointer, false, 8, "ldr", "str", "x" },
     { PrimitiveType::SignedIntegerNumber, true, 4, "ldr", "str", "w" },
     { PrimitiveType::IntegerNumber, false, 4, "ldr", "str", "w" },
-    { PrimitiveType::SignedIntegerNumber, true, 1, "ldrsb", "strsb", "w" },
+    { PrimitiveType::SignedIntegerNumber, true, 2, "ldrsh", "strh", "w" },
+    { PrimitiveType::IntegerNumber, false, 2, "ldrh", "strh", "w" },
+    { PrimitiveType::SignedIntegerNumber, true, 1, "ldrsb", "strb", "w" },
     { PrimitiveType::IntegerNumber, false, 1, "ldrb", "strb", "w" },
 };
 

@@ -33,7 +33,7 @@ InterpImplementation const& get_interp_intrinsic(IntrinsicType type)
     ErrorOrNode interp_intrinsic_##intrinsic(InterpContext& ctx, BoundLiterals params)
 
 #define INTRINSIC_ALIAS(intrinsic, alias) \
-    auto s_##intrinsic##_decl = register_interp_intrinsic(intrinsic, interp_intrinsic_##alias); \
+    auto s_##intrinsic##_decl = register_interp_intrinsic(IntrinsicType::intrinsic, interp_intrinsic_##alias); \
 
 INTRINSIC(int_to_string)
 {
@@ -106,13 +106,17 @@ INTRINSIC(less_int_int)
     return params[0];
 }
 
-INTRINSIC(negate_int)
+INTRINSIC(negate_s64)
 {
     auto int_literal = std::dynamic_pointer_cast<BoundIntLiteral>(params[0]);
     if (int_literal != nullptr)
-        return std::make_shared<BoundIntLiteral>(int_literal->token(), 0 - int_literal->int_value());
+        return std::make_shared<BoundIntLiteral>(int_literal->token(), 0 - int_literal->int_value(), int_literal->type());
     return params[0];
 }
+
+INTRINSIC_ALIAS(negate_s32, negate_s64)
+INTRINSIC_ALIAS(negate_s16, negate_s64)
+INTRINSIC_ALIAS(negate_s8, negate_s64)
 
 INTRINSIC(invert_int)
 {

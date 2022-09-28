@@ -8,8 +8,6 @@
 #include <filesystem>
 #include <memory>
 
-#include <config.h>
-
 #include <core/Error.h>
 #include <core/Logging.h>
 #include <core/Process.h>
@@ -26,7 +24,7 @@ namespace Obelix {
 
 logging_category(arm64);
 
-INIT_NODE_PROCESSOR(ARM64Context);
+INIT_NODE_PROCESSOR(ARM64Context)
 
 NODE_PROCESSOR(Compilation)
 {
@@ -179,27 +177,59 @@ NODE_PROCESSOR(MaterializedIntrinsicCall)
     return tree;
 }
 
+NODE_PROCESSOR(BoundCastExpression)
+{
+    auto cast = std::dynamic_pointer_cast<BoundCastExpression>(tree);
+    auto expr = TRY_AND_CAST(BoundExpression, process(cast->expression(), ctx));
+    assert(expr->type()->can_cast_to(cast->type()) != ObjectType::CanCast::Never);
+
+    auto from_pt = expr->type()->type();
+    auto to_pt = cast->type()->type();
+    switch (to_pt) {
+    case PrimitiveType::IntegerNumber:
+    case PrimitiveType::SignedIntegerNumber:
+    case PrimitiveType::Boolean: {
+        switch (from_pt) {
+        case PrimitiveType::IntegerNumber:
+        case PrimitiveType::SignedIntegerNumber:
+        case PrimitiveType::Pointer:
+        case PrimitiveType::Boolean: {
+            if (expr->type()->can_cast_to(cast->type()) == ObjectType::CanCast::Sometimes) {
+                // Dynamically check that value can be casted
+            }
+            if (cast->type()->size() < 8) {
+                std::string mask = "#0x";
+                for (auto i = 0; i < cast->type()->size(); ++i)
+                    mask += "ff";
+                ctx.assembly()->add_instruction("and", "x0,x0,{}", mask);
+            }
+            return tree;
+        }
+        default:
+            break;
+        }
+    }
+    case PrimitiveType::Pointer:
+        if (from_pt == PrimitiveType::Pointer || ((from_pt == PrimitiveType::IntegerNumber) && (expr->type()->size() == cast->type()->size())))
+            return tree;
+        break;
+    default:
+        break;
+    }
+    fatal("Can't cast from {} to {} (yet)", expr->type(), cast->type());
+}
+
 NODE_PROCESSOR(BoundIntLiteral)
 {
     auto literal = std::dynamic_pointer_cast<BoundIntLiteral>(tree);
-    auto mm = get_type_mnemonic_map(literal->type());
-    if (mm == nullptr)
-        return SyntaxError { ErrorCode::NotYetImplemented, literal->token(),
-            format("Cannot push values of variables of type {} yet", literal->type()) };
-
-    ctx.assembly()->add_instruction("mov", "{}0,#{}", mm->reg_width, literal->value());
+    TRY_RETURN(ctx.load_immediate(literal->type(), literal->int_value(), 0));
     return tree;
 }
 
 NODE_PROCESSOR(BoundEnumValue)
 {
     auto enum_value = std::dynamic_pointer_cast<BoundEnumValue>(tree);
-    auto mm = get_type_mnemonic_map(enum_value->type());
-    if (mm == nullptr)
-        return SyntaxError { ErrorCode::NotYetImplemented, enum_value->token(),
-            format("Cannot push values of variables of type {} yet", enum_value->type()) };
-
-    ctx.assembly()->add_instruction("mov", "{}0,#{}", mm->reg_width, enum_value->value());
+    TRY_RETURN(ctx.load_immediate(enum_value->type(), enum_value->value(), 0));
     return tree;
 }
 
@@ -207,7 +237,7 @@ NODE_PROCESSOR(BoundStringLiteral)
 {
     auto literal = std::dynamic_pointer_cast<BoundStringLiteral>(tree);
     auto str_id = ctx.assembly()->add_string(literal->value());
-    ctx.assembly()->add_instruction("mov", "w0,#{}", literal->value().length());
+    TRY_RETURN(ctx.load_immediate(literal->type()->field("size").type, literal->value().length(), 0));
     ctx.assembly()->add_instruction("adr", "x1,str_{}", str_id);
     return tree;
 }
@@ -239,7 +269,7 @@ NODE_PROCESSOR(MaterializedArrayAccess)
 {
     auto array_access = std::dynamic_pointer_cast<MaterializedArrayAccess>(tree);
     push(ctx, "x0");
-    TRY_RETURN(process(array_access->index(), ctx));;
+    TRY_RETURN(process(array_access->index(), ctx));
     TRY_RETURN(array_access->address()->load_variable(array_access->type(), ctx, 0));
     return tree;
 }
@@ -255,7 +285,7 @@ NODE_PROCESSOR(BoundAssignment)
     auto array_access = std::dynamic_pointer_cast<MaterializedArrayAccess>(assignee);
     if (array_access) {
         push(ctx, "x0");
-        TRY_RETURN(process(array_access->index(), ctx));;
+        TRY_RETURN(process(array_access->index(), ctx));
     }
     TRY_RETURN(assignee->address()->store_variable(assignment->type(), ctx, 0));
     return tree;

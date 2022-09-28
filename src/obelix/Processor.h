@@ -12,6 +12,7 @@
 
 #include <core/Error.h>
 #include <obelix/BoundSyntaxNode.h>
+#include <obelix/Config.h>
 #include <obelix/Context.h>
 #include <obelix/arm64/MaterializedSyntaxNode.h>
 #include <obelix/Syntax.h>
@@ -230,6 +231,20 @@ ErrorOrNode process_tree(std::shared_ptr<SyntaxNode> const& tree, Context& ctx, 
         auto expr = std::dynamic_pointer_cast<BoundUnaryExpression>(tree);
         auto operand = TRY_AND_CAST(BoundExpression, processor(expr->operand(), ctx));
         ret = std::make_shared<BoundUnaryExpression>(expr->token(), operand, expr->op(), expr->type());
+        break;
+    }
+
+    case SyntaxNodeType::CastExpression: {
+        auto cast_expr = std::dynamic_pointer_cast<CastExpression>(tree);
+        auto expr = TRY_AND_CAST(Expression, processor(cast_expr->expression(), ctx));
+        ret = std::make_shared<CastExpression>(cast_expr->token(), expr, cast_expr->type());
+        break;
+    }
+
+    case SyntaxNodeType::BoundCastExpression: {
+        auto cast_expr = std::dynamic_pointer_cast<BoundCastExpression>(tree);
+        auto expr = TRY_AND_CAST(BoundExpression, processor(cast_expr->expression(), ctx));
+        ret = std::make_shared<BoundCastExpression>(cast_expr->token(), expr, cast_expr->type());
         break;
     }
 
@@ -517,7 +532,7 @@ ErrorOr<Expressions, SyntaxError> xform_expressions(Expressions const& expressio
         ret.push_back(std::dynamic_pointer_cast<Expression>(new_expr));
     }
     return ret;
-};
+}
 
 template<typename Context, typename Processor>
 ErrorOr<BoundExpressions, SyntaxError> xform_bound_expressions(BoundExpressions const& expressions, Context& ctx, Processor processor)
@@ -530,7 +545,7 @@ ErrorOr<BoundExpressions, SyntaxError> xform_bound_expressions(BoundExpressions 
         ret.push_back(std::dynamic_pointer_cast<BoundExpression>(new_expr.value()));
     }
     return ret;
-};
+}
 
 template<typename Ctx>
 ErrorOrNode process(std::shared_ptr<SyntaxNode> const& tree, Ctx& ctx)
@@ -596,7 +611,7 @@ ErrorOrNode process_node(std::shared_ptr<SyntaxNode> const& tree, Ctx& ctx)
     }
 
 ErrorOrNode fold_constants(std::shared_ptr<SyntaxNode> const&);
-ErrorOrNode bind_types(std::shared_ptr<SyntaxNode> const&);
+ErrorOrNode bind_types(std::shared_ptr<SyntaxNode> const&, Config const&);
 ErrorOrNode lower(std::shared_ptr<SyntaxNode> const&);
 ErrorOrNode resolve_operators(std::shared_ptr<SyntaxNode> const&);
 
