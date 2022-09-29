@@ -76,6 +76,7 @@ void Parser::initialize()
         Token(KeywordStatic, "static"),
         Token(KeywordEnum, "enum"),
         Token(KeywordGlobal, "global"),
+        Token(KeywordExtend, "extend"),
         TokenCode::BinaryIncrement,
         TokenCode::BinaryDecrement,
         TokenCode::UnaryIncrement,
@@ -111,7 +112,7 @@ std::shared_ptr<Compilation> Parser::parse()
             if (imported_module)
                 modules.push_back(imported_module);
         }
-        return make_node<Compilation>(root, modules);
+        return std::make_shared<Compilation>(root, modules);
     }
     return nullptr;
 }
@@ -129,7 +130,7 @@ std::shared_ptr<Module> Parser::parse_module()
     parse_statements(statements, true);
     if (has_errors())
         return nullptr;
-    return make_node<Module>(statements, file_name());
+    return std::make_shared<Module>(statements, file_name());
 }
 
 std::shared_ptr<Statement> Parser::parse_top_level_statement()
@@ -139,7 +140,7 @@ std::shared_ptr<Statement> Parser::parse_top_level_statement()
     std::shared_ptr<Statement> ret = nullptr;
     switch (token.code()) {
     case TokenCode::SemiColon:
-        return make_node<Pass>(lex());
+        return std::make_shared<Pass>(lex());
     case TokenCode::OpenBrace: {
         lex();
         Statements statements;
@@ -167,7 +168,7 @@ std::shared_ptr<Statement> Parser::parse_top_level_statement()
         auto expr = parse_expression();
         if (!expr)
             return nullptr;
-        return make_node<ExpressionStatement>(expr);
+        return std::make_shared<ExpressionStatement>(expr);
     };
     }
 }
@@ -179,7 +180,7 @@ std::shared_ptr<Statement> Parser::parse_statement()
     std::shared_ptr<Statement> ret = nullptr;
     switch (token.code()) {
     case TokenCode::SemiColon:
-        return make_node<Pass>(lex());
+        return std::make_shared<Pass>(lex());
     case TokenCode::OpenBrace: {
         lex();
         Statements statements;
@@ -206,12 +207,12 @@ std::shared_ptr<Statement> Parser::parse_statement()
         auto expr = parse_expression();
         if (!expr)
             return nullptr;
-        return make_node<Return>(token, expr);
+        return std::make_shared<Return>(token, expr);
     };
     case KeywordBreak:
-        return make_node<Break>(lex());
+        return std::make_shared<Break>(lex());
     case KeywordContinue:
-        return make_node<Continue>(lex());
+        return std::make_shared<Continue>(lex());
     case TokenCode::CloseBrace:
     case TokenCode::EndOfFile:
         return nullptr;
@@ -219,7 +220,7 @@ std::shared_ptr<Statement> Parser::parse_statement()
         auto expr = parse_expression();
         if (!expr)
             return nullptr;
-        return make_node<ExpressionStatement>(expr);
+        return std::make_shared<ExpressionStatement>(expr);
     }
     }
 }
@@ -241,7 +242,7 @@ std::shared_ptr<Block> Parser::parse_block(Statements& block)
     if (!expect(TokenCode::CloseBrace)) {
         return nullptr;
     }
-    return make_node<Block>(token, block);
+    return std::make_shared<Block>(token, block);
 }
 
 std::shared_ptr<FunctionCall> Parser::parse_function_call(std::shared_ptr<Expression> const& function)
@@ -272,7 +273,7 @@ std::shared_ptr<FunctionCall> Parser::parse_function_call(std::shared_ptr<Expres
     }
     lex();
     auto ident = std::dynamic_pointer_cast<Identifier>(function);
-    return make_node<FunctionCall>(ident->token(), ident->name(), args);
+    return std::make_shared<FunctionCall>(ident->token(), ident->name(), args);
 }
 
 std::shared_ptr<Statement> Parser::parse_function_definition(Token const& func_token)
@@ -332,18 +333,18 @@ std::shared_ptr<Statement> Parser::parse_function_definition(Token const& func_t
     if (current_code() == KeywordLink) {
         lex();
         if (auto link_target_maybe = match(TokenCode::DoubleQuotedString, "after '->'"); link_target_maybe.has_value()) {
-            return make_node<NativeFunctionDecl>(name, func_ident, params, link_target_maybe.value().value());
+            return std::make_shared<NativeFunctionDecl>(name, func_ident, params, link_target_maybe.value().value());
         }
         return nullptr;
     }
     if (func_token.code() == KeywordIntrinsic) {
-        return make_node<IntrinsicDecl>(name, func_ident, params);
+        return std::make_shared<IntrinsicDecl>(name, func_ident, params);
     }
     func_decl = std::make_shared<FunctionDecl>(name, func_ident, params);
     auto stmt = parse_statement();
     if (stmt == nullptr)
         return nullptr;
-    return make_node<FunctionDef>(func_token, func_decl, stmt);
+    return std::make_shared<FunctionDef>(func_token, func_decl, stmt);
 }
 
 std::shared_ptr<IfStatement> Parser::parse_if_statement(Token const& if_token)
@@ -372,10 +373,10 @@ std::shared_ptr<IfStatement> Parser::parse_if_statement(Token const& if_token)
             auto else_stmt = parse_statement();
             if (!else_stmt)
                 return nullptr;
-            return make_node<IfStatement>(if_token, condition, if_stmt, branches, std::make_shared<Branch>(else_token, nullptr, else_stmt));
+            return std::make_shared<IfStatement>(if_token, condition, if_stmt, branches, std::make_shared<Branch>(else_token, nullptr, else_stmt));
         }
         default:
-            return make_node<IfStatement>(if_token, condition, if_stmt, branches, nullptr);
+            return std::make_shared<IfStatement>(if_token, condition, if_stmt, branches, nullptr);
         }
     }
 }
@@ -412,11 +413,11 @@ std::shared_ptr<SwitchStatement> Parser::parse_switch_statement(Token const& swi
             auto stmt = parse_statement();
             if (!stmt)
                 return nullptr;
-            return make_node<SwitchStatement>(switch_token, switch_expr, cases, std::make_shared<DefaultCase>(default_token, stmt));
+            return std::make_shared<SwitchStatement>(switch_token, switch_expr, cases, std::make_shared<DefaultCase>(default_token, stmt));
         }
         case TokenCode::CloseBrace:
             lex();
-            return make_node<SwitchStatement>(switch_token, switch_expr, cases, nullptr);
+            return std::make_shared<SwitchStatement>(switch_token, switch_expr, cases, nullptr);
         default:
             add_error(peek(), "Syntax Error: Unexpected token '{}' in switch statement");
             return nullptr;
@@ -436,7 +437,7 @@ std::shared_ptr<WhileStatement> Parser::parse_while_statement(Token const& while
     auto stmt = parse_statement();
     if (!stmt)
         return nullptr;
-    return make_node<WhileStatement>(while_token, condition, stmt);
+    return std::make_shared<WhileStatement>(while_token, condition, stmt);
 }
 
 std::shared_ptr<ForStatement> Parser::parse_for_statement(Token const& for_token)
@@ -462,8 +463,8 @@ std::shared_ptr<ForStatement> Parser::parse_for_statement(Token const& for_token
     auto stmt = parse_statement();
     if (!stmt)
         return nullptr;
-    auto variable_node = make_node<Variable>(variable.value(), variable.value().value(), type);
-    return make_node<ForStatement>(for_token, variable_node, expr, stmt);
+    auto variable_node = std::make_shared<Variable>(variable.value(), variable.value().value(), type);
+    return std::make_shared<ForStatement>(for_token, variable_node, expr, stmt);
 }
 
 std::shared_ptr<Statement> Parser::parse_struct(Token const& struct_token)
@@ -473,7 +474,7 @@ std::shared_ptr<Statement> Parser::parse_struct(Token const& struct_token)
         return nullptr;
     auto name = identifier_maybe->value();
     if (current_code() != TokenCode::OpenBrace)
-        return make_node<StructForward>(lex(), name);
+        return std::make_shared<StructForward>(lex(), name);
     lex();
 
     Identifiers fields;
@@ -487,10 +488,10 @@ std::shared_ptr<Statement> Parser::parse_struct(Token const& struct_token)
             add_error(peek(), format("Syntax Error: Expected type after ':', got '{}' ({})", peek().value(), peek().code_name()));
             return nullptr;
         }
-        fields.push_back(make_node<Identifier>(field_name_maybe.value(), field_name_maybe.value().value(), field_type));
+        fields.push_back(std::make_shared<Identifier>(field_name_maybe.value(), field_name_maybe.value().value(), field_type));
     } while (current_code() != TokenCode::CloseBrace);
     lex();
-    return make_node<StructDefinition>(struct_token, name, fields);
+    return std::make_shared<StructDefinition>(struct_token, name, fields);
 }
 
 std::shared_ptr<VariableDeclaration> Parser::parse_static_variable_declaration()
@@ -551,13 +552,13 @@ std::shared_ptr<VariableDeclaration> Parser::parse_variable_declaration(Token co
     }
     switch (variable_kind) {
     case VariableKind::Local:
-        return make_node<VariableDeclaration>(var_token, var_ident, expr, constant);
+        return std::make_shared<VariableDeclaration>(var_token, var_ident, expr, constant);
     case VariableKind::Static:
-        return make_node<StaticVariableDeclaration>(var_token, var_ident, expr, constant);
+        return std::make_shared<StaticVariableDeclaration>(var_token, var_ident, expr, constant);
     case VariableKind::ModuleLocal:
-        return make_node<LocalVariableDeclaration>(var_token, var_ident, expr, constant);
+        return std::make_shared<LocalVariableDeclaration>(var_token, var_ident, expr, constant);
     case VariableKind::Global:
-        return make_node<GlobalVariableDeclaration>(var_token, var_ident, expr, constant);
+        return std::make_shared<GlobalVariableDeclaration>(var_token, var_ident, expr, constant);
     }
 }
 
@@ -575,7 +576,7 @@ std::shared_ptr<Import> Parser::parse_import_statement(Token const& import_token
         module_name += '/';
     }
     m_modules.insert(module_name);
-    return make_node<Import>(import_token, module_name);
+    return std::make_shared<Import>(import_token, module_name);
 }
 
 /*
@@ -755,7 +756,7 @@ std::shared_ptr<Expression> Parser::parse_expression_1(std::shared_ptr<Expressio
         } else {
             rhs = parse_expression();
         }
-        lhs = make_node<BinaryExpression>(lhs, op, rhs);
+        lhs = std::make_shared<BinaryExpression>(lhs, op, rhs);
     }
     if (is_postfix_unary_operator(current_code())) {
         lhs = parse_postfix_unary_operator(lhs);
@@ -795,7 +796,7 @@ std::shared_ptr<Expression> Parser::parse_primary_expression()
         auto literal = std::dynamic_pointer_cast<Literal>(operand);
         if (literal != nullptr)
             return literal->apply(t);
-        expr = make_node<UnaryExpression>(t, operand);
+        expr = std::make_shared<UnaryExpression>(t, operand);
         break;
     }
     case TokenCode::Integer:
@@ -823,11 +824,11 @@ std::shared_ptr<Expression> Parser::parse_primary_expression()
                 lex();
             }
         }
-        expr = make_node<IntLiteral>(t, ObjectType::get(type_mnemonic));
+        expr = std::make_shared<IntLiteral>(t, ObjectType::get(type_mnemonic));
         break;
     }
     case TokenCode::Float:
-        expr = make_node<FloatLiteral>(t);
+        expr = std::make_shared<FloatLiteral>(t);
         break;
     case TokenCode::DoubleQuotedString:
         expr = std::make_shared<StringLiteral>(t);
@@ -837,17 +838,17 @@ std::shared_ptr<Expression> Parser::parse_primary_expression()
             add_error(t, format("Syntax Error: Single-quoted string should only hold a single character, not '{}'", t.value()));
             return nullptr;
         }
-        expr = make_node<CharLiteral>(t);
+        expr = std::make_shared<CharLiteral>(t);
         break;
     case KeywordTrue:
     case KeywordFalse:
-        expr = make_node<BooleanLiteral>(t);
+        expr = std::make_shared<BooleanLiteral>(t);
         break;
     case TokenCode::Identifier: {
         if (current_code() != TokenCode::OpenParen)
-            expr = make_node<Variable>(t, t.value());
+            expr = std::make_shared<Variable>(t, t.value());
         else
-            expr = parse_function_call(make_node<Identifier>(t, t.value()));
+            expr = parse_function_call(std::make_shared<Identifier>(t, t.value()));
         break;
     }
     default:
@@ -861,7 +862,7 @@ std::shared_ptr<Expression> Parser::parse_primary_expression()
     if (type == nullptr) {
         return nullptr;
     }
-    return make_node<CastExpression>(t, expr, type);
+    return std::make_shared<CastExpression>(t, expr, type);
 }
 
 std::shared_ptr<ExpressionType> Parser::parse_type()
@@ -877,13 +878,13 @@ std::shared_ptr<ExpressionType> Parser::parse_type()
             switch (current_code()) {
             case TokenCode::DoubleQuotedString: {
                 auto token = lex();
-                arguments.push_back(make_node<StringTemplateArgument>(token, token.value()));
+                arguments.push_back(std::make_shared<StringTemplateArgument>(token, token.value()));
                 break;
             }
             case TokenCode::Integer:
             case TokenCode::HexNumber: {
                 auto token = lex();
-                arguments.push_back(make_node<IntegerTemplateArgument>(token, token_value<long>(token).value()));
+                arguments.push_back(std::make_shared<IntegerTemplateArgument>(token, token_value<long>(token).value()));
                 break;
             }
             case TokenCode::Identifier: {
@@ -900,21 +901,26 @@ std::shared_ptr<ExpressionType> Parser::parse_type()
             }
             if (current_code() == TokenCode::GreaterThan) {
                 lex();
-                return make_node<ExpressionType>(lt_token, type_name, arguments);
+                return std::make_shared<ExpressionType>(lt_token, type_name, arguments);
             }
             if (current_code() == TokenCode::ShiftRight) {
                 replace(Token { TokenCode::GreaterThan, ">" });
-                return make_node<ExpressionType>(lt_token, type_name, arguments);
+                return std::make_shared<ExpressionType>(lt_token, type_name, arguments);
             }
             if (!expect(TokenCode::Comma))
                 return nullptr;
         }
     }
-    return make_node<ExpressionType>(type_token, type_name);
+    return std::make_shared<ExpressionType>(type_token, type_name);
 }
 
 std::shared_ptr<EnumDef> Parser::parse_enum_definition(Token const& enum_token)
 {
+    auto extend { false };
+    if (current_code() == KeywordExtend) {
+        lex();
+        extend = true;
+    }
     auto name_maybe = match(TokenCode::Identifier);
     if (!name_maybe.has_value()) {
         add_error(peek(), "Syntax Error: expecting enumeration name after the 'enum' keyword, got '{}'");
@@ -941,10 +947,10 @@ std::shared_ptr<EnumDef> Parser::parse_enum_definition(Token const& enum_token)
             }
         }
         skip(TokenCode::Comma);
-        values.push_back(make_node<EnumValue>(value_label, value_label.value(), value_value));
+        values.push_back(std::make_shared<EnumValue>(value_label, value_label.value(), value_value));
     }
     lex(); // Eat the closing brace
-    return make_node<EnumDef>(enum_token, name.value(), values);
+    return std::make_shared<EnumDef>(enum_token, name.value(), values, extend);
 }
 
 }

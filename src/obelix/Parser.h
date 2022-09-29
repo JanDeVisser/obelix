@@ -58,6 +58,7 @@ public:
     constexpr static TokenCode KeywordStatic = TokenCode::Keyword25;
     constexpr static TokenCode KeywordEnum = TokenCode::Keyword26;
     constexpr static TokenCode KeywordGlobal = TokenCode::Keyword27;
+    constexpr static TokenCode KeywordExtend = TokenCode::Keyword28;
 
     Parser(Config const& parser_config, StringBuffer& src);
     Parser(Config const& parser_config, std::string const& file_name);

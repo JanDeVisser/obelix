@@ -81,6 +81,7 @@ BoundEnumDef::BoundEnumDef(std::shared_ptr<EnumDef> const& enum_def, std::shared
     , m_name(enum_def->name())
     , m_type(std::move(type))
     , m_values(std::move(values))
+    , m_extend(enum_def->extend())
 {
 }
 
@@ -97,6 +98,11 @@ std::shared_ptr<ObjectType> BoundEnumDef::type() const
 BoundEnumValueDefs const& BoundEnumDef::values() const
 {
     return m_values;
+}
+
+bool BoundEnumDef::extend() const
+{
+    return m_extend;
 }
 
 std::string BoundEnumDef::attributes() const

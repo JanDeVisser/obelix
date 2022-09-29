@@ -55,9 +55,10 @@ using EnumValues = std::vector<std::shared_ptr<EnumValue>>;
 
 NODE_CLASS(EnumDef, Statement)
 public:
-    EnumDef(Token, std::string, EnumValues);
+    EnumDef(Token, std::string, EnumValues, bool = false);
     [[nodiscard]] std::string const& name() const;
     [[nodiscard]] EnumValues const& values() const;
+    [[nodiscard]] bool extend() const;
     [[nodiscard]] Nodes children() const override;
     [[nodiscard]] std::string attributes() const override;
     [[nodiscard]] std::string to_string() const override;
@@ -65,6 +66,7 @@ public:
 protected:
     std::string m_name;
     EnumValues m_values;
+    bool m_extend { false };
 };
 
 }

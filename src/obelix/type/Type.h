@@ -240,11 +240,24 @@ struct TemplateArgument {
     [[nodiscard]] TemplateArgumentValues const& as_values() const;
 
     template<typename ArgType>
-    [[nodiscard]] ArgType const& get() const
+    [[nodiscard]] ArgType get() const
     {
         assert(!value.empty());
         assert(std::holds_alternative<ArgType>(value[0]));
         return std::get<ArgType>(value[0]);
+    }
+
+    template<>
+    [[nodiscard]] NVPs get() const
+    {
+        assert(parameter_type == TemplateParameterType::NameValue);
+        assert(multiplicity == TemplateParameterMultiplicity::Multiple);
+
+        NVPs ret;
+        for (auto const& v : value) {
+            ret.push_back(std::get<NVP>(v));
+        }
+        return ret;
     }
 };
 
@@ -318,7 +331,7 @@ public:
     [[nodiscard]] bool has_template_argument(std::string const&) const;
 
     template<typename ArgType>
-    [[nodiscard]] ArgType const& template_argument(std::string const& arg_name) const
+    [[nodiscard]] ArgType template_argument(std::string const& arg_name) const
     {
         assert(is_template_specialization());
         if (has_template_argument(arg_name))
@@ -417,6 +430,7 @@ public:
     static ErrorOr<std::shared_ptr<ObjectType>> make_struct_type(std::string, FieldDefs, ObjectTypeBuilder const& = nullptr);
     static std::shared_ptr<ObjectType> register_struct_type(std::string const&, FieldDefs, ObjectTypeBuilder const& = nullptr);
     static std::shared_ptr<ObjectType> make_enum_type(std::string const&, NVPs const&);
+    static ErrorOr<std::shared_ptr<ObjectType>> extend_enum_type(std::shared_ptr<ObjectType> const&, NVPs const&);
     static void dump();
 
 private:

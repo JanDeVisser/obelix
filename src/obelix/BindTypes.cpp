@@ -162,7 +162,18 @@ NODE_PROCESSOR(EnumDef)
         bound_values.push_back(make_node<BoundEnumValueDef>(value->token(), value->label(), v));
         v++;
     }
-    auto type = ObjectType::make_enum_type(enum_def->name(), enum_values);
+    std::shared_ptr<ObjectType> type;
+    if (!enum_def->extend()) {
+        type = ObjectType::make_enum_type(enum_def->name(), enum_values);
+    } else {
+        type = ObjectType::get(enum_def->name());
+        if (type->type() != PrimitiveType::Enum)
+            return SyntaxError { ErrorCode::NoSuchType, enum_def->token(), "Cannot extend non-existing enum '{}'", enum_def->name() };
+        auto type_or_error = ObjectType::extend_enum_type(type, enum_values);
+        if (type_or_error.is_error())
+            return SyntaxError { type_or_error.error().code(), enum_def->token(), type_or_error.error().message() };
+        type = type_or_error.value();
+    }
     return make_node<BoundEnumDef>(enum_def, type, bound_values);
 }
 

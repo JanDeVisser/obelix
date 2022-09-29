@@ -111,10 +111,11 @@ std::string EnumValue::to_string() const
 
 // -- EnumDef ---------------------------------------------------------------
 
-EnumDef::EnumDef(Token token, std::string name, EnumValues values)
+EnumDef::EnumDef(Token token, std::string name, EnumValues values, bool extend)
     : Statement(std::move(token))
     , m_name(std::move(name))
     , m_values(std::move(values))
+    , m_extend(extend)
 {
 }
 
@@ -128,6 +129,11 @@ EnumValues const& EnumDef::values() const
     return m_values;
 }
 
+bool EnumDef::extend() const
+{
+    return m_extend;
+}
+
 Nodes EnumDef::children() const
 {
     Nodes ret;
@@ -138,12 +144,12 @@ Nodes EnumDef::children() const
 }
 std::string EnumDef::attributes() const
 {
-    return format(R"(name="{}")", name());
+    return format(R"(name="{}" extend="{}")", name(), extend());
 }
 
 std::string EnumDef::to_string() const
 {
-    auto ret = format("enum {} {{", name());
+    auto ret = format("enum {}{} {{", (extend()) ? "extend " : "", name());
     for (auto const& value : m_values) {
         ret += value->to_string();
         ret += ", ";

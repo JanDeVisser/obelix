@@ -971,6 +971,22 @@ std::shared_ptr<ObjectType> ObjectType::make_enum_type(std::string const& name, 
     return register_type(name, s_enum, args);
 }
 
+ErrorOr<std::shared_ptr<ObjectType>> ObjectType::extend_enum_type(std::shared_ptr<ObjectType> const& enum_type, NVPs const& new_values)
+{
+    if (enum_type->type() != PrimitiveType::Enum)
+        return Error<int> { ErrorCode::TypeMismatch, "Type '{}' is not an enum", enum_type->name() };
+    auto values = enum_type->template_argument<NVPs>("values");
+    for (auto const &v : new_values) {
+        values.push_back(v);
+    }
+    TemplateArgumentValues arg_values;
+    for (auto const& nvp : values) {
+        arg_values.push_back(nvp);
+    }
+    enum_type->m_template_arguments["values"] = TemplateArgument { TemplateParameterType::NameValue, arg_values };
+    return enum_type;
+}
+
 void ObjectType::register_type_in_caches(std::shared_ptr<ObjectType> const& type)
 {
     if (!type->is_template_specialization() && !s_types_by_id.contains(type->type()))

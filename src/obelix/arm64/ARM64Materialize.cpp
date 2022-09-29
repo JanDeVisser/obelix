@@ -371,6 +371,7 @@ std::shared_ptr<MaterializedIdentifier> make_materialized_identifier(std::shared
     case PrimitiveType::IntegerNumber:
     case PrimitiveType::SignedIntegerNumber:
     case PrimitiveType::Pointer:
+    case PrimitiveType::Enum:
         return make_node<MaterializedIntIdentifier>(identifier, address);
     case PrimitiveType::Struct:
         return make_node<MaterializedStructIdentifier>(identifier, address);

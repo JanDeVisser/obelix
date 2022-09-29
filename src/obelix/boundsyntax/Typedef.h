@@ -46,6 +46,7 @@ public:
     [[nodiscard]] std::string const& name() const;
     [[nodiscard]] std::shared_ptr<ObjectType> type() const;
     [[nodiscard]] BoundEnumValueDefs const& values() const;
+    [[nodiscard]] bool extend() const;
     [[nodiscard]] std::string attributes() const override;
     [[nodiscard]] Nodes children() const override;
     [[nodiscard]] std::string to_string() const override;
@@ -54,6 +55,7 @@ private:
     std::string m_name;
     std::shared_ptr<ObjectType> m_type;
     BoundEnumValueDefs m_values;
+    bool m_extend { false };
 };
 
 }

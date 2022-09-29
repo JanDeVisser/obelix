@@ -4,8 +4,12 @@ enum Hello {
   Value9 = 9
 }
 
+enum extend Hello {
+  Value7 = 7
+}
+
 func main(): s32
 {
-  var x: Hello = Hello.Value9
+  var x: Hello = Hello.Value7
   return x as s32
 }

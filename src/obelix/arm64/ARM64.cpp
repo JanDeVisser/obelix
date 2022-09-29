@@ -193,6 +193,7 @@ NODE_PROCESSOR(BoundCastExpression)
         case PrimitiveType::IntegerNumber:
         case PrimitiveType::SignedIntegerNumber:
         case PrimitiveType::Pointer:
+        case PrimitiveType::Enum:
         case PrimitiveType::Boolean: {
             if (expr->type()->can_cast_to(cast->type()) == ObjectType::CanCast::Sometimes) {
                 // Dynamically check that value can be casted
