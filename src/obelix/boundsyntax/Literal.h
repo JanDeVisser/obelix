@@ -97,4 +97,16 @@ private:
     std::string m_label;
 };
 
+NODE_CLASS(BoundModuleLiteral, BoundExpression)
+public:
+    BoundModuleLiteral(std::shared_ptr<Variable> const&);
+    BoundModuleLiteral(Token, std::string);
+    [[nodiscard]] std::string const& name() const;
+    [[nodiscard]] std::string attributes() const override;
+    [[nodiscard]] std::string to_string() const override;
+
+private:
+    std::string m_name;
+};
+
 }

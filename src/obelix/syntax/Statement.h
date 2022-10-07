@@ -95,17 +95,18 @@ private:
 
 using Modules = std::vector<std::shared_ptr<Module>>;
 
-NODE_CLASS(Compilation, Module)
+NODE_CLASS(Compilation, SyntaxNode)
 public:
-    Compilation(std::shared_ptr<Module> const& root, Modules);
-    Compilation(Statements const&, Modules);
+    Compilation(Modules);
     [[nodiscard]] Modules const& modules() const;
+    [[nodiscard]] std::shared_ptr<Module> const& root() const;
     [[nodiscard]] Nodes children() const override;
     [[nodiscard]] std::string to_string() const override;
     [[nodiscard]] std::string root_to_xml() const;
 
 private:
     Modules m_modules;
+    std::shared_ptr<Module> m_root;
 };
 
 NODE_CLASS(ExpressionStatement, Statement)

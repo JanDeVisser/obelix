@@ -46,7 +46,8 @@ namespace Obelix {
     S(AssignBitwiseOr, true, 1)       \
     S(AssignBitwiseXor, true, 1)      \
     S(Range, false, 8)                \
-    S(Subscript, false, 14)
+    S(Subscript, false, 14)           \
+    S(Call, false, 14)
 
 #define ENUMERATE_UNARY_OPERATORS(S) \
     S(InvalidUnary)                  \

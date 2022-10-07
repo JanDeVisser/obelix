@@ -114,6 +114,11 @@ public:
             return m_parent->unset(name);
     }
 
+    [[nodiscard]] std::unordered_map<std::string, T> const& names() const
+    {
+        return m_names;
+    }
+
     [[nodiscard]] std::vector<Context<T>*> const& children() const
     {
         return m_children;
@@ -151,7 +156,7 @@ public:
 
 protected:
     [[nodiscard]] Context<T>* parent() { return m_parent; }
-    [[nodiscard]] Context<T>* parent() const { return m_parent; }
+    [[nodiscard]] Context<T> const* parent() const { return m_parent; }
 
 private:
     std::unordered_map<std::string, T> m_names {};

@@ -21,6 +21,7 @@ class MaterializeContext : public Context<std::shared_ptr<SyntaxNode>>
 public:
     enum class ContextLevel {
         Global,
+        Module,
         Function,
         Block,
     };
@@ -52,7 +53,7 @@ public:
     [[nodiscard]] int offset() const
     {
         if (level() == ContextLevel::Block) {
-            return dynamic_cast<MaterializeContext*>(parent())->offset();
+            return dynamic_cast<MaterializeContext const*>(parent())->offset();
         }
         return m_offset;
     };
@@ -70,7 +71,7 @@ public:
 
     [[nodiscard]] ContextLevel level() const { return m_level; }
 
-    void add_unresolved_function(std::shared_ptr<FunctionCall> func_call)
+    void add_unresolved_function(std::shared_ptr<BoundFunctionCall> func_call)
     {
         if (parent() != nullptr) {
             (static_cast<MaterializeContext*>(parent()))->add_unresolved_function(func_call);
@@ -79,10 +80,10 @@ public:
         m_unresolved_functions.push_back(func_call);
     }
 
-    [[nodiscard]] std::vector<std::shared_ptr<FunctionCall>> const& unresolved_functions() const
+    [[nodiscard]] std::vector<std::shared_ptr<BoundFunctionCall>> const& unresolved_functions() const
     {
         if (parent() != nullptr) {
-            return (dynamic_cast<MaterializeContext*>(parent()))->unresolved_functions();
+            return (dynamic_cast<MaterializeContext const*>(parent()))->unresolved_functions();
         }
         return m_unresolved_functions;
     }
@@ -108,7 +109,7 @@ public:
     [[nodiscard]] std::multimap<std::string, std::shared_ptr<MaterializedFunctionDecl>> const& materialized_functions() const
     {
         if (parent() != nullptr) {
-            return (dynamic_cast<MaterializeContext*>(parent()))->materialized_functions();
+            return (dynamic_cast<MaterializeContext const*>(parent()))->materialized_functions();
         }
         return m_materialized_functions;
     }
@@ -116,7 +117,7 @@ public:
     [[nodiscard]] std::shared_ptr<MaterializedFunctionDecl> match(std::string const& name, ObjectTypes arg_types) const
     {
         if (parent() != nullptr) {
-            return (dynamic_cast<MaterializeContext*>(parent()))->match(name, arg_types);
+            return (dynamic_cast<MaterializeContext const*>(parent()))->match(name, arg_types);
         }
         debug(parser, "matching function {}({})", name, arg_types);
         //        debug(parser, "Current materialized functions:");
@@ -164,7 +165,7 @@ public:
 private:
     int m_offset { 0 };
     ContextLevel m_level { ContextLevel::Block };
-    std::vector<std::shared_ptr<FunctionCall>> m_unresolved_functions;
+    std::vector<std::shared_ptr<BoundFunctionCall>> m_unresolved_functions;
     std::multimap<std::string, std::shared_ptr<MaterializedFunctionDecl>> m_materialized_functions;
 };
 

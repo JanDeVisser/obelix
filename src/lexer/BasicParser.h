@@ -54,6 +54,7 @@ public:
     [[nodiscard]] bool was_successful() const { return m_errors.empty(); }
     [[nodiscard]] Lexer& lexer() { return m_lexer; }
     [[nodiscard]] std::string const& file_name() const { return m_file_name; }
+    [[nodiscard]] std::string const& file_path() const { return m_file_path; }
     void mark() { m_lexer.mark(); }
     void discard_mark() { m_lexer.discard_mark(); }
     void rewind() { m_lexer.rewind(); }
@@ -61,6 +62,7 @@ public:
 
 private:
     std::string m_file_name { "<literal>" };
+    std::string m_file_path;
     Lexer m_lexer;
     std::vector<ParseError> m_errors {};
     bool m_buffer_read { false };

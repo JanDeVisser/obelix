@@ -38,6 +38,37 @@ std::string Expression::attributes() const
     return format(R"(type="{}")", type_name());
 }
 
+// -- ExpressionList --------------------------------------------------------
+
+ExpressionList::ExpressionList(Token token, Expressions expressions)
+    : Expression(std::move(token))
+    , m_expressions(std::move(expressions))
+{
+}
+
+Expressions const& ExpressionList::expressions() const
+{
+    return m_expressions;
+}
+
+Nodes ExpressionList::children() const
+{
+    Nodes ret;
+    for (auto const& expr : expressions()) {
+        ret.push_back(expr);
+    }
+    return ret;
+}
+
+std::string ExpressionList::to_string() const
+{
+    Strings ret;
+    for (auto const& expr : expressions()) {
+        ret.push_back(expr->to_string());
+    }
+    return join(ret, ", ");
+}
+
 // -- Identifier ------------------------------------------------------------
 
 Identifier::Identifier(Token token, std::string name, std::shared_ptr<ExpressionType> type)
@@ -180,57 +211,6 @@ std::string CastExpression::to_string() const
 std::shared_ptr<Expression> const& CastExpression::expression() const
 {
     return m_expression;
-}
-
-// -- FunctionCall ----------------------------------------------------------
-
-FunctionCall::FunctionCall(Token token, std::string function, Expressions arguments)
-    : Expression(std::move(token))
-    , m_name(std::move(function))
-    , m_arguments(std::move(arguments))
-{
-}
-
-std::string FunctionCall::attributes() const
-{
-    return format(R"(name="{}" type="{}")", name(), type());
-}
-
-Nodes FunctionCall::children() const
-{
-    Nodes ret;
-    for (auto& arg : m_arguments) {
-        ret.push_back(arg);
-    }
-    return ret;
-}
-
-std::string FunctionCall::to_string() const
-{
-    Strings args;
-    for (auto& arg : m_arguments) {
-        args.push_back(arg->to_string());
-    }
-    return format("{}({}): {}", name(), join(args, ","), type());
-}
-
-std::string const& FunctionCall::name() const
-{
-    return m_name;
-}
-
-Expressions const& FunctionCall::arguments() const
-{
-    return m_arguments;
-}
-
-ExpressionTypes FunctionCall::argument_types() const
-{
-    ExpressionTypes ret;
-    for (auto& arg : arguments()) {
-        ret.push_back(arg->type());
-    }
-    return ret;
 }
 
 }

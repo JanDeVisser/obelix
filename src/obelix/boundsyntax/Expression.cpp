@@ -51,6 +51,37 @@ std::string BoundExpression::attributes() const
     return format(R"(type="{}")", type()->name());
 }
 
+// -- BoundExpressionList ---------------------------------------------------
+
+BoundExpressionList::BoundExpressionList(Token token, BoundExpressions expressions)
+    : BoundExpression(std::move(token), PrimitiveType::List)
+    , m_expressions(std::move(expressions))
+{
+}
+
+BoundExpressions const& BoundExpressionList::expressions() const
+{
+    return m_expressions;
+}
+
+Nodes BoundExpressionList::children() const
+{
+    Nodes ret;
+    for (auto const& expr : expressions()) {
+        ret.push_back(expr);
+    }
+    return ret;
+}
+
+std::string BoundExpressionList::to_string() const
+{
+    Strings ret;
+    for (auto const& expr : expressions()) {
+        ret.push_back(expr->to_string());
+    }
+    return join(ret, ", ");
+}
+
 // -- BoundBinaryExpression -------------------------------------------------
 
 BoundBinaryExpression::BoundBinaryExpression(std::shared_ptr<BinaryExpression> const& expr, std::shared_ptr<BoundExpression> lhs, BinaryOperator op, std::shared_ptr<BoundExpression> rhs, std::shared_ptr<ObjectType> type)

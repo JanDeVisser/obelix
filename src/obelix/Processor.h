@@ -14,8 +14,8 @@
 #include <obelix/BoundSyntaxNode.h>
 #include <obelix/Config.h>
 #include <obelix/Context.h>
-#include <obelix/arm64/MaterializedSyntaxNode.h>
 #include <obelix/Syntax.h>
+#include <obelix/arm64/MaterializedSyntaxNode.h>
 
 namespace Obelix {
 
@@ -74,18 +74,22 @@ ErrorOrNode process_tree(std::shared_ptr<SyntaxNode> const& tree, Context& ctx, 
 
     case SyntaxNodeType::Compilation: {
         auto compilation = std::dynamic_pointer_cast<Compilation>(tree);
-
-        Statements statements;
-        for (auto& stmt : compilation->statements()) {
-            auto new_statement = TRY_AND_CAST(Statement, processor(stmt, ctx));
-            statements.push_back(new_statement);
-        }
-
         Modules modules;
         for (auto& module : compilation->modules()) {
             modules.push_back(TRY_AND_CAST(Module, processor(module, ctx)));
         }
-        ret = make_node<Compilation>(statements, modules);
+        ret = make_node<Compilation>(modules);
+        break;
+    }
+
+    case SyntaxNodeType::BoundCompilation: {
+        auto compilation = std::dynamic_pointer_cast<BoundCompilation>(tree);
+
+        BoundModules modules;
+        for (auto& module : compilation->modules()) {
+            modules.push_back(TRY_AND_CAST(BoundModule, processor(module, ctx)));
+        }
+        ret = std::make_shared<BoundCompilation>(modules);
         break;
     }
 
@@ -195,6 +199,16 @@ ErrorOrNode process_tree(std::shared_ptr<SyntaxNode> const& tree, Context& ctx, 
         break;
     }
 
+    case SyntaxNodeType::ExpressionList: {
+        auto list = std::dynamic_pointer_cast<ExpressionList>(tree);
+        Expressions expressions;
+        for (auto const& expr : list->expressions()) {
+            auto processed = TRY_AND_CAST(Expression, processor(expr, ctx));
+            expressions.push_back(processed);
+        }
+        return std::make_shared<ExpressionList>(list->token(), expressions);
+    }
+
     case SyntaxNodeType::BoundExpressionStatement: {
         auto stmt = std::dynamic_pointer_cast<BoundExpressionStatement>(tree);
         auto expr = TRY_AND_CAST(BoundExpression, processor(stmt->expression(), ctx));
@@ -256,10 +270,10 @@ ErrorOrNode process_tree(std::shared_ptr<SyntaxNode> const& tree, Context& ctx, 
         break;
     }
 
-    case SyntaxNodeType::FunctionCall: {
-        auto func_call = std::dynamic_pointer_cast<FunctionCall>(tree);
-        auto arguments = TRY(xform_expressions(func_call->arguments(), ctx, processor));
-        ret = std::make_shared<FunctionCall>(func_call->token(), func_call->name(), arguments);
+    case SyntaxNodeType::BoundModule: {
+        auto module = std::dynamic_pointer_cast<BoundModule>(tree);
+        auto block = TRY_AND_CAST(Block, processor(module->block(), ctx));
+        ret = std::make_shared<BoundModule>(module->token(), module->name(), block, module->exports());
         break;
     }
 
@@ -556,7 +570,7 @@ ErrorOrNode process(std::shared_ptr<SyntaxNode> const& tree, Ctx& ctx)
     debug(parser, "Process <{} {}>", tree->node_type(), tree);
     switch (tree->node_type()) {
 #undef ENUM_SYNTAXNODETYPE
-#define ENUM_SYNTAXNODETYPE(type)                                                 \
+#define ENUM_SYNTAXNODETYPE(type)                                              \
     case SyntaxNodeType::type: {                                               \
         log_message = format("<{} {}> => ", #type, tree);                      \
         ErrorOrNode ret = process_node<Ctx, SyntaxNodeType::type>(tree, ctx);  \
@@ -573,7 +587,7 @@ ErrorOrNode process(std::shared_ptr<SyntaxNode> const& tree, Ctx& ctx)
         ENUMERATE_SYNTAXNODETYPES(ENUM_SYNTAXNODETYPE)
 #undef ENUM_SYNTAXNODETYPE
     default:
-        fatal("Unkown SyntaxNodeType '{}'", (int) tree->node_type());
+        fatal("Unkown SyntaxNodeType '{}'", (int)tree->node_type());
     }
 }
 
@@ -587,6 +601,7 @@ ErrorOrNode process(std::shared_ptr<SyntaxNode> const& tree)
 template<typename Ctx, SyntaxNodeType node_type>
 ErrorOrNode process_node(std::shared_ptr<SyntaxNode> const& tree, Ctx& ctx)
 {
+    debug(parser, "Falling back to default processor for type {}", tree->node_type());
     return process_tree(tree, ctx, [](std::shared_ptr<SyntaxNode> const& tree, Ctx& ctx) {
         return process(tree, ctx);
     });

@@ -22,6 +22,7 @@ namespace Obelix {
     S(StringTemplateArgument)           \
     S(IntegerTemplateArgument)          \
     S(Expression)                       \
+    S(ExpressionList)                   \
     S(EnumValue)                        \
     S(EnumDef)                          \
     S(IntLiteral)                       \
@@ -85,8 +86,13 @@ namespace Obelix {
     S(MaterializedIntrinsicCall)        \
     S(StatementExecutionResult)         \
     S(BoundExpression)                  \
+    S(BoundExpressionList)              \
     S(BoundIdentifier)                  \
     S(BoundVariable)                    \
+    S(BoundCompilation)                 \
+    S(BoundModule)                      \
+    S(BoundLocalFunction)               \
+    S(BoundImportedFunction)            \
     S(BoundMemberAccess)                \
     S(BoundArrayAccess)                 \
     S(BoundIntLiteral)                  \
@@ -94,6 +100,7 @@ namespace Obelix {
     S(BoundStringLiteral)               \
     S(BoundBooleanLiteral)              \
     S(BoundTypeLiteral)                 \
+    S(BoundModuleLiteral)               \
     S(BoundBinaryExpression)            \
     S(BoundUnaryExpression)             \
     S(BoundCastExpression)              \
@@ -136,7 +143,7 @@ constexpr char const* SyntaxNodeType_name(SyntaxNodeType type)
     switch (type) {
 #undef ENUM_SYNTAXNODETYPE
 #define ENUM_SYNTAXNODETYPE(type) \
-    case SyntaxNodeType::type: \
+    case SyntaxNodeType::type:    \
         return #type;
         ENUMERATE_SYNTAXNODETYPES(ENUM_SYNTAXNODETYPE)
 #undef ENUM_SYNTAXNODETYPE

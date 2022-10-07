@@ -10,7 +10,6 @@ add_executable(
         obelix
         main.cpp
         Architecture.cpp
-        BindTypes.cpp
         Config.cpp
         FoldConstants.cpp
         Lower.cpp
@@ -28,6 +27,7 @@ add_executable(
         arm64/MaterializedSyntaxNode.cpp
         arm64/Mnemonic.cpp
         arm64/VariableAddress.cpp
+        bind/BindTypes.cpp
         boundsyntax/ControlFlow.cpp
         boundsyntax/Expression.cpp
         boundsyntax/Function.cpp
@@ -48,7 +48,7 @@ add_executable(
         type/MethodDescription.cpp
         type/Template.cpp
         type/Type.cpp
-)
+        bind/BindContext.cpp bind/BindContext.h)
 
 target_link_libraries(
         obelix

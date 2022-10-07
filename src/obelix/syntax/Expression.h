@@ -25,6 +25,16 @@ private:
 
 using Expressions = std::vector<std::shared_ptr<Expression>>;
 
+NODE_CLASS(ExpressionList, Expression)
+public:
+    ExpressionList(Token, Expressions);
+    [[nodiscard]] Expressions const& expressions() const;
+    [[nodiscard]] Nodes children() const override;
+    [[nodiscard]] std::string to_string() const override;
+private:
+    Expressions m_expressions;
+};
+
 NODE_CLASS(Identifier, Expression)
 public:
     explicit Identifier(Token, std::string, std::shared_ptr<ExpressionType> = nullptr);
@@ -90,21 +100,6 @@ public:
 
 private:
     std::shared_ptr<Expression> m_expression;
-};
-
-NODE_CLASS(FunctionCall, Expression)
-public:
-    FunctionCall(Token token, std::string function, Expressions = {});
-    [[nodiscard]] std::string attributes() const override;
-    [[nodiscard]] Nodes children() const override;
-    [[nodiscard]] std::string to_string() const override;
-    [[nodiscard]] std::string const& name() const;
-    [[nodiscard]] Expressions const& arguments() const;
-    [[nodiscard]] ExpressionTypes argument_types() const;
-
-private:
-    std::string m_name;
-    Expressions m_arguments;
 };
 
 }

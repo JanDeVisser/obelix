@@ -45,6 +45,10 @@ namespace Obelix {
     S(Array, "array", 11)                    \
     S(Enum, "enum", 12)                      \
     S(Type, "type", 13)                      \
+    S(Module, "module", 14)                  \
+    S(List, "list", 15)                      \
+    S(Function, "function", 16)              \
+    S(Compilation, "compilation", 17)        \
     S(Error, "error", 9995)                  \
     S(Self, "self", 9996)                    \
     S(Compatible, "compatible", 9997)        \
@@ -261,7 +265,7 @@ struct TemplateArgument {
     }
 };
 
-using TemplateArguments = std::unordered_map<std::string,TemplateArgument>;
+using TemplateArguments = std::unordered_map<std::string, TemplateArgument>;
 
 struct TemplateParameter {
     std::string name {};
@@ -270,7 +274,7 @@ struct TemplateParameter {
     TemplateArgument default_value {};
 };
 
-using TemplateParameters = std::unordered_map<std::string,TemplateParameter>;
+using TemplateParameters = std::unordered_map<std::string, TemplateParameter>;
 
 size_t hash(TemplateArgumentValue const&);
 std::string to_string(TemplateArgumentValue const&);

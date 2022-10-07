@@ -225,14 +225,6 @@ std::string BoundFunctionDef::to_string() const
 
 // -- BoundFunctionCall -----------------------------------------------------
 
-BoundFunctionCall::BoundFunctionCall(std::shared_ptr<FunctionCall> const& call, BoundExpressions arguments, std::shared_ptr<BoundFunctionDecl> decl)
-    : BoundExpression(call, decl->type())
-    , m_name(call->name())
-    , m_arguments(std::move(arguments))
-    , m_declaration(std::move(decl))
-{
-}
-
 BoundFunctionCall::BoundFunctionCall(std::shared_ptr<BoundFunctionCall> const& call, BoundExpressions arguments, std::shared_ptr<BoundFunctionDecl> const& decl)
     : BoundExpression(call)
     , m_name(call->name())
@@ -298,8 +290,8 @@ ObjectTypes BoundFunctionCall::argument_types() const
 
 // -- BoundNativeFunctionCall -----------------------------------------------
 
-BoundNativeFunctionCall::BoundNativeFunctionCall(std::shared_ptr<FunctionCall> const& call, BoundExpressions arguments, std::shared_ptr<BoundNativeFunctionDecl> decl)
-    : BoundFunctionCall(call, std::move(arguments), std::move(decl))
+BoundNativeFunctionCall::BoundNativeFunctionCall(Token token, std::shared_ptr<BoundNativeFunctionDecl> const& declaration, BoundExpressions arguments)
+    : BoundFunctionCall(std::move(token), declaration, std::move(arguments))
 {
 }
 
@@ -310,8 +302,8 @@ BoundNativeFunctionCall::BoundNativeFunctionCall(std::shared_ptr<BoundNativeFunc
 
 // -- BoundIntrinsicCall ----------------------------------------------------
 
-BoundIntrinsicCall::BoundIntrinsicCall(std::shared_ptr<FunctionCall> const& call, BoundExpressions arguments, std::shared_ptr<BoundIntrinsicDecl> decl, IntrinsicType intrinsic)
-    : BoundFunctionCall(call, std::move(arguments), std::move(decl))
+BoundIntrinsicCall::BoundIntrinsicCall(Token token, std::shared_ptr<BoundIntrinsicDecl> const& declaration, BoundExpressions arguments, IntrinsicType intrinsic)
+    : BoundFunctionCall(std::move(token), declaration, std::move(arguments))
     , m_intrinsic(intrinsic)
 {
 }
@@ -322,15 +314,52 @@ BoundIntrinsicCall::BoundIntrinsicCall(std::shared_ptr<BoundIntrinsicCall> const
 {
 }
 
-BoundIntrinsicCall::BoundIntrinsicCall(Token token, std::shared_ptr<BoundIntrinsicDecl> const& decl, BoundExpressions arguments, IntrinsicType intrinsic_type)
-    : BoundFunctionCall(std::move(token), decl, std::move(arguments))
-    , m_intrinsic(intrinsic_type)
-{
-}
-
 IntrinsicType BoundIntrinsicCall::intrinsic() const
 {
     return m_intrinsic;
+}
+
+// -- BoundFunction ---------------------------------------------------------
+
+BoundFunction::BoundFunction(Token token, std::string name)
+    : BoundExpression(std::move(token), PrimitiveType::Function)
+    , m_name(std::move(name))
+{
+}
+
+std::string const& BoundFunction::name() const
+{
+    return m_name;
+}
+
+std::string BoundFunction::attributes() const
+{
+    return format(R"(name="{}")", name());
+}
+
+std::string BoundFunction::to_string() const
+{
+    return format("func {}", name());
+}
+
+// -- BoundLocalFunction ----------------------------------------------------
+
+BoundLocalFunction::BoundLocalFunction(Token token, std::string name)
+    : BoundFunction(std::move(token), std::move(name))
+{
+}
+
+// -- BoundImportedFunction -------------------------------------------------
+
+BoundImportedFunction::BoundImportedFunction(Token token, std::shared_ptr<BoundModule> module, std::string name)
+    : BoundFunction(std::move(token), std::move(name))
+    , m_module(std::move(module))
+{
+}
+
+std::shared_ptr<BoundModule> const& BoundImportedFunction::module() const
+{
+    return m_module;
 }
 
 }

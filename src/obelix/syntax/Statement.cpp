@@ -187,16 +187,14 @@ const std::string& Module::name() const
 
 // -- Compilation -----------------------------------------------------------
 
-Compilation::Compilation(std::shared_ptr<Module> const& root, Modules modules)
-    : Module(root->statements(), "")
+Compilation::Compilation(Modules modules)
+    : SyntaxNode(Token {})
     , m_modules(std::move(modules))
 {
-}
-
-Compilation::Compilation(Statements const& statements, Modules modules)
-    : Module(statements, "")
-    , m_modules(std::move(modules))
-{
+    for (auto const& module : m_modules) {
+        if (module->name() == "")
+            m_root = module;
+    }
 }
 
 Modules const& Compilation::modules() const
@@ -204,9 +202,14 @@ Modules const& Compilation::modules() const
     return m_modules;
 }
 
+std::shared_ptr<Module> const& Compilation::root() const
+{
+    return m_root;
+}
+
 Nodes Compilation::children() const
 {
-    Nodes ret /* = Block::children() */;
+    Nodes ret;
     for (auto& module : m_modules) {
         ret.push_back(module);
     }
@@ -215,10 +218,10 @@ Nodes Compilation::children() const
 
 std::string Compilation::to_string() const
 {
-    std::string ret = Module::to_string();
-    for (auto& module : m_modules) {
+    auto ret = std::string("compilation");
+    for (auto const& module : m_modules) {
         ret += "\n";
-        ret += module->to_string();
+        ret += "  " + module->to_string();
     }
     return ret;
 }
@@ -227,20 +230,15 @@ std::string Compilation::root_to_xml() const
 {
     auto indent = 0u;
     auto ret = format("<{}", node_type());
-    auto attrs = Module::attributes();
-    auto child_nodes = Module::children();
-    auto text = Module::text_contents();
-    if (!attrs.empty()) {
-        ret += " " + attrs;
-    }
-    if (text.empty() && child_nodes.empty())
+    auto child_nodes = children();
+    if (child_nodes.empty())
         return ret + "/>";
     ret += ">\n";
-    for (auto& child : child_nodes) {
+    for (auto const& child : child_nodes) {
         ret += child->to_xml(indent + 2);
         ret += "\n";
     }
-    return ret + format("{}</{}>", text, node_type());
+    return ret + format("</{}>", node_type());
 }
 
 // -- ExpressionStatement ---------------------------------------------------

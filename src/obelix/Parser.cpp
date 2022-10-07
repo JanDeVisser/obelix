@@ -101,18 +101,20 @@ std::shared_ptr<Compilation> Parser::parse()
 {
     clear_errors();
     m_modules.clear();
+    Modules modules;
     auto main_module = parse_module();
-    std::shared_ptr<Module> root = main_module;
-    if (m_config.import_root)
-        root = parse_module("");
+    if (errors().empty() && m_config.import_root) {
+        auto root = parse_module("");
+        modules.push_back(root);
+    }
     if (errors().empty()) {
-        Modules modules { main_module };
+        modules.push_back(main_module);
         for (auto& module_name : m_modules) {
             auto imported_module = parse_module(module_name);
             if (imported_module)
                 modules.push_back(imported_module);
         }
-        return std::make_shared<Compilation>(root, modules);
+        return std::make_shared<Compilation>(modules);
     }
     return nullptr;
 }
@@ -243,37 +245,6 @@ std::shared_ptr<Block> Parser::parse_block(Statements& block)
         return nullptr;
     }
     return std::make_shared<Block>(token, block);
-}
-
-std::shared_ptr<FunctionCall> Parser::parse_function_call(std::shared_ptr<Expression> const& function)
-{
-    // for now the function must be an identifier:
-    if (function->node_type() != SyntaxNodeType::Identifier) {
-        add_error(peek(), "Syntax Error: function reference must be identifier");
-        return nullptr;
-    }
-    if (!expect(TokenCode::OpenParen, "after function expression")) {
-        return nullptr;
-    }
-    Expressions args;
-    auto done = current_code() == TokenCode::CloseParen;
-    while (!done) {
-        args.push_back(parse_expression());
-        switch (current_code()) {
-        case TokenCode::Comma:
-            lex();
-            break;
-        case TokenCode::CloseParen:
-            done = true;
-            break;
-        default:
-            add_error(peek(), format("Syntax Error: Expected ',' or ')' in function argument list, got '{}'", peek().value()));
-            return nullptr;
-        }
-    }
-    lex();
-    auto ident = std::dynamic_pointer_cast<Identifier>(function);
-    return std::make_shared<FunctionCall>(ident->token(), ident->name(), args);
 }
 
 std::shared_ptr<Statement> Parser::parse_function_definition(Token const& func_token)
@@ -649,6 +620,7 @@ int Parser::binary_precedence(TokenCode code)
         return 12;
     case TokenCode::Period:
     case TokenCode::OpenBracket:
+    case TokenCode::OpenParen:
         return 14;
     case TokenCode::CloseBracket:
     default:
@@ -739,17 +711,35 @@ std::shared_ptr<Expression> Parser::parse_expression_1(std::shared_ptr<Expressio
         std::shared_ptr<Expression> rhs;
         if (associativity(op.code()) == Associativity::LeftToRight) {
             auto open_bracket = op.code() == TokenCode::OpenBracket;
-            rhs = parse_primary_expression();
-            if (!rhs)
-                return nullptr;
-            while ((open_bracket && (current_code() != TokenCode::CloseBracket)) || (binary_precedence(current_code()) > binary_precedence(op.code()))) {
-                rhs = parse_expression_1(rhs, (open_bracket) ? 0 : (binary_precedence(op.code()) + 1));
+            switch (op.code()) {
+            case TokenCode::OpenParen: {
+                Expressions expressions;
+                while (true) {
+                    auto expr = parse_expression();
+                    if (expr == nullptr)
+                        return nullptr;
+                    expressions.push_back(expr);
+                    if (current_code() == TokenCode::CloseParen)
+                        break;
+                    if (!expect(TokenCode::Comma))
+                        return nullptr;
+                }
+                lex();
+                rhs = std::make_shared<ExpressionList>(op, expressions);
+                break;
+            }
+            default: {
+                rhs = parse_primary_expression();
+                if (!rhs)
+                    return nullptr;
+                while ((open_bracket && (current_code() != TokenCode::CloseBracket)) || (binary_precedence(current_code()) > binary_precedence(op.code())))
+                    rhs = parse_expression_1(rhs, (open_bracket) ? 0 : (binary_precedence(op.code()) + 1));
+                break;
+            }
             }
             if (open_bracket) {
-                if (current_code() != TokenCode::CloseBracket)
+                if (!expect(TokenCode::CloseBracket))
                     return nullptr;
-                lex();
-                open_bracket = false;
             }
             if (is_postfix_unary_operator(current_code()) && (unary_precedence(current_code()) > binary_precedence(op.code())))
                 lhs = parse_postfix_unary_operator(lhs);
@@ -845,10 +835,7 @@ std::shared_ptr<Expression> Parser::parse_primary_expression()
         expr = std::make_shared<BooleanLiteral>(t);
         break;
     case TokenCode::Identifier: {
-        if (current_code() != TokenCode::OpenParen)
-            expr = std::make_shared<Variable>(t, t.value());
-        else
-            expr = parse_function_call(std::make_shared<Identifier>(t, t.value()));
+        expr = std::make_shared<Variable>(t, t.value());
         break;
     }
     default:

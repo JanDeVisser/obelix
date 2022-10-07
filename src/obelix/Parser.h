@@ -84,7 +84,6 @@ private:
     std::shared_ptr<Statement> parse_top_level_statement();
     void parse_statements(Statements&, bool = false);
     std::shared_ptr<Block> parse_block(Statements&);
-    std::shared_ptr<FunctionCall> parse_function_call(std::shared_ptr<Expression> const&);
     std::shared_ptr<Statement> parse_function_definition(Token const&);
     std::shared_ptr<IfStatement> parse_if_statement(Token const&);
     std::shared_ptr<SwitchStatement> parse_switch_statement(Token const&);

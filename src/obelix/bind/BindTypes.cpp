@@ -12,113 +12,52 @@
 #include <obelix/Intrinsics.h>
 #include <obelix/Parser.h>
 #include <obelix/Processor.h>
+#include <obelix/bind/BindContext.h>
 
 namespace Obelix {
 
 extern_logging_category(parser);
 
-template <>
-std::string dump_value<std::shared_ptr<SyntaxNode>>(std::shared_ptr<SyntaxNode> const& value)
+ErrorOr<std::shared_ptr<BoundFunctionCall>, SyntaxError> make_function_call(BindContext& ctx, std::shared_ptr<BoundFunction> function, std::shared_ptr<BoundExpressionList> arguments)
 {
-    return format("{}", value->node_type());
+    BoundExpressions args;
+    ObjectTypes arg_types;
+    for (auto& arg : arguments->expressions()) {
+        args.push_back(arg);
+        arg_types.push_back(arg->type());
+    }
+    std::shared_ptr<BoundFunctionDecl> func_decl;
+    switch (function->node_type()) {
+    case SyntaxNodeType::BoundLocalFunction: {
+        func_decl = ctx.match(function->name(), arg_types);
+        break;
+    }
+    case SyntaxNodeType::BoundImportedFunction: {
+        auto imported_func = std::dynamic_pointer_cast<BoundImportedFunction>(function);
+        func_decl = imported_func->module()->resolve(function->name(), arg_types);
+        break;
+    }
+    default:
+        fatal("Unreachable: {}", function->node_type());
+    }
+    if (func_decl == nullptr) {
+        ctx.add_unresolved_function(make_functioncall(function, arg_types));
+        return nullptr;
+    }
+
+    switch (func_decl->node_type()) {
+    case SyntaxNodeType::BoundIntrinsicDecl: {
+        auto intrinsic = IntrinsicType_by_name(func_decl->name());
+        if (intrinsic == IntrinsicType::NotIntrinsic)
+            return SyntaxError { ErrorCode::SyntaxError, function->token(), format("Intrinsic {} not defined", func_decl->name()) };
+        return std::make_shared<BoundIntrinsicCall>(function->token(), std::dynamic_pointer_cast<BoundIntrinsicDecl>(func_decl), args, intrinsic);
+    }
+    case SyntaxNodeType::BoundNativeFunctionDecl:
+        return std::make_shared<BoundNativeFunctionCall>(function->token(), std::dynamic_pointer_cast<BoundNativeFunctionDecl>(func_decl), args);
+    default:
+        return std::make_shared<BoundFunctionCall>(function->token(), func_decl, args);
+    }
 }
-
-class BindContext : public Context<std::shared_ptr<SyntaxNode>> {
-public:
-    std::shared_ptr<ObjectType> return_type { nullptr };
-    int stage { 0 };
-
-    void add_unresolved_function(std::shared_ptr<FunctionCall> const& func_call)
-    {
-        if (parent() != nullptr) {
-            dynamic_cast<BindContext*>(parent())->add_unresolved_function(func_call);
-            return;
-        }
-        m_unresolved_functions.push_back(func_call);
-    }
-
-    [[nodiscard]] std::vector<std::shared_ptr<FunctionCall>> const& unresolved_functions() const
-    {
-        if (parent() != nullptr) {
-            return dynamic_cast<BindContext*>(parent())->unresolved_functions();
-        }
-        return m_unresolved_functions;
-    }
-
-    void clear_unresolved_functions()
-    {
-        if (parent() != nullptr) {
-            dynamic_cast<BindContext*>(parent())->clear_unresolved_functions();
-            return;
-        }
-        m_unresolved_functions.clear();
-    }
-
-    void add_declared_function(std::string const& name, std::shared_ptr<BoundFunctionDecl> const& func)
-    {
-        if (parent() != nullptr) {
-            (dynamic_cast<BindContext*>(parent()))->add_declared_function(name, func);
-            return;
-        }
-        m_declared_functions.insert({ name, func });
-    }
-
-    [[nodiscard]] std::multimap<std::string, std::shared_ptr<BoundFunctionDecl>> const& declared_functions() const
-    {
-        if (parent() != nullptr) {
-            return (dynamic_cast<BindContext*>(parent()))->declared_functions();
-        }
-        return m_declared_functions;
-    }
-
-    [[nodiscard]] std::shared_ptr<BoundFunctionDecl> match(std::string const& name, ObjectTypes arg_types) const
-    {
-        if (parent() != nullptr) {
-            return (dynamic_cast<BindContext*>(parent()))->match(name, arg_types);
-        }
-        debug(parser, "matching function {}({})", name, arg_types);
-        std::shared_ptr<BoundFunctionDecl> func_decl = nullptr;
-        auto range = m_declared_functions.equal_range(name);
-        for (auto iter = range.first; iter != range.second; ++iter) {
-            debug(parser, "checking {}({})", iter->first, iter->second->parameters());
-            auto candidate = iter->second;
-            if (arg_types.size() != candidate->parameters().size())
-                continue;
-
-            bool all_matched = true;
-            for (auto ix = 0u; ix < arg_types.size(); ix++) {
-                auto& arg_type = arg_types.at(ix);
-                auto& param = candidate->parameters().at(ix);
-                if (!arg_type->is_assignable_to(param->type())) {
-                    all_matched = false;
-                    break;
-                }
-            }
-            if (all_matched) {
-                func_decl = candidate;
-                break;
-            }
-        }
-        if (func_decl != nullptr)
-            debug(parser, "match() returns {}", *func_decl);
-        else
-            debug(parser, "No matching function found");
-        return func_decl;
-    }
-
-    void clear_declared_functions()
-    {
-        if (parent() != nullptr) {
-            (dynamic_cast<BindContext*>(parent()))->clear_declared_functions();
-            return;
-        }
-        m_declared_functions.clear();
-    }
-
-private:
-    std::vector<std::shared_ptr<FunctionCall>> m_unresolved_functions;
-    std::multimap<std::string, std::shared_ptr<BoundFunctionDecl>> m_declared_functions;
-};
 
 INIT_NODE_PROCESSOR(BindContext);
 
@@ -136,7 +75,7 @@ NODE_PROCESSOR(StructDefinition)
             return SyntaxError { err.code(), struct_def->token(), err.message() };
         }
         auto field_type = field_type_maybe.value();
-        bound_fields.push_back(make_node<BoundIdentifier>(field, field_type));
+        bound_fields.push_back(std::make_shared<BoundIdentifier>(field, field_type));
         field_defs.emplace_back(field->name(), field_type);
     }
     auto type_maybe = ObjectType::make_struct_type(struct_def->name(), field_defs);
@@ -145,7 +84,7 @@ NODE_PROCESSOR(StructDefinition)
         return SyntaxError { err.code(), struct_def->token(), err.message() };
     }
     auto type = type_maybe.value();
-    return make_node<BoundStructDefinition>(struct_def, type);
+    return std::make_shared<BoundStructDefinition>(struct_def, type);
 }
 
 NODE_PROCESSOR(EnumDef)
@@ -159,7 +98,7 @@ NODE_PROCESSOR(EnumDef)
             // FIXME Check sanity of value
             v = value->value().value();
         enum_values.emplace_back(value->label(), v);
-        bound_values.push_back(make_node<BoundEnumValueDef>(value->token(), value->label(), v));
+        bound_values.push_back(std::make_shared<BoundEnumValueDef>(value->token(), value->label(), v));
         v++;
     }
     std::shared_ptr<ObjectType> type;
@@ -174,7 +113,51 @@ NODE_PROCESSOR(EnumDef)
             return SyntaxError { type_or_error.error().code(), enum_def->token(), type_or_error.error().message() };
         type = type_or_error.value();
     }
-    return make_node<BoundEnumDef>(enum_def, type, bound_values);
+    return std::make_shared<BoundEnumDef>(enum_def, type, bound_values);
+}
+
+NODE_PROCESSOR(Compilation)
+{
+    auto compilation = std::dynamic_pointer_cast<Compilation>(tree);
+    assert(ctx.type() == BindContextType::RootContext);
+    BoundModules modules;
+    for (auto& imported : compilation->modules()) {
+        modules.push_back(TRY_AND_CAST(BoundModule, process(imported, ctx)));
+    }
+    return std::make_shared<BoundCompilation>(modules);
+
+}
+
+NODE_PROCESSOR(Module)
+{
+    auto module = std::dynamic_pointer_cast<Module>(tree);
+    assert(ctx.type() == BindContextType::RootContext);
+    BindContext module_ctx(ctx, BindContextType::ModuleContext);
+    Statements statements;
+    for (auto& stmt : module->statements()) {
+        auto new_statement = TRY_AND_CAST(Statement, process(stmt, module_ctx));
+        statements.push_back(new_statement);
+    }
+    auto block = std::make_shared<Block>(tree->token(), statements);
+    BoundFunctionDecls exports;
+    for (const auto& name : module_ctx.names()) {
+        auto const& declaration = std::dynamic_pointer_cast<BoundFunctionDecl>(name.second);
+        if (declaration) {
+            exports.push_back(declaration);
+        }
+    }
+    auto ret = std::make_shared<BoundModule>(module->token(), module->name(), block, exports);
+    ctx.declare(ret->name(), ret);
+    ctx.add_module(ret);
+    return ret;
+}
+
+NODE_PROCESSOR(BoundModule)
+{
+    auto module = std::dynamic_pointer_cast<BoundModule>(tree);
+    ctx.declare(module->name(), module);
+    ctx.add_module(module);
+    return tree;
 }
 
 NODE_PROCESSOR(VariableDeclaration)
@@ -214,16 +197,16 @@ NODE_PROCESSOR(VariableDeclaration)
         return SyntaxError { ErrorCode::UntypedVariable, var_decl->token(), var_decl->name() };
     }
 
-    auto identifier = make_node<BoundIdentifier>(var_decl->identifier(), var_type);
+    auto identifier = std::make_shared<BoundIdentifier>(var_decl->identifier(), var_type);
     std::shared_ptr<BoundVariableDeclaration> ret;
     if (tree->node_type() == SyntaxNodeType::StaticVariableDeclaration)
-        ret = make_node<BoundStaticVariableDeclaration>(var_decl, identifier, expr);
+        ret = std::make_shared<BoundStaticVariableDeclaration>(var_decl, identifier, expr);
     else if (tree->node_type() == SyntaxNodeType::LocalVariableDeclaration)
-        ret = make_node<BoundLocalVariableDeclaration>(var_decl, identifier, expr);
+        ret = std::make_shared<BoundLocalVariableDeclaration>(var_decl, identifier, expr);
     else if (tree->node_type() == SyntaxNodeType::GlobalVariableDeclaration)
-        ret = make_node<BoundGlobalVariableDeclaration>(var_decl, identifier, expr);
+        ret = std::make_shared<BoundGlobalVariableDeclaration>(var_decl, identifier, expr);
     else
-        ret = make_node<BoundVariableDeclaration>(var_decl, identifier, expr);
+        ret = std::make_shared<BoundVariableDeclaration>(var_decl, identifier, expr);
     ctx.declare(var_decl->name(), ret);
     return ret;
 }
@@ -244,24 +227,24 @@ NODE_PROCESSOR(FunctionDecl)
     // }
     auto ret_type = TRY_ADAPT(decl->type()->resolve_type(), decl->token());
 
-    auto identifier = make_node<BoundIdentifier>(decl->identifier(), ret_type);
+    auto identifier = std::make_shared<BoundIdentifier>(decl->identifier(), ret_type);
     BoundIdentifiers bound_parameters;
     for (auto& parameter : decl->parameters()) {
         if (parameter->type() == nullptr)
             return SyntaxError { ErrorCode::UntypedParameter, parameter->token(), parameter->name() };
         auto parameter_type = TRY_ADAPT(parameter->type()->resolve_type(), identifier->token());
-        bound_parameters.push_back(make_node<BoundIdentifier>(parameter, parameter_type));
+        bound_parameters.push_back(std::make_shared<BoundIdentifier>(parameter, parameter_type));
     }
     std::shared_ptr<BoundFunctionDecl> bound_decl;
     switch (decl->node_type()) {
     case SyntaxNodeType::IntrinsicDecl:
-        bound_decl = make_node<BoundIntrinsicDecl>(std::dynamic_pointer_cast<IntrinsicDecl>(decl), identifier, bound_parameters);
+        bound_decl = std::make_shared<BoundIntrinsicDecl>(std::dynamic_pointer_cast<IntrinsicDecl>(decl), identifier, bound_parameters);
         break;
     case SyntaxNodeType::NativeFunctionDecl:
-        bound_decl = make_node<BoundNativeFunctionDecl>(std::dynamic_pointer_cast<NativeFunctionDecl>(decl), identifier, bound_parameters);
+        bound_decl = std::make_shared<BoundNativeFunctionDecl>(std::dynamic_pointer_cast<NativeFunctionDecl>(decl), identifier, bound_parameters);
         break;
     default:
-        bound_decl = make_node<BoundFunctionDecl>(decl, identifier, bound_parameters);
+        bound_decl = std::make_shared<BoundFunctionDecl>(decl, identifier, bound_parameters);
         break;
     }
     ctx.declare(bound_decl->name(), bound_decl);
@@ -279,30 +262,21 @@ NODE_PROCESSOR(FunctionDef)
 
     std::shared_ptr<Statement> func_block { nullptr };
     if (func_def->statement()) {
-        BindContext func_ctx(ctx);
+        BindContext func_ctx(ctx, BindContextType::SubContext);
         for (auto& param : decl->parameters()) {
-            auto dummy_decl = make_node<VariableDeclaration>(param->token(), make_node<Identifier>(param->token(), param->name()));
-            func_ctx.declare(param->name(), make_node<BoundVariableDeclaration>(dummy_decl, param, nullptr));
+            auto dummy_decl = std::make_shared<VariableDeclaration>(param->token(), std::make_shared<Identifier>(param->token(), param->name()));
+            func_ctx.declare(param->name(), std::make_shared<BoundVariableDeclaration>(dummy_decl, param, nullptr));
         }
         func_ctx.return_type = decl->type();
         func_block = TRY_AND_CAST(Statement, process(func_def->statement(), func_ctx));
     }
-    return make_node<BoundFunctionDef>(func_def, decl, func_block);
+    return std::make_shared<BoundFunctionDef>(func_def, decl, func_block);
 }
 
 NODE_PROCESSOR(BinaryExpression)
 {
     auto expr = std::dynamic_pointer_cast<BinaryExpression>(tree);
-    auto lhs = TRY_AND_CAST(BoundExpression, process(expr->lhs(), ctx));
-    if (lhs == nullptr) {
-        auto ident = std::dynamic_pointer_cast<Variable>(expr->lhs());
-        if (ident != nullptr) {
-            return SyntaxError { ErrorCode::UndeclaredVariable, ident->token(), ident->name() };
-        }
-        return tree;
-    }
-    auto rhs = TRY(process(expr->rhs(), ctx));
-    auto rhs_bound = std::dynamic_pointer_cast<BoundExpression>(rhs);
+    auto lhs = TRY_AND_TRY_CAST(BoundExpression, process(expr->lhs(), ctx));
 
     struct BinaryOperatorMap {
         TokenCode code;
@@ -329,6 +303,7 @@ NODE_PROCESSOR(BinaryExpression)
         { TokenCode::Hat, BinaryOperator::BitwiseXor },
         { TokenCode::Period, BinaryOperator::MemberAccess },
         { TokenCode::OpenBracket, BinaryOperator::Subscript },
+        { TokenCode::OpenParen, BinaryOperator::Call },
         { Parser::KeywordIncEquals, BinaryOperator::BinaryIncrement },
         { Parser::KeywordDecEquals, BinaryOperator::BinaryDecrement },
         { Parser::KeywordRange, BinaryOperator::Range },
@@ -344,7 +319,10 @@ NODE_PROCESSOR(BinaryExpression)
     if (op == BinaryOperator::Invalid)
         return SyntaxError { ErrorCode::OperatorUnresolved, expr->token(), expr->op().value(), lhs->to_string() };
 
+    auto rhs = expr->rhs();
     if (op == BinaryOperator::MemberAccess) {
+        if (lhs == nullptr)
+            return SyntaxError { ErrorCode::SyntaxError, expr->token(), format("Cannot access member {} of {}", expr->rhs(), expr->lhs()) };
         switch (lhs->type()->type()) {
         case PrimitiveType::Struct: {
             auto field_var = std::dynamic_pointer_cast<Variable>(rhs);
@@ -353,7 +331,7 @@ NODE_PROCESSOR(BinaryExpression)
             auto field = lhs->type()->field(field_var->name());
             if (field.type->type() == PrimitiveType::Unknown)
                 return SyntaxError { ErrorCode::NotMember, rhs->token(), rhs, lhs };
-            auto member_identifier = make_node<BoundIdentifier>(rhs->token(), field_var->name(), field.type);
+            auto member_identifier = std::make_shared<BoundIdentifier>(rhs->token(), field_var->name(), field.type);
             return std::make_shared<BoundMemberAccess>(lhs, member_identifier);
         }
         case PrimitiveType::Type: {
@@ -365,35 +343,57 @@ NODE_PROCESSOR(BinaryExpression)
             auto values = type_literal->value()->template_argument_values<NVP>("values");
             for (auto const& v : values) {
                 if (v.first == value_var->name())
-                    return make_node<BoundEnumValue>(lhs->token(), type_literal->value(), v.first, v.second);
+                    return std::make_shared<BoundEnumValue>(lhs->token(), type_literal->value(), v.first, v.second);
             }
             return SyntaxError { ErrorCode::NotMember, rhs->token(), rhs, lhs };
+        }
+        case PrimitiveType::Module: {
+            auto module = std::dynamic_pointer_cast<BoundModule>(lhs);
+            auto module_member = std::dynamic_pointer_cast<Variable>(rhs);
+            if (module_member == nullptr)
+                return SyntaxError { ErrorCode::CannotAccessMember, rhs->token(), rhs->to_string() };
+            auto func = module->exported(module_member->name());
+            if (func != nullptr)
+                return std::make_shared<BoundFunction>(rhs->token(), module_member->name());
+            return SyntaxError { ErrorCode::CannotAccessMember, rhs->token(), rhs->to_string() };
         }
         default:
             return SyntaxError { ErrorCode::CannotAccessMember, lhs->token(), lhs->to_string() };
         }
+    }
 
-        if (lhs->type()->type() != PrimitiveType::Struct)
-            return SyntaxError { ErrorCode::CannotAccessMember, lhs->token(), lhs->to_string() };
-        auto field_var = std::dynamic_pointer_cast<Variable>(rhs);
-        if (field_var == nullptr)
-            return SyntaxError { ErrorCode::NotMember, rhs->token(), rhs, lhs };
-        auto field = lhs->type()->field(field_var->name());
-        if (field.type->type() == PrimitiveType::Unknown)
-            return SyntaxError { ErrorCode::NotMember, rhs->token(), rhs, lhs };
-        auto member_identifier = make_node<BoundIdentifier>(rhs->token(), field_var->name(), field.type);
-        return std::make_shared<BoundMemberAccess>(lhs, member_identifier);
+    auto rhs_processed = TRY(process(expr->rhs(), ctx));
+    auto rhs_bound = std::dynamic_pointer_cast<BoundExpression>(rhs_processed);
+
+    if (op == BinaryOperator::Call) {
+        if (lhs != nullptr && lhs->type()->type() != PrimitiveType::Function)
+            return SyntaxError { ErrorCode::ObjectNotCallable, expr->lhs() };
+        if (lhs == nullptr) {
+            if (auto variable = std::dynamic_pointer_cast<Variable>(expr->lhs()); variable != nullptr) {
+                auto declaration_maybe = ctx.get(variable->name());
+                if (declaration_maybe.has_value()) {
+                    if (auto declaration = std::dynamic_pointer_cast<BoundFunctionDecl>(declaration_maybe.value()); declaration != nullptr)
+                        lhs = std::make_shared<BoundLocalFunction>(variable->token(), variable->name());
+                }
+                if (lhs == nullptr) {
+                    auto root_module = ctx.module("");
+                    assert(root_module != nullptr);
+                    if (auto declaration = root_module->exported(variable->name()); declaration != nullptr) {
+                        lhs = std::make_shared<BoundImportedFunction>(variable->token(), root_module, variable->name());
+                    }
+                }
+            }
+        }
+        if (lhs == nullptr)
+            return SyntaxError { ErrorCode::ObjectNotCallable, expr->lhs() };
+        if (rhs_bound == nullptr || rhs_bound->type()->type() != PrimitiveType::List)
+            return SyntaxError { ErrorCode::SyntaxError, format("Cannot call {} with {}", lhs, expr->rhs()) };
+        auto ret = TRY(make_function_call(ctx, std::dynamic_pointer_cast<BoundFunction>(lhs), std::dynamic_pointer_cast<BoundExpressionList>(rhs_bound)));
+        return ret;
     }
 
     if (lhs == nullptr)
         return SyntaxError { ErrorCode::UntypedExpression, expr->lhs()->token(), expr->lhs()->to_string() };
-    if (rhs_bound == nullptr) {
-        auto ident = std::dynamic_pointer_cast<Identifier>(rhs);
-        if (ident != nullptr) {
-            return SyntaxError { ErrorCode::UndeclaredVariable, ident->token(), ident->name() };
-        }
-        return tree;
-    }
 
     if (op == BinaryOperator::Subscript) {
         if (lhs->type()->type() != PrimitiveType::Array)
@@ -435,12 +435,12 @@ NODE_PROCESSOR(BinaryExpression)
         }
 
         if (op == BinaryOperator::Assign)
-            return make_node<BoundAssignment>(expr->token(), assignee, rhs_bound);
+            return std::make_shared<BoundAssignment>(expr->token(), assignee, rhs_bound);
 
         // +=, -= and friends: rewrite to a straight-up assignment to a binary
-        auto new_rhs = make_node<BoundBinaryExpression>(expr->token(),
+        auto new_rhs = std::make_shared<BoundBinaryExpression>(expr->token(),
             lhs, BinaryOperator_for_assignment_operator(op), rhs_bound, rhs_bound->type());
-        return make_node<BoundAssignment>(expr->token(), assignee, new_rhs);
+        return std::make_shared<BoundAssignment>(expr->token(), assignee, new_rhs);
     }
 
     if ((rhs_bound->node_type() == SyntaxNodeType::BoundIntLiteral) && (rhs_bound->type()->type() == lhs->type()->type()) && (rhs_bound->type()->size() > lhs->type()->size())) {
@@ -450,7 +450,7 @@ NODE_PROCESSOR(BinaryExpression)
     }
     auto return_type_maybe = lhs->type()->return_type_of(to_operator(op), rhs_bound->type());
     if (return_type_maybe.has_value())
-        return make_node<BoundBinaryExpression>(expr, lhs, op, rhs_bound, return_type_maybe.value());
+        return std::make_shared<BoundBinaryExpression>(expr, lhs, op, rhs_bound, return_type_maybe.value());
     return SyntaxError { ErrorCode::ReturnTypeUnresolved, expr->token(), format("{} {} {}", lhs, op, rhs) };
 }
 
@@ -490,7 +490,7 @@ NODE_PROCESSOR(UnaryExpression)
     auto return_type = operand->type()->return_type_of(to_operator(op));
     if (!return_type.has_value())
         return SyntaxError { ErrorCode::ReturnTypeUnresolved, expr->token(), format("{} {}", op, operand) };
-    return make_node<BoundUnaryExpression>(expr, operand, op, return_type.value());
+    return std::make_shared<BoundUnaryExpression>(expr, operand, op, return_type.value());
 }
 
 NODE_PROCESSOR(CastExpression)
@@ -508,21 +508,43 @@ NODE_PROCESSOR(CastExpression)
     return std::make_shared<BoundCastExpression>(cast->token(), expr, type_maybe.value());
 }
 
+NODE_PROCESSOR(ExpressionList)
+{
+    auto list = std::dynamic_pointer_cast<ExpressionList>(tree);
+    BoundExpressions bound_expressions;
+    for (auto const& expr : list->expressions()) {
+        auto bound_expr = TRY_AND_CAST(BoundExpression, process(expr, ctx));
+        bound_expressions.push_back(bound_expr);
+    }
+    return std::make_shared<BoundExpressionList>(tree->token(), bound_expressions);
+}
+
+NODE_PROCESSOR(Import)
+{
+    return tree;
+}
+
 NODE_PROCESSOR(Variable)
 {
     auto variable = std::dynamic_pointer_cast<Variable>(tree);
-    auto type_decl_maybe = ctx.get(variable->name());
-    if (!type_decl_maybe.has_value()) {
+    auto declaration_maybe = ctx.get(variable->name());
+    if (!declaration_maybe.has_value()) {
         auto type = ObjectType::get(variable->name());
         if (type->type() != PrimitiveType::Unknown)
-            return make_node<BoundTypeLiteral>(variable->token(), type);
-        return tree;
+            return std::make_shared<BoundTypeLiteral>(variable->token(), type);
+    } else {
+        auto declaration = std::dynamic_pointer_cast<BoundVariableDeclaration>(declaration_maybe.value());
+        if (declaration != nullptr)
+            return std::make_shared<BoundVariable>(variable, declaration->type());
+        auto func_decl = std::dynamic_pointer_cast<BoundFunctionDecl>(declaration_maybe.value());
+        if (func_decl != nullptr)
+            return std::make_shared<BoundLocalFunction>(variable->token(), variable->name());
+        auto module = std::dynamic_pointer_cast<BoundModule>(declaration_maybe.value());
+        if (module != nullptr)
+            return module;
+        return SyntaxError { ErrorCode::SyntaxError, variable->token(), format("Identifier '{}' cannot be referenced as a variable, it's a {}", variable->name(), declaration_maybe.value()) };
     }
-    auto type_decl = std::dynamic_pointer_cast<BoundVariableDeclaration>(type_decl_maybe.value());
-    if (type_decl == nullptr)
-        return SyntaxError { ErrorCode::SyntaxError, variable->token(), format("Function {} ({})cannot be referenced as a variable", variable, variable->node_type()) };
-    auto var_decl = std::dynamic_pointer_cast<BoundVariableDeclaration>(type_decl);
-    return make_node<BoundVariable>(variable, var_decl->type());
+    return tree;
 }
 
 NODE_PROCESSOR(IntLiteral)
@@ -535,51 +557,17 @@ NODE_PROCESSOR(IntLiteral)
             return SyntaxError { ErrorCode::NoSuchType, literal->token(), format("Unknown type '{}'", literal->type()) };
         type = type_or_error.value();
     }
-    return make_node<BoundIntLiteral>(std::dynamic_pointer_cast<IntLiteral>(tree), type);
+    return std::make_shared<BoundIntLiteral>(std::dynamic_pointer_cast<IntLiteral>(tree), type);
 }
 
 NODE_PROCESSOR(StringLiteral)
 {
-    return make_node<BoundStringLiteral>(std::dynamic_pointer_cast<StringLiteral>(tree));
+    return std::make_shared<BoundStringLiteral>(std::dynamic_pointer_cast<StringLiteral>(tree));
 }
 
 NODE_PROCESSOR(BooleanLiteral)
 {
-    return make_node<BoundBooleanLiteral>(std::dynamic_pointer_cast<BooleanLiteral>(tree));
-}
-
-NODE_PROCESSOR(FunctionCall)
-{
-    auto func_call = std::dynamic_pointer_cast<FunctionCall>(tree);
-
-    BoundExpressions args;
-    ObjectTypes arg_types;
-    for (auto& arg : func_call->arguments()) {
-        auto processed_arg = TRY_AND_CAST(BoundExpression, process(arg, ctx));
-        if (processed_arg == nullptr) {
-            return tree;
-        }
-        args.push_back(processed_arg);
-        arg_types.push_back(processed_arg->type());
-    }
-    std::shared_ptr<BoundFunctionDecl> func_decl = ctx.match(func_call->name(), arg_types);
-    if (func_decl == nullptr) {
-        ctx.add_unresolved_function(func_call);
-        return tree;
-    }
-
-    switch (func_decl->node_type()) {
-    case SyntaxNodeType::BoundIntrinsicDecl: {
-        auto intrinsic = IntrinsicType_by_name(func_decl->name());
-        if (intrinsic == IntrinsicType::NotIntrinsic)
-            return SyntaxError { ErrorCode::SyntaxError, func_call->token(), format("Intrinsic {} not defined", func_decl->name()) };
-        return make_node<BoundIntrinsicCall>(func_call, args, std::dynamic_pointer_cast<BoundIntrinsicDecl>(func_decl), intrinsic);
-    }
-    case SyntaxNodeType::BoundNativeFunctionDecl:
-        return make_node<BoundNativeFunctionCall>(func_call, args, std::dynamic_pointer_cast<BoundNativeFunctionDecl>(func_decl));
-    default:
-        return make_node<BoundFunctionCall>(func_call, args, func_decl);
-    }
+    return std::make_shared<BoundBooleanLiteral>(std::dynamic_pointer_cast<BooleanLiteral>(tree));
 }
 
 NODE_PROCESSOR(ExpressionStatement)
@@ -589,7 +577,7 @@ NODE_PROCESSOR(ExpressionStatement)
     auto bound_expr = std::dynamic_pointer_cast<BoundExpression>(expr);
     if (bound_expr == nullptr)
         return tree;
-    return make_node<BoundExpressionStatement>(expr_stmt, bound_expr);
+    return std::make_shared<BoundExpressionStatement>(expr_stmt, bound_expr);
 }
 
 NODE_PROCESSOR(Return)
@@ -606,7 +594,7 @@ NODE_PROCESSOR(Return)
         if (bound_expr)
             return SyntaxError { ErrorCode::SyntaxError, ret_stmt->token(), format("Expected void return, got a return value of type '{}'", bound_expr->type_name()) };
     }
-    return make_node<BoundReturn>(ret_stmt, bound_expr);
+    return std::make_shared<BoundReturn>(ret_stmt, bound_expr);
 }
 
 NODE_PROCESSOR(Branch)
@@ -616,7 +604,7 @@ NODE_PROCESSOR(Branch)
     if (bound_condition == nullptr)
         return tree;
     auto bound_statement = TRY_AND_CAST(Statement, process(branch->statement(), ctx));
-    return make_node<BoundBranch>(branch, bound_condition, bound_statement);
+    return std::make_shared<BoundBranch>(branch, bound_condition, bound_statement);
 }
 
 NODE_PROCESSOR(IfStatement)
@@ -629,7 +617,7 @@ NODE_PROCESSOR(IfStatement)
         bound_branches.push_back(bound_branch);
     }
     auto bound_else_stmt = TRY_AND_CAST(Statement, process(if_stmt->else_stmt(), ctx));
-    return make_node<BoundIfStatement>(if_stmt, bound_branches, bound_else_stmt);
+    return std::make_shared<BoundIfStatement>(if_stmt, bound_branches, bound_else_stmt);
 }
 
 NODE_PROCESSOR(WhileStatement)
@@ -639,7 +627,7 @@ NODE_PROCESSOR(WhileStatement)
     if (bound_condition == nullptr)
         return tree;
     auto bound_statement = TRY_AND_CAST(Statement, process(stmt->statement(), ctx));
-    return make_node<BoundWhileStatement>(stmt, bound_condition, bound_statement);
+    return std::make_shared<BoundWhileStatement>(stmt, bound_condition, bound_statement);
 }
 
 NODE_PROCESSOR(ForStatement)
@@ -709,14 +697,14 @@ NODE_PROCESSOR(CaseStatement)
     if (bound_condition == nullptr)
         return tree;
     auto bound_statement = TRY_AND_CAST(Statement, process(branch->statement(), ctx));
-    return make_node<BoundCaseStatement>(branch, bound_condition, bound_statement);
+    return std::make_shared<BoundCaseStatement>(branch, bound_condition, bound_statement);
 }
 
 NODE_PROCESSOR(DefaultCase)
 {
     auto branch = std::dynamic_pointer_cast<DefaultCase>(tree);
     auto bound_statement = TRY_AND_CAST(Statement, process(branch->statement(), ctx));
-    return make_node<BoundDefaultCase>(branch, bound_statement);
+    return std::make_shared<BoundDefaultCase>(branch, bound_statement);
 }
 
 NODE_PROCESSOR(SwitchStatement)
@@ -731,7 +719,7 @@ NODE_PROCESSOR(SwitchStatement)
         bound_case_statements.push_back(bound_case);
     }
     auto bound_default_case = TRY_AND_CAST(BoundDefaultCase, process(stmt->default_case(), ctx));
-    return make_node<BoundSwitchStatement>(stmt, bound_expression, bound_case_statements, bound_default_case);
+    return std::make_shared<BoundSwitchStatement>(stmt, bound_expression, bound_case_statements, bound_default_case);
 }
 
 ErrorOrNode bind_types(std::shared_ptr<SyntaxNode> const& tree, Config const& config)
@@ -749,7 +737,7 @@ ErrorOrNode bind_types(std::shared_ptr<SyntaxNode> const& tree, Config const& co
         if (config.cmdline_flag("show-tree") && !root.unresolved_functions().empty()) {
             std::cout << "Unresolved after stage " << root.stage << ":\n";
             for (auto const& unresolved : root.unresolved_functions()) {
-                std::cout << unresolved->to_string() << "\n";
+                std::cout << unresolved.first->to_string() << "(...)\n";
             }
             std::cout << "Current declared functions:\n";
             for (auto const& f : root.declared_functions()) {
@@ -759,7 +747,7 @@ ErrorOrNode bind_types(std::shared_ptr<SyntaxNode> const& tree, Config const& co
     }
     auto func_call = root.unresolved_functions().back();
     // FIXME Deal with multiple unresolved functions
-    return SyntaxError { ErrorCode::UntypedFunction, func_call->token(), func_call->name() };
+    return SyntaxError { ErrorCode::UntypedFunction, func_call.first->token(), func_call.first->name() };
 }
 
 }

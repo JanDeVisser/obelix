@@ -28,6 +28,17 @@ private:
 
 using BoundExpressions = std::vector<std::shared_ptr<BoundExpression>>;
 
+NODE_CLASS(BoundExpressionList, BoundExpression)
+public:
+    BoundExpressionList(Token, BoundExpressions);
+    [[nodiscard]] BoundExpressions const& expressions() const;
+    [[nodiscard]] Nodes children() const override;
+    [[nodiscard]] std::string to_string() const override;
+
+private:
+    BoundExpressions m_expressions;
+};
+
 NODE_CLASS(BoundBinaryExpression, BoundExpression)
 public:
     BoundBinaryExpression(std::shared_ptr<BinaryExpression> const&, std::shared_ptr<BoundExpression>, BinaryOperator, std::shared_ptr<BoundExpression>, std::shared_ptr<ObjectType> = nullptr);

@@ -35,6 +35,8 @@ private:
     BoundIdentifiers m_parameters;
 };
 
+using BoundFunctionDecls = std::vector<std::shared_ptr<BoundFunctionDecl>>;
+
 NODE_CLASS(BoundNativeFunctionDecl, BoundFunctionDecl)
 public:
     BoundNativeFunctionDecl(std::shared_ptr<NativeFunctionDecl> const&, std::shared_ptr<BoundIdentifier>, BoundIdentifiers);
@@ -76,9 +78,8 @@ protected:
 
 NODE_CLASS(BoundFunctionCall, BoundExpression)
 public:
-    BoundFunctionCall(std::shared_ptr<FunctionCall> const&, BoundExpressions, std::shared_ptr<BoundFunctionDecl>);
+    BoundFunctionCall(Token, std::shared_ptr<BoundFunctionDecl> const&, BoundExpressions);
     BoundFunctionCall(std::shared_ptr<BoundFunctionCall> const&, BoundExpressions, std::shared_ptr<BoundFunctionDecl> const& = nullptr);
-    BoundFunctionCall(Token token, std::shared_ptr<BoundFunctionDecl> const&, BoundExpressions);
     [[nodiscard]] std::string attributes() const override;
     [[nodiscard]] Nodes children() const override;
     [[nodiscard]] std::string to_string() const override;
@@ -95,19 +96,43 @@ private:
 
 NODE_CLASS(BoundNativeFunctionCall, BoundFunctionCall)
 public:
-    BoundNativeFunctionCall(std::shared_ptr<FunctionCall> const&, BoundExpressions, std::shared_ptr<BoundNativeFunctionDecl>);
+    BoundNativeFunctionCall(Token, std::shared_ptr<BoundNativeFunctionDecl> const&, BoundExpressions);
     BoundNativeFunctionCall(std::shared_ptr<BoundNativeFunctionCall> const&, BoundExpressions, std::shared_ptr<BoundFunctionDecl> const& = nullptr);
 };
 
 NODE_CLASS(BoundIntrinsicCall, BoundFunctionCall)
 public:
-    BoundIntrinsicCall(std::shared_ptr<FunctionCall> const& call, BoundExpressions arguments, std::shared_ptr<BoundIntrinsicDecl> decl, IntrinsicType intrinsic);
-    BoundIntrinsicCall(std::shared_ptr<BoundIntrinsicCall> const& call, BoundExpressions arguments, std::shared_ptr<BoundIntrinsicDecl> const& decl = nullptr);
-    BoundIntrinsicCall(Token token, std::shared_ptr<BoundIntrinsicDecl> const& decl, BoundExpressions arguments, IntrinsicType intrinsic_type);
+    BoundIntrinsicCall(Token, std::shared_ptr<BoundIntrinsicDecl> const&, BoundExpressions, IntrinsicType);
+    BoundIntrinsicCall(std::shared_ptr<BoundIntrinsicCall> const&, BoundExpressions, std::shared_ptr<BoundIntrinsicDecl> const& decl = nullptr);
     [[nodiscard]] IntrinsicType intrinsic() const;
 
 private:
     IntrinsicType m_intrinsic;
+};
+
+ABSTRACT_NODE_CLASS(BoundFunction, BoundExpression)
+public:
+    BoundFunction(Token, std::string);
+    [[nodiscard]] std::string const& name() const;
+    [[nodiscard]] std::string attributes() const override;
+    [[nodiscard]] std::string to_string() const override;
+
+private:
+    std::string m_name;
+};
+
+NODE_CLASS(BoundLocalFunction, BoundFunction)
+public:
+    BoundLocalFunction(Token, std::string);
+};
+
+NODE_CLASS(BoundImportedFunction, BoundFunction)
+public:
+    BoundImportedFunction(Token, std::shared_ptr<BoundModule>, std::string);
+    [[nodiscard]] std::shared_ptr<BoundModule> const& module() const;
+
+private:
+    std::shared_ptr<BoundModule> m_module;
 };
 
 }

@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
+#include <obelix/boundsyntax/Function.h>
 #include <obelix/boundsyntax/Variable.h>
 
 namespace Obelix {
@@ -274,6 +275,149 @@ Nodes BoundAssignment::children() const
 std::string BoundAssignment::to_string() const
 {
     return format("{} = {}", assignee()->to_string(), expression()->to_string());
+}
+
+// -- BoundModule -----------------------------------------------------------
+
+BoundModule::BoundModule(Token token, std::string name, std::shared_ptr<Block> block, BoundFunctionDecls exports)
+    : BoundExpression(std::move(token), PrimitiveType::Module)
+    , m_name(std::move(name))
+    , m_block(std::move(block))
+    , m_exports(std::move(exports))
+{
+}
+
+std::string const& BoundModule::name() const
+{
+    return m_name;
+}
+
+std::shared_ptr<Block> const& BoundModule::block() const
+{
+    return m_block;
+}
+
+BoundFunctionDecls const& BoundModule::exports() const
+{
+    return m_exports;
+}
+
+std::shared_ptr<BoundFunctionDecl> BoundModule::exported(std::string const& name)
+{
+    auto it = std::find_if(exports().begin(), exports().end(), [name](auto const& e) {
+       return e->name() == name;
+    });
+    if (it != exports().end())
+        return *it;
+    return nullptr;
+}
+
+std::shared_ptr<BoundFunctionDecl> BoundModule::resolve(std::string const& name, ObjectTypes const& arg_types) const
+{
+    debug(parser, "resolving function {}({})", name, arg_types);
+    std::shared_ptr<BoundFunctionDecl> func_decl = nullptr;
+    for (auto const& declaration : exports()) {
+        if (declaration->name() != name)
+            continue;
+        debug(parser, "checking {}({})", declaration->name(), declaration->parameters());
+        if (arg_types.size() != declaration->parameters().size())
+            continue;
+
+        bool all_matched = true;
+        for (auto ix = 0u; ix < arg_types.size(); ix++) {
+            auto& arg_type = arg_types.at(ix);
+            auto& param = declaration->parameters().at(ix);
+            if (!arg_type->is_assignable_to(param->type())) {
+                all_matched = false;
+                break;
+            }
+        }
+        if (all_matched) {
+            func_decl = declaration;
+            break;
+        }
+    }
+    if (func_decl != nullptr)
+        debug(parser, "resolve() returns {}", *func_decl);
+    else
+        debug(parser, "No matching function found");
+    return func_decl;
+}
+
+std::string BoundModule::attributes() const
+{
+    return format(R"(name="{}")", name());
+}
+
+Nodes BoundModule::children() const
+{
+    Nodes ret;
+    for (auto const& exported : exports()) {
+        ret.push_back(exported);
+    }
+    ret.push_back(m_block);
+    return ret;
+}
+
+std::string BoundModule::to_string() const
+{
+    return format("module {}", m_name);
+}
+
+// -- BoundCompilation ------------------------------------------------------
+
+BoundCompilation::BoundCompilation(BoundModules modules)
+    : BoundExpression(Token {}, PrimitiveType::Compilation)
+    , m_modules(std::move(modules))
+{
+    for (auto const& module : m_modules) {
+        if (module->name() == "")
+            m_root = module;
+    }
+}
+
+BoundModules const& BoundCompilation::modules() const
+{
+    return m_modules;
+}
+
+std::shared_ptr<BoundModule> const& BoundCompilation::root() const
+{
+    return m_root;
+}
+
+Nodes BoundCompilation::children() const
+{
+    Nodes ret;
+    for (auto& module : m_modules) {
+        ret.push_back(module);
+    }
+    return ret;
+}
+
+std::string BoundCompilation::to_string() const
+{
+    std::string ret = "boundcompilation";
+    for (auto const& module : m_modules) {
+        ret += "\n";
+        ret += "  " + module->to_string();
+    }
+    return ret;
+}
+
+std::string BoundCompilation::root_to_xml() const
+{
+    auto indent = 0u;
+    auto ret = format("<{}", node_type());
+    auto child_nodes = children();
+    if (child_nodes.empty())
+        return ret + "/>";
+    ret += ">\n";
+    for (auto const& child : child_nodes) {
+        ret += child->to_xml(indent + 2);
+        ret += "\n";
+    }
+    return ret + format("</{}>", node_type());
 }
 
 }

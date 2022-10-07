@@ -40,7 +40,8 @@ ErrorOr<void> BasicParser::read_file(std::string const& file_name, BufferLocator
 {
     FileBuffer buffer(file_name, locator);
 
-    m_file_name = buffer.file_path();
+    m_file_name = file_name;
+    m_file_path = buffer.file_path();
     if (!buffer.file_is_read()) {
         add_error(Token { TokenCode::Error, buffer.file_path() }, format("Could not read '{}'", buffer.file_path()));
         return buffer.error();

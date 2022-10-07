@@ -26,21 +26,22 @@ logging_category(arm64);
 
 INIT_NODE_PROCESSOR(ARM64Context)
 
-NODE_PROCESSOR(Compilation)
+NODE_PROCESSOR(BoundCompilation)
 {
-    auto compilation = std::dynamic_pointer_cast<Compilation>(tree);
+    auto compilation = std::dynamic_pointer_cast<BoundCompilation>(tree);
     ctx.add_module(ARM64Context::ROOT_MODULE_NAME);
     return process_tree(tree, ctx, ARM64Context_processor);
 }
 
-NODE_PROCESSOR(Module)
+NODE_PROCESSOR(BoundModule)
 {
-    auto module = std::dynamic_pointer_cast<Module>(tree);
+    auto module = std::dynamic_pointer_cast<BoundModule>(tree);
     auto name = module->name();
     if (name.starts_with("./"))
         name = name.substr(2);
     ctx.add_module(join(split(name, '/'), "-"));
-    return process_tree(tree, ctx, ARM64Context_processor);
+    TRY_RETURN(process_tree(module->block(), ctx, ARM64Context_processor));
+    return tree;
 }
 
 NODE_PROCESSOR(MaterializedFunctionDef)
@@ -465,7 +466,7 @@ ErrorOrNode output_arm64(std::shared_ptr<SyntaxNode> const& tree, Config const& 
     auto processed = TRY(materialize_arm64(tree));
     if (config.cmdline_flag("show-tree"))
         std::cout << "\n\nMaterialized:\n"
-                  << std::dynamic_pointer_cast<Compilation>(processed)->root_to_xml()
+                  << std::dynamic_pointer_cast<BoundCompilation>(processed)->root_to_xml()
                   << "\n"
                   << processed->to_xml()
                   << "\n";

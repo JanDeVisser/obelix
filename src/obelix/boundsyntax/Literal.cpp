@@ -272,4 +272,33 @@ std::string BoundEnumValue::to_string() const
     return format(R"({}: {})", label(), value());
 }
 
+// -- BoundModuleLiteral ----------------------------------------------------
+
+BoundModuleLiteral::BoundModuleLiteral(std::shared_ptr<Variable> const& variable)
+    : BoundExpression(variable->token(), PrimitiveType::Module)
+    , m_name(variable->name())
+{
+}
+
+BoundModuleLiteral::BoundModuleLiteral(Token token, std::string name)
+    : BoundExpression(std::move(token), PrimitiveType::Module)
+    , m_name(std::move(name))
+{
+}
+
+std::string const& BoundModuleLiteral::name() const
+{
+    return m_name;
+}
+
+std::string BoundModuleLiteral::attributes() const
+{
+    return format(R"(name="{}")", m_name);
+}
+
+std::string BoundModuleLiteral::to_string() const
+{
+    return format("module {}", m_name);
+}
+
 }
