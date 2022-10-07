@@ -108,12 +108,12 @@ std::shared_ptr<Compilation> Parser::parse()
         modules.push_back(root);
     }
     if (errors().empty()) {
-        modules.push_back(main_module);
         for (auto& module_name : m_modules) {
             auto imported_module = parse_module(module_name);
             if (imported_module)
                 modules.push_back(imported_module);
         }
+        modules.push_back(main_module);
         return std::make_shared<Compilation>(modules);
     }
     return nullptr;
@@ -546,7 +546,7 @@ std::shared_ptr<Import> Parser::parse_import_statement(Token const& import_token
         lex();
         module_name += '/';
     }
-    m_modules.insert(module_name);
+    m_modules.push_back(module_name);
     return std::make_shared<Import>(import_token, module_name);
 }
 

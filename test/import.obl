@@ -1,0 +1,7 @@
+import imported
+
+func main(): s32
+{
+   imported.foo()
+   return 0
+}

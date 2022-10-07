@@ -103,7 +103,7 @@ private:
     std::shared_ptr<ExpressionType> parse_type();
 
     Config m_config;
-    std::unordered_set<std::string> m_modules;
+    std::vector<std::string> m_modules;
 };
 
 }

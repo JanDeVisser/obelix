@@ -21,3 +21,5 @@ local_reassign
 struct
 array
 argv arg1 arg2 arg3
+extend_enum
+import

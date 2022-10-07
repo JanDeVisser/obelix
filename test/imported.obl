@@ -1,0 +1,6 @@
+func foo(): s64
+{
+   putln("foo")
+   return 0
+}
+

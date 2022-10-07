@@ -354,7 +354,7 @@ NODE_PROCESSOR(BinaryExpression)
                 return SyntaxError { ErrorCode::CannotAccessMember, rhs->token(), rhs->to_string() };
             auto func = module->exported(module_member->name());
             if (func != nullptr)
-                return std::make_shared<BoundFunction>(rhs->token(), module_member->name());
+                return std::make_shared<BoundImportedFunction>(rhs->token(), module, module_member->name());
             return SyntaxError { ErrorCode::CannotAccessMember, rhs->token(), rhs->to_string() };
         }
         default:
