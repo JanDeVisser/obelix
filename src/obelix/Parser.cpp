@@ -714,15 +714,17 @@ std::shared_ptr<Expression> Parser::parse_expression_1(std::shared_ptr<Expressio
             switch (op.code()) {
             case TokenCode::OpenParen: {
                 Expressions expressions;
-                while (true) {
-                    auto expr = parse_expression();
-                    if (expr == nullptr)
-                        return nullptr;
-                    expressions.push_back(expr);
-                    if (current_code() == TokenCode::CloseParen)
-                        break;
-                    if (!expect(TokenCode::Comma))
-                        return nullptr;
+                if (current_code() != TokenCode::CloseParen) {
+                    while (true) {
+                        auto expr = parse_expression();
+                        if (expr == nullptr)
+                            return nullptr;
+                        expressions.push_back(expr);
+                        if (current_code() == TokenCode::CloseParen)
+                            break;
+                        if (!expect(TokenCode::Comma))
+                            return nullptr;
+                    }
                 }
                 lex();
                 rhs = std::make_shared<ExpressionList>(op, expressions);
