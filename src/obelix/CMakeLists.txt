@@ -27,6 +27,7 @@ add_executable(
         arm64/MaterializedSyntaxNode.cpp
         arm64/Mnemonic.cpp
         arm64/VariableAddress.cpp
+        bind/BindContext.cpp
         bind/BindTypes.cpp
         boundsyntax/ControlFlow.cpp
         boundsyntax/Expression.cpp
@@ -45,10 +46,12 @@ add_executable(
         syntax/Type.cpp
         syntax/Typedef.cpp
         syntax/Variable.cpp
+        transpile/c/CTranspiler.cpp
+        transpile/c/CTranspilerIntrinsics.cpp
         type/MethodDescription.cpp
         type/Template.cpp
         type/Type.cpp
-        bind/BindContext.cpp bind/BindContext.h)
+)
 
 target_link_libraries(
         obelix

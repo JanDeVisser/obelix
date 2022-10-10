@@ -14,6 +14,7 @@
 #    include <obelix/OutputJV80.h>
 #endif
 #include <obelix/arm64/ARM64.h>
+#include <obelix/transpile/c/CTranspiler.h>
 #include <obelix/Parser.h>
 #include <obelix/Processor.h>
 #include <optional>
@@ -109,9 +110,12 @@ private:
             auto transformed = TRY(bind_types(tree, config()));
             if (!m_config.lower)
                 return transformed;
-            transformed = TRY(lower(transformed));
-            if (config().cmdline_flag("show-tree"))
-                std::cout << "\n\nFlattened:\n" << transformed->to_xml() << "\n";
+            if (m_config.target == Architecture::C_TRANSPILER) {
+                transformed = TRY(lower(transformed));
+                if (config().cmdline_flag("show-tree"))
+                    std::cout << "\n\nFlattened:\n"
+                              << transformed->to_xml() << "\n";
+            }
             if (!m_config.fold_constants)
                 return transformed;
             transformed = TRY(fold_constants(transformed));
@@ -132,6 +136,15 @@ private:
 #endif
                 if (m_config.target == Architecture::MACOS_ARM64) {
                     auto err = output_arm64(transformed, config(), file_name);
+                    if (err.is_error())
+                        return err;
+                    auto ret_val = err.value();
+                    if (ret_val->node_type() != SyntaxNodeType::BoundIntLiteral)
+                        ret_val = std::make_shared<BoundIntLiteral>(Token {}, 0);
+                    return ret_val;
+                }
+                if (m_config.target == Architecture::C_TRANSPILER) {
+                    auto err = transpile_to_c(transformed, config(), file_name);
                     if (err.is_error())
                         return err;
                     auto ret_val = err.value();

@@ -12,12 +12,14 @@
 
 namespace Obelix {
 
-#define ENUMERATE_ARCHITECTURES(S)  \
-    S(MACOS_ARM64, "macos_aarch64") \
-    S(RASPI_ARM64, "raspi_aarch64") \
-    S(MACOS_X86_64, "macos_x68_64") \
-    S(LINUX_X86_64, "linux") \
-    S(WINDOWS_X86_64, "windows")    \
+#define ENUMERATE_ARCHITECTURES(S)    \
+    S(MACOS_ARM64, "macos_aarch64")   \
+    S(RASPI_ARM64, "raspi_aarch64")   \
+    S(MACOS_X86_64, "macos_x68_64")   \
+    S(LINUX_X86_64, "linux")          \
+    S(WINDOWS_X86_64, "windows")      \
+    S(C_TRANSPILER, "c_transpiler")   \
+    S(JS_TRANSPILER, "js_transpiler") \
     S(INTERPRETER, "interp")
 
 enum class Architecture {
