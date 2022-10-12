@@ -279,11 +279,12 @@ std::string BoundAssignment::to_string() const
 
 // -- BoundModule -----------------------------------------------------------
 
-BoundModule::BoundModule(Token token, std::string name, std::shared_ptr<Block> block, BoundFunctionDecls exports)
+BoundModule::BoundModule(Token token, std::string name, std::shared_ptr<Block> block, BoundFunctionDecls exports, BoundFunctionDecls imports)
     : BoundExpression(std::move(token), PrimitiveType::Module)
     , m_name(std::move(name))
     , m_block(std::move(block))
     , m_exports(std::move(exports))
+    , m_imports(std::move(imports))
 {
 }
 
@@ -300,6 +301,11 @@ std::shared_ptr<Block> const& BoundModule::block() const
 BoundFunctionDecls const& BoundModule::exports() const
 {
     return m_exports;
+}
+
+BoundFunctionDecls const& BoundModule::imports() const
+{
+    return m_imports;
 }
 
 std::shared_ptr<BoundFunctionDecl> BoundModule::exported(std::string const& name)
@@ -352,10 +358,18 @@ std::string BoundModule::attributes() const
 Nodes BoundModule::children() const
 {
     Nodes ret;
+    BoundFunctionDecls export_list;
     for (auto const& exported : exports()) {
-        ret.push_back(exported);
+        export_list.push_back(exported);
     }
-    ret.push_back(m_block);
+    ret.push_back(std::make_shared<NodeList<BoundFunctionDecl>>("exports", export_list));
+    BoundFunctionDecls import_list;
+    for (auto const& imported : imports()) {
+        import_list.push_back(imported);
+    }
+    ret.push_back(std::make_shared<NodeList<BoundFunctionDecl>>("imports", import_list));
+    auto statements = block()->children();
+    ret.push_back(statements.front());
     return ret;
 }
 

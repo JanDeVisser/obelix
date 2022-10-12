@@ -87,10 +87,14 @@ public:
     void add_declared_function(std::string const&, std::shared_ptr<BoundFunctionDecl> const&);
     [[nodiscard]] FunctionRegistry const& declared_functions() const;
     void clear_declared_functions();
+    void add_imported_function(std::shared_ptr<BoundFunctionDecl> const&);
+    [[nodiscard]] BoundFunctionDecls const& imported_functions() const;
+    void clear_imported_functions();
     [[nodiscard]] std::shared_ptr<BoundFunctionDecl> match(std::string const& name, ObjectTypes arg_types) const;
 
 private:
     FunctionRegistry m_declared_functions;
+    BoundFunctionDecls m_imported_functions;
 };
 
 class RootContext : public ContextImpl {
@@ -122,8 +126,9 @@ public:
     [[nodiscard]] FunctionCalls const& unresolved_functions() const;
     void clear_unresolved_functions();
     void add_declared_function(std::string const& name, std::shared_ptr<BoundFunctionDecl> const& func);
-    [[nodiscard]] std::multimap<std::string, std::shared_ptr<BoundFunctionDecl>> const& declared_functions() const;
-    void clear_declared_functions();
+    [[nodiscard]] FunctionRegistry const& declared_functions() const;
+    void add_imported_function(std::shared_ptr<BoundFunctionDecl> const& func);
+    [[nodiscard]] BoundFunctionDecls const& imported_functions() const;
     void add_module(std::shared_ptr<BoundModule> const& module);
     [[nodiscard]] std::shared_ptr<BoundModule> module(std::string const& name) const;
     [[nodiscard]] std::shared_ptr<BoundFunctionDecl> match(std::string const& name, ObjectTypes arg_types) const;

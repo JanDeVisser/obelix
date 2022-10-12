@@ -13,6 +13,7 @@ namespace Obelix {
 
 #define ENUMERATE_SYNTAXNODETYPES(S)    \
     S(SyntaxNode)                       \
+    S(NodeList)                         \
     S(Statement)                        \
     S(Block)                            \
     S(FunctionBlock)                    \

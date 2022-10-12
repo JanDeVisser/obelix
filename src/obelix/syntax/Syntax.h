@@ -20,11 +20,11 @@ namespace Obelix {
 
 #define ABSTRACT_NODE_CLASS(name, derives_from) \
     class name                                  \
-        : public derives_from {                 \
+        : public derives_from {
 
 #define NODE_CLASS(name, derives_from, ...)                     \
     class name                                                  \
-        : public derives_from __VA_OPT__(,) __VA_ARGS__ {       \
+        : public derives_from __VA_OPT__(, ) __VA_ARGS__ {       \
     public:                                                     \
         [[nodiscard]] SyntaxNodeType node_type() const override \
         {                                                       \
@@ -53,6 +53,36 @@ public:
 
 private:
     Token m_token;
+};
+
+template<class NodeClass>
+NODE_CLASS(NodeList, SyntaxNode, public std::vector<std::shared_ptr<NodeClass>>)
+public:
+    NodeList(std::string tag, std::vector<std::shared_ptr<NodeClass>> nodes)
+        : SyntaxNode()
+        , std::vector<std::shared_ptr<NodeClass>>(std::move(nodes))
+        , m_tag(std::move(tag))
+    {
+    }
+
+    [[nodiscard]] std::string const& tag() const { return m_tag; }
+
+    [[nodiscard]] std::string attributes() const override
+    {
+        return format(R"(tag="{}")", tag());
+    }
+
+    [[nodiscard]] Nodes children() const override
+    {
+        Nodes ret;
+        for (auto const& element : *this) {
+            ret.push_back(element);
+        }
+        return ret;
+    }
+
+private:
+    std::string m_tag;
 };
 
 template<class T, class... Args>

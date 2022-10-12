@@ -273,7 +273,7 @@ ErrorOrNode process_tree(std::shared_ptr<SyntaxNode> const& tree, Context& ctx, 
     case SyntaxNodeType::BoundModule: {
         auto module = std::dynamic_pointer_cast<BoundModule>(tree);
         auto block = TRY_AND_CAST(Block, processor(module->block(), ctx));
-        ret = std::make_shared<BoundModule>(module->token(), module->name(), block, module->exports());
+        ret = std::make_shared<BoundModule>(module->token(), module->name(), block, module->exports(), module->imports());
         break;
     }
 

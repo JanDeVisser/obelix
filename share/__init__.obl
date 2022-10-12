@@ -38,9 +38,9 @@ func read(fd: s32, buffer: ptr<char>, number_of_bytes: u64) : u64 -> "read"
 func putln(s: string) : u64 -> "putln"
 func puts(s: string) : u64 -> "puts"
 func write(fd: int, buffer: ptr<char>, number_of_bytes: u64) : u64 -> "write"
-func cstr_to_str(s: ptr<char>) : string -> "cstr_to_str"
+func cstr_to_string(s: ptr<char>) : string -> "cstr_to_string"
 
-func cstrlen(s: ptr<char>) : u64 -> "cstrlen"
+func cstrlen(s: ptr<char>) : u64 -> "strlen"
 func cputs(s: ptr<char>) : u64 -> "cputs"
 func cputln(s: ptr<char>) : u64 -> "cputln"
 

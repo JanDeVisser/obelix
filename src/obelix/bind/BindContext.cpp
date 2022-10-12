@@ -127,6 +127,21 @@ void ModuleContext::clear_declared_functions()
     m_declared_functions.clear();
 }
 
+void ModuleContext::add_imported_function(std::shared_ptr<BoundFunctionDecl> const& func)
+{
+    m_imported_functions.push_back(func);
+}
+
+BoundFunctionDecls const& ModuleContext::imported_functions() const
+{
+    return m_imported_functions;
+}
+
+void ModuleContext::clear_imported_functions()
+{
+    m_imported_functions.clear();
+}
+
 std::shared_ptr<BoundFunctionDecl> ModuleContext::match(std::string const& name, ObjectTypes arg_types) const
 {
     debug(parser, "matching function {}({})", name, arg_types);
@@ -239,9 +254,19 @@ void BindContext::add_declared_function(std::string const& name, std::shared_ptr
     m_impl->module_impl()->add_declared_function(name, func);
 }
 
-std::multimap<std::string, std::shared_ptr<BoundFunctionDecl>> const& BindContext::declared_functions() const
+FunctionRegistry const& BindContext::declared_functions() const
 {
     return m_impl->module_impl()->declared_functions();
+}
+
+void BindContext::add_imported_function(std::shared_ptr<BoundFunctionDecl> const& func)
+{
+    m_impl->module_impl()->add_imported_function(func);
+}
+
+BoundFunctionDecls const& BindContext::imported_functions() const
+{
+    return m_impl->module_impl()->imported_functions();
 }
 
 void BindContext::add_module(std::shared_ptr<BoundModule> const& module)
@@ -257,11 +282,6 @@ std::shared_ptr<BoundModule> BindContext::module(std::string const& name) const
 std::shared_ptr<BoundFunctionDecl> BindContext::match(std::string const& name, ObjectTypes arg_types) const
 {
     return m_impl->module_impl()->match(name, arg_types);
-}
-
-void BindContext::clear_declared_functions()
-{
-    m_impl->module_impl()->clear_declared_functions();
 }
 
 }

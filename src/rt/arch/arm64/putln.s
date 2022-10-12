@@ -1,5 +1,7 @@
 .align 4
+
 .global putln
+.global _putln
 
 ;
 ; putln - Print string followed by a newline character
@@ -14,6 +16,7 @@ buffer  .req x1     ; Pointer to the string buffer
 ; Work:
 ;   x16 - syscall
 
+_putln:
 putln:
     stp     fp,lr,[sp,#-16]!
     mov     fp,sp

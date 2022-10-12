@@ -146,7 +146,7 @@ NODE_PROCESSOR(Module)
             exports.push_back(declaration);
         }
     }
-    auto ret = std::make_shared<BoundModule>(module->token(), module->name(), block, exports);
+    auto ret = std::make_shared<BoundModule>(module->token(), module->name(), block, exports, module_ctx.imported_functions());
     ctx.declare(ret->name(), ret);
     ctx.add_module(ret);
     return ret;
@@ -353,8 +353,10 @@ NODE_PROCESSOR(BinaryExpression)
             if (module_member == nullptr)
                 return SyntaxError { ErrorCode::CannotAccessMember, rhs->token(), rhs->to_string() };
             auto func = module->exported(module_member->name());
-            if (func != nullptr)
+            if (func != nullptr) {
+                ctx.add_imported_function(func);
                 return std::make_shared<BoundImportedFunction>(rhs->token(), module, module_member->name());
+            }
             return SyntaxError { ErrorCode::CannotAccessMember, rhs->token(), rhs->to_string() };
         }
         default:
@@ -379,6 +381,7 @@ NODE_PROCESSOR(BinaryExpression)
                     auto root_module = ctx.module("");
                     assert(root_module != nullptr);
                     if (auto declaration = root_module->exported(variable->name()); declaration != nullptr) {
+                        ctx.add_imported_function(declaration);
                         lhs = std::make_shared<BoundImportedFunction>(variable->token(), root_module, variable->name());
                     }
                 }

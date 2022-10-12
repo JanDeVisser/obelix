@@ -140,9 +140,7 @@ Statements const& Block::statements() const
 Nodes Block::children() const
 {
     Nodes ret;
-    for (auto& statement : m_statements) {
-        ret.push_back(statement);
-    }
+    ret.push_back(std::make_shared<NodeList<Statement>>("statements", m_statements));
     return ret;
 }
 std::string Block::to_string() const

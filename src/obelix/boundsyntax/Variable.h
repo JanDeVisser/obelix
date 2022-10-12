@@ -124,10 +124,11 @@ using BoundFunctionDecls = std::vector<std::shared_ptr<BoundFunctionDecl>>;
 
 NODE_CLASS(BoundModule, BoundExpression)
 public:
-    BoundModule(Token, std::string, std::shared_ptr<Block>, BoundFunctionDecls);
+    BoundModule(Token, std::string, std::shared_ptr<Block>, BoundFunctionDecls, BoundFunctionDecls);
     [[nodiscard]] std::string const& name() const;
     [[nodiscard]] std::shared_ptr<Block> const& block() const;
     [[nodiscard]] BoundFunctionDecls const& exports() const;
+    [[nodiscard]] BoundFunctionDecls const& imports() const;
     [[nodiscard]] std::shared_ptr<BoundFunctionDecl> exported(std::string const&);
     [[nodiscard]] std::string attributes() const override;
     [[nodiscard]] Nodes children() const override;
@@ -138,6 +139,7 @@ private:
     std::string m_name;
     std::shared_ptr<Block> m_block;
     BoundFunctionDecls m_exports;
+    BoundFunctionDecls m_imports;
 };
 
 using BoundModules = std::vector<std::shared_ptr<BoundModule>>;

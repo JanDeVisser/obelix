@@ -1,5 +1,5 @@
 /*
- * Copyright (c) ${YEAR}, Jan de Visser <jan@finiandarcy.com>
+ * Copyright (c) 2022, Jan de Visser <jan@finiandarcy.com>
  *
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
@@ -23,7 +23,9 @@ namespace Obelix {
 
 logging_category(c_transpiler);
 
-void type_to_c_type(CTranspilerContext &ctx, std::shared_ptr<ObjectType> const& type)
+static std::string obl_dir;
+
+std::string type_to_c_type(std::shared_ptr<ObjectType> const& type)
 {
     std::string c_type;
     switch (type->type()) {
@@ -33,10 +35,28 @@ void type_to_c_type(CTranspilerContext &ctx, std::shared_ptr<ObjectType> const& 
     case PrimitiveType::IntegerNumber:
         c_type = format("uint{}_t", 8*type->size());
         break;
-    default:
-        fatal("Implement type_to_c_type for PrimitiveType {}", type->type());
+    case PrimitiveType::Pointer: {
+        std::string ref_type = "void";
+        if (type->is_template_specialization()) {
+            auto target_type = type->template_argument<std::shared_ptr<ObjectType>>("target");
+            ref_type = type_to_c_type(target_type);
+        }
+        c_type = format("{}*", ref_type);
+        break;
     }
-    ctx.write(c_type);
+    case PrimitiveType::Struct:
+        c_type = type->name();
+        break;
+    default:
+        fatal("Can't convert {} types to C types yet", type->type());
+    }
+    return c_type;
+}
+
+
+void type_to_c_type(CTranspilerContext &ctx, std::shared_ptr<ObjectType> const& type)
+{
+    return ctx.write(type_to_c_type(type));
 }
 
 ErrorOr<void, SyntaxError> evaluate_arguments(CTranspilerContext& ctx, std::shared_ptr<BoundFunctionDecl> const& decl, BoundExpressions const& arguments)
@@ -76,7 +96,63 @@ R"(#include <stdint.h>
 #include <fcntl.h>
 #include <stdlib.h>
 #include <unistd.h>
+
+#include <crt.h>
 )");
+    static std::unordered_set<std::string> runtime_symbols;
+    if (runtime_symbols.empty()) {
+        runtime_symbols.insert("string");
+        runtime_symbols.insert("putln");
+        runtime_symbols.insert("puts");
+    }
+
+    std::unordered_set<std::string> struct_types;
+    for (auto const& import : module->imports()) {
+        for (auto const& param : import->parameters()) {
+            if (param->type()->type() == PrimitiveType::Struct) {
+                struct_types.insert(param->type()->name());
+            }
+        }
+    }
+
+    auto num_structs = 0;
+    for (auto const& type : struct_types) {
+        if (runtime_symbols.contains(type))
+            continue;
+        num_structs++;
+        auto t = ObjectType::get(type);
+        ctx.writeln(format("typedef struct _{} {", type));
+        ctx.indent();
+        for (auto const& f : t->fields()) {
+            type_to_c_type(ctx, f.type);
+            ctx.writeln(format(" {};", f.name));
+        }
+        ctx.dedent();
+        ctx.writeln(format("} {};\n", type));
+    }
+    if (num_structs > 0)
+        ctx.writeln("");
+
+    auto num_imports = 0;
+    for (auto const& import : module->imports()) {
+        if (runtime_symbols.contains(import->name()))
+            continue;
+        num_imports++;
+        ctx.write("extern ");
+        type_to_c_type(ctx, import->type());
+        ctx.write(format(" {}(", import->name()));
+        auto first { true };
+        for (auto const& param : import->parameters()) {
+            if (!first)
+                ctx.write(", ");
+            type_to_c_type(ctx, param->type());
+            first = false;
+        }
+        ctx.writeln(");");
+    }
+    if (num_imports > 0)
+        ctx.writeln("");
+
     TRY_RETURN(process_tree(module->block(), ctx, CTranspilerContext_processor));
     TRY_RETURN(ctx.flush());
     return tree;
@@ -175,6 +251,8 @@ NODE_PROCESSOR(BoundEnumValue)
 NODE_PROCESSOR(BoundStringLiteral)
 {
     auto literal = std::dynamic_pointer_cast<BoundStringLiteral>(tree);
+    auto s = literal->value();
+    ctx.write(format(R"((string) {{ {}, (uint8_t *) "{}" })", s.length(), s));
     return tree;
 }
 
@@ -281,13 +359,14 @@ NODE_PROCESSOR(BoundIfStatement)
 ErrorOrNode transpile_to_c(std::shared_ptr<SyntaxNode> const& tree, Config const& config, std::string const& file_name)
 {
     CTranspilerContext root;
+    obl_dir = config.obelix_directory();
+    fs::create_directory(".obelix");
+
     auto ret = process(tree, root);
 
     if (ret.is_error()) {
         return ret;
     }
-
-    fs::create_directory(".obelix");
 
 #if 0
     std::shared_ptr<Assembly> main { nullptr };
@@ -314,8 +393,6 @@ ErrorOrNode transpile_to_c(std::shared_ptr<SyntaxNode> const& tree, Config const
     main->leave_function();
 #endif
 
-    std::string obl_dir = config.obelix_directory();
-
     std::vector<std::string> modules;
     for (auto& module_file : root.files()) {
         auto p = fs::path(".obelix/" + module_file->name());
@@ -324,11 +401,11 @@ ErrorOrNode transpile_to_c(std::shared_ptr<SyntaxNode> const& tree, Config const
             std::cout << module_file->to_string();
         }
 
-        std::vector<std::string> clang_args = { p.string(), "-c", "-o", p.replace_extension("o"), format("-I{}/include", obl_dir) };
+        std::vector<std::string> cc_args = { p.string(), "-c", "-o", p.replace_extension("o"), format("-I{}/include", obl_dir) };
         for (auto& m : modules)
-            clang_args.push_back(m);
+            cc_args.push_back(m);
 
-        if (auto code = execute("clang", clang_args); code.is_error())
+        if (auto code = execute("cc", cc_args); code.is_error())
             return SyntaxError { code.error(), Token {} };
 
         if (!config.cmdline_flag("keep-c-file")) {
@@ -342,6 +419,7 @@ ErrorOrNode transpile_to_c(std::shared_ptr<SyntaxNode> const& tree, Config const
         auto file_parts = split(file_name, '/');
         auto p = fs::path { ".obelix/" + join(split(file_name, '/'), "-") };
 
+#if 0
         static std::string sdk_path; // "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX12.1.sdk";
         if (sdk_path.empty()) {
             Process process("xcrun", "-sdk", "macosx", "--show-sdk-path");
@@ -349,14 +427,14 @@ ErrorOrNode transpile_to_c(std::shared_ptr<SyntaxNode> const& tree, Config const
                 return SyntaxError { exit_code_or_error.error(), Token {} };
             sdk_path = strip(process.standard_out());
         }
+#endif
 
         auto p_here = fs::path { join(split(file_name, '/'), "-") };
-        std::vector<std::string> ld_args = { "-o", p_here.replace_extension(""), "-loblrt", "-lSystem", "-syslibroot", sdk_path,
-            format("-L{}/lib", obl_dir) };
+        std::vector<std::string> ld_args = { "-o", p_here.replace_extension(""), "-loblcrt", format("-L{}/lib", obl_dir) };
         for (auto& m : modules)
             ld_args.push_back(m);
 
-        if (auto code = execute("ld", ld_args); code.is_error())
+        if (auto code = execute("cc", ld_args); code.is_error())
             return SyntaxError { code.error(), Token {} };
         if (config.run) {
             auto run_cmd = format("./{}", p.string());

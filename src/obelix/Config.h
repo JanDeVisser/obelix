@@ -31,13 +31,8 @@ public:
     bool compile { true };
     bool run { false };
     bool cmdline_flag(std::string const& flag) const;
-    Architecture target {
-#ifdef __APPLE__
-        Architecture::MACOS_ARM64
-#else
-        Architecture::INTERPRETER
-#endif
-    };
+    Architecture target { Architecture::C_TRANSPILER };
+
     [[nodiscard]] std::string obelix_directory() const
     {
         std::string obl_dir = (getenv("OBL_DIR")) ? getenv("OBL_DIR") : OBELIX_DIR;

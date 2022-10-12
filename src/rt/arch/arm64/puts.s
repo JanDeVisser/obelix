@@ -1,6 +1,6 @@
 .align 4
 .global puts
-.global putln
+.global _puts
 
 ;
 ; puts - Print string
@@ -16,6 +16,7 @@
 ;   x16: Syscall
 
 puts:
+_puts:
     stp     fp,lr,[sp,#-16]!
     mov     fp,sp
 
