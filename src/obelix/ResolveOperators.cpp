@@ -42,7 +42,7 @@ NODE_PROCESSOR(BoundUnaryExpression)
             return SyntaxError { ErrorCode::InternalError, expr->token(), format("No method defined for unary operator {}::{}", operand->type()->to_string(), expr->op()) };
         auto method_descr = method_descr_maybe.value();
         decl = method_descr.declaration();
-        auto impl = method_descr.implementation(Architecture::MACOS_ARM64);
+        auto impl = method_descr.implementation(Architecture::C_TRANSPILER);
         if (!impl.is_intrinsic || impl.intrinsic == IntrinsicType::NotIntrinsic)
             return SyntaxError { ErrorCode::InternalError, expr->token(), format("No intrinsic defined for {}", method_descr.name()) };
         intrinsic = impl.intrinsic;

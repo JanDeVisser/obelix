@@ -484,7 +484,7 @@ NODE_PROCESSOR(BoundIfStatement)
     for (auto& branch : if_stmt->branches()) {
         if (!first)
             ctx.write("else ");
-        if (branch->condition()) {
+        if (branch->condition() != nullptr) {
             ctx.write("if (");
             TRY_RETURN(process(branch->condition(), ctx));
             ctx.write(") ");
@@ -494,8 +494,43 @@ NODE_PROCESSOR(BoundIfStatement)
         TRY_RETURN(process(branch->statement(), ctx));
         ctx.dedent();
         ctx.writeln("}");
+        if (branch->condition() == nullptr)
+            break;
         first = false;
     }
+    return tree;
+}
+
+NODE_PROCESSOR(BoundSwitchStatement)
+{
+    auto switch_stmt = std::dynamic_pointer_cast<BoundSwitchStatement>(tree);
+    auto default_case = switch_stmt->default_case();
+
+    ctx.write("switch (");
+    TRY_RETURN(process(switch_stmt->expression(), ctx));
+    ctx.writeln(") {");
+    for (auto const& switch_case : switch_stmt->cases()) {
+        if (switch_case->condition() == nullptr) {
+            default_case = switch_case;
+            break;
+        }
+        ctx.write("case ");
+        TRY_RETURN(process(switch_case->condition(), ctx));
+        ctx.writeln(": {");
+        ctx.indent();
+        TRY_RETURN(process(switch_case->statement(), ctx));
+        ctx.writeln("break;");
+        ctx.dedent();
+        ctx.writeln("}");
+    }
+    ctx.writeln("default: {");
+    ctx.indent();
+    if (default_case != nullptr)
+        TRY_RETURN(process(default_case, ctx));
+    ctx.writeln("break;");
+    ctx.dedent();
+    ctx.writeln("}");
+    ctx.writeln("}");
     return tree;
 }
 

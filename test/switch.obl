@@ -1,16 +1,24 @@
-
-func main() : int
+func sw(x: s32) : s32
 {
-   var x = 3;
-   switch (x) {
+   switch x {
    case 1:
-     puts("One\n");
+     putln("One")
    case 2: {
-     puts("Two\n");
+     putln("Two")
    }
    case 3:
-     puts("Three\n");
+     putln("Three")
    default:
-     puts("Something else\n");
+     putln("Something else")
    }
+   return x
+}
+
+func main(): int
+{
+  var total: s32 = 0;
+  for (x: s32 in 0..5) {
+    total = total + sw(x)
+  }
+  return total
 }

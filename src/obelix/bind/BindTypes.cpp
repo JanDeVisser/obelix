@@ -699,14 +699,14 @@ NODE_PROCESSOR(CaseStatement)
     if (bound_condition == nullptr)
         return tree;
     auto bound_statement = TRY_AND_CAST(Statement, process(branch->statement(), ctx));
-    return std::make_shared<BoundCaseStatement>(branch, bound_condition, bound_statement);
+    return std::make_shared<BoundBranch>(branch, bound_condition, bound_statement);
 }
 
 NODE_PROCESSOR(DefaultCase)
 {
     auto branch = std::dynamic_pointer_cast<DefaultCase>(tree);
     auto bound_statement = TRY_AND_CAST(Statement, process(branch->statement(), ctx));
-    return std::make_shared<BoundDefaultCase>(branch, bound_statement);
+    return std::make_shared<BoundBranch>(branch, nullptr, bound_statement);
 }
 
 NODE_PROCESSOR(SwitchStatement)
@@ -715,12 +715,12 @@ NODE_PROCESSOR(SwitchStatement)
     auto bound_expression = TRY_AND_CAST(BoundExpression, process(stmt->expression(), ctx));
     if (bound_expression == nullptr)
         return tree;
-    BoundCaseStatements bound_case_statements;
+    BoundBranches bound_case_statements;
     for (auto& case_stmt : stmt->cases()) {
-        auto bound_case = TRY_AND_CAST(BoundCaseStatement, process(case_stmt, ctx));
+        auto bound_case = TRY_AND_CAST(BoundBranch, process(case_stmt, ctx));
         bound_case_statements.push_back(bound_case);
     }
-    auto bound_default_case = TRY_AND_CAST(BoundDefaultCase, process(stmt->default_case(), ctx));
+    auto bound_default_case = TRY_AND_CAST(BoundBranch, process(stmt->default_case(), ctx));
     return std::make_shared<BoundSwitchStatement>(stmt, bound_expression, bound_case_statements, bound_default_case);
 }
 

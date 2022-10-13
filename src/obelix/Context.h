@@ -15,6 +15,7 @@
 #include <core/Error.h>
 #include <core/Logging.h>
 #include <lexer/Token.h>
+#include <obelix/Config.h>
 
 namespace Obelix {
 
@@ -36,14 +37,17 @@ public:
     explicit Context(Context<T>* parent)
         : m_parent(parent)
     {
-        if (parent)
+        if (parent) {
             parent->m_children.push_back(this);
+            config = parent->config;
+        }
     }
 
     explicit Context(Context<T>& parent)
         : m_parent(&parent)
     {
         parent.m_children.push_back(this);
+        config = parent.config;
     }
 
     virtual ~Context()
@@ -153,6 +157,8 @@ public:
         else
             m_errors.push_back(error);
     }
+
+    Config config;
 
 protected:
     [[nodiscard]] Context<T>* parent() { return m_parent; }

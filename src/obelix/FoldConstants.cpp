@@ -15,7 +15,40 @@ namespace Obelix {
 
 extern_logging_category(parser);
 
-using FoldContext = Context<std::shared_ptr<BoundLiteral>>;
+class FoldContext : public Context<std::shared_ptr<BoundLiteral>> {
+public:
+    FoldContext()
+        : Context()
+    {
+    }
+
+    explicit FoldContext(FoldContext& parent)
+        : Context(parent)
+    {
+    }
+
+    void push_switch_expression(std::shared_ptr<BoundExpression> const& expr)
+    {
+        m_switch_expressions.push_back(expr);
+    }
+
+    void pop_switch_expression()
+    {
+        if (!m_switch_expressions.empty())
+            m_switch_expressions.pop_back();
+    }
+
+    [[nodiscard]] std::shared_ptr<BoundExpression> last_switch_expression() const
+    {
+        if (m_switch_expressions.empty())
+            return nullptr;
+        return m_switch_expressions.back();
+    }
+
+private:
+    std::vector<std::shared_ptr<BoundExpression>> m_switch_expressions;
+
+};
 
 INIT_NODE_PROCESSOR(FoldContext);
 
@@ -128,11 +161,15 @@ NODE_PROCESSOR(BoundVariable)
 
 NODE_PROCESSOR(BoundBranch)
 {
-    auto elif = std::dynamic_pointer_cast<BoundBranch>(tree);
-    auto cond = TRY_AND_CAST(BoundExpression, process(elif->condition(), ctx));
-    auto stmt = TRY_AND_CAST(Statement, process(elif->statement(), ctx));
+    auto branch = std::dynamic_pointer_cast<BoundBranch>(tree);
+    auto cond = branch->condition();
+    if (auto switch_expr = ctx.last_switch_expression(); switch_expr != nullptr && cond != nullptr) {
+        cond = std::make_shared<BoundBinaryExpression>(branch->token(), switch_expr, BinaryOperator::Equals, branch->condition(), ObjectType::get(PrimitiveType::Boolean));
+    }
+    auto stmt = TRY_AND_CAST(Statement, process(branch->statement(), ctx));
     if (cond == nullptr)
-        return stmt;
+        return std::make_shared<BoundBranch>(branch->token(), nullptr, stmt);;
+    cond = TRY_AND_CAST(BoundExpression, process(cond, ctx));
 
     auto cond_literal = std::dynamic_pointer_cast<BoundBooleanLiteral>(cond);
     if (cond_literal != nullptr) {
@@ -143,16 +180,16 @@ NODE_PROCESSOR(BoundBranch)
             return nullptr;
         }
     }
-    return std::make_shared<BoundBranch>(elif->token(), cond, stmt);
+    cond = TRY_AND_CAST(BoundExpression, process(branch->condition(), ctx));
+    return std::make_shared<BoundBranch>(branch->token(), cond, stmt);
 }
 
-NODE_PROCESSOR(BoundIfStatement)
+ErrorOr<BoundBranches, SyntaxError> new_branches(BoundBranches current_branches, FoldContext& ctx)
 {
-    auto stmt = std::dynamic_pointer_cast<BoundIfStatement>(tree);
     Statements branches;
-    for (auto const& branch : stmt->branches()) {
+    for (auto const& branch : current_branches) {
         auto b = TRY_AND_CAST(Statement, process(branch, ctx));
-        if (b)
+        if (b != nullptr) // b is nullptr if the condition is constant false
             branches.push_back(b);
     }
 
@@ -160,29 +197,67 @@ NODE_PROCESSOR(BoundIfStatement)
     BoundBranches new_branches;
     for (auto const& branch : branches) {
         switch (branch->node_type()) {
-        case SyntaxNodeType::BoundBranch: {
+        case SyntaxNodeType::BoundBranch:
             new_branches.push_back(std::dynamic_pointer_cast<BoundBranch>(branch));
             break;
-        }
-        default:
+        default: {
             // This is a constant-true branch. If we're not building a new
             // statement, return this statement. Else add this if it's the
             // first constant true branch:
+            auto else_branch = std::make_shared<BoundBranch>(branch->token(), nullptr, branch);
             if (new_branches.empty())
-                return branch;
-            if (!constant_true_added) {
-                new_branches.push_back(std::make_shared<BoundBranch>(branch->token(), nullptr, branch));
-                constant_true_added = true;
-            }
+                return BoundBranches { else_branch };
+            new_branches.push_back(else_branch);
+            constant_true_added = true;
             break;
         }
+        }
+        if (constant_true_added)
+            break;
     }
+    return new_branches;
+}
 
-    // Nothing left. Everything was false:
-    if (new_branches.empty())
+NODE_PROCESSOR(BoundIfStatement)
+{
+    auto stmt = std::dynamic_pointer_cast<BoundIfStatement>(tree);
+    ctx.push_switch_expression(nullptr);
+    auto branches = TRY(new_branches(stmt->branches(), ctx));
+    ctx.pop_switch_expression();
+
+    if (branches.empty())
+        // Nothing left. Everything was false and there was no 'else' branch:
         return std::make_shared<Pass>(stmt->token());
 
-    return std::make_shared<BoundIfStatement>(stmt->token(), new_branches);
+    if ((branches.size() == 1) && (branches[0]->condition() == nullptr))
+        // First branch is always true, or only 'else' branch left:
+        return branches[0]->statement();
+
+    return std::make_shared<BoundIfStatement>(stmt->token(), branches);
+}
+
+NODE_PROCESSOR(BoundSwitchStatement)
+{
+    auto stmt = std::dynamic_pointer_cast<BoundSwitchStatement>(tree);
+    auto expr = TRY_AND_CAST(BoundExpression, process(stmt->expression(), ctx));
+    ctx.push_switch_expression(expr);
+    auto branches = TRY(new_branches(stmt->cases(), ctx));
+    ctx.pop_switch_expression();
+    auto default_branch = TRY_AND_CAST(BoundBranch, process(stmt->default_case(), ctx));
+
+    // Nothing left. Everything was false:
+    if (branches.empty()) {
+        if (default_branch != nullptr) {
+            return default_branch->statement();
+        }
+        return std::make_shared<Pass>(stmt->token());
+    }
+
+    if ((branches.size() == 1) && (branches[0]->condition() == nullptr))
+        return branches[0]->statement();
+    if (branches[branches.size()-1]->condition() == nullptr)
+        default_branch = nullptr;
+    return std::make_shared<BoundSwitchStatement>(stmt->token(), expr, branches, default_branch);
 }
 
 ErrorOrNode fold_constants(std::shared_ptr<SyntaxNode> const& tree)

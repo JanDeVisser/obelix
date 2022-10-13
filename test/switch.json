@@ -1,0 +1,13 @@
+{
+  "name": "switch",
+  "exit": 10,
+  "stdout": [
+    "Something else",
+    "One",
+    "Two",
+    "Three",
+    "Something else"
+  ],
+  "stderr": [],
+  "args": []
+}

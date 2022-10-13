@@ -110,7 +110,7 @@ private:
             auto transformed = TRY(bind_types(tree, config()));
             if (!m_config.lower)
                 return transformed;
-            transformed = TRY(lower(transformed));
+            transformed = TRY(lower(transformed, config()));
             if (config().cmdline_flag("show-tree"))
                 std::cout << "\n\nFlattened:\n"
                           << transformed->to_xml() << "\n";

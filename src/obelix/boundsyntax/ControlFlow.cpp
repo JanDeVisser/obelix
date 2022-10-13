@@ -210,34 +210,18 @@ std::string BoundForStatement::to_string() const
     return format("for ({} in {})\n{}", m_variable, m_range->to_string(), m_stmt->to_string());
 }
 
-// -- BoundCaseStatement ----------------------------------------------------
-
-BoundCaseStatement::BoundCaseStatement(std::shared_ptr<SyntaxNode> const& node, std::shared_ptr<BoundExpression> case_expression, std::shared_ptr<Statement> stmt)
-    : BoundBranch(node, std::move(case_expression), std::move(stmt))
-{
-}
-
-BoundCaseStatement::BoundCaseStatement(Token token, std::shared_ptr<BoundExpression> case_expression, std::shared_ptr<Statement> stmt)
-    : BoundBranch(std::move(token), std::move(case_expression), std::move(stmt))
-{
-}
-
-// -- BoundDefaultCase ----------------------------------------------------------
-
-BoundDefaultCase::BoundDefaultCase(std::shared_ptr<SyntaxNode> const& node, std::shared_ptr<Statement> stmt)
-    : BoundBranch(node, nullptr, std::move(stmt))
-{
-}
-
-BoundDefaultCase::BoundDefaultCase(std::shared_ptr<SyntaxNode> const& node, std::shared_ptr<BoundExpression> const&, std::shared_ptr<Statement> stmt)
-    : BoundBranch(node, nullptr, std::move(stmt))
-{
-}
-
 // -- BoundSwitchStatement ----------------------------------------------------------
 
-BoundSwitchStatement::BoundSwitchStatement(std::shared_ptr<SyntaxNode> const& node, std::shared_ptr<BoundExpression> switch_expr, BoundCaseStatements cases, std::shared_ptr<BoundDefaultCase> default_case)
+BoundSwitchStatement::BoundSwitchStatement(std::shared_ptr<SyntaxNode> const& node, std::shared_ptr<BoundExpression> switch_expr, BoundBranches cases, std::shared_ptr<BoundBranch> default_case)
     : Statement(node->token())
+    , m_switch_expression(std::move(switch_expr))
+    , m_cases(std::move(cases))
+    , m_default(std::move(default_case))
+{
+}
+
+BoundSwitchStatement::BoundSwitchStatement(Token token, std::shared_ptr<BoundExpression> switch_expr, BoundBranches cases, std::shared_ptr<BoundBranch> default_case)
+    : Statement(std::move(token))
     , m_switch_expression(std::move(switch_expr))
     , m_cases(std::move(cases))
     , m_default(std::move(default_case))
@@ -249,12 +233,12 @@ std::shared_ptr<BoundExpression> const& BoundSwitchStatement::expression() const
     return m_switch_expression;
 }
 
-BoundCaseStatements const& BoundSwitchStatement::cases() const
+BoundBranches const& BoundSwitchStatement::cases() const
 {
     return m_cases;
 }
 
-std::shared_ptr<BoundDefaultCase> const& BoundSwitchStatement::default_case() const
+std::shared_ptr<BoundBranch> const& BoundSwitchStatement::default_case() const
 {
     return m_default;
 }

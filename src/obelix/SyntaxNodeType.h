@@ -122,8 +122,6 @@ namespace Obelix {
     S(BoundIfStatement)                 \
     S(BoundWhileStatement)              \
     S(BoundForStatement)                \
-    S(BoundCaseStatement)               \
-    S(BoundDefaultCase)                 \
     S(BoundSwitchStatement)             \
     S(BoundFunctionDecl)                \
     S(BoundNativeFunctionDecl)          \

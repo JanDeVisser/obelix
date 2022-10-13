@@ -373,18 +373,22 @@ ErrorOrNode process_tree(std::shared_ptr<SyntaxNode> const& tree, Context& ctx, 
     }
 
     case SyntaxNodeType::Branch: {
-        ErrorOrNode ret_or_error = process_branch<Branch, Expression>(tree, ctx, processor);
-        if (ret_or_error.is_error())
-            return ret_or_error.error();
-        ret = ret_or_error.value();
+        auto branch = std::dynamic_pointer_cast<Branch>(tree);
+        std::shared_ptr<Expression> condition { nullptr };
+        if (branch->condition())
+            condition = TRY_AND_CAST(Expression, processor(branch->condition(), ctx));
+        auto statement = TRY_AND_CAST(Statement, processor(branch->statement(), ctx));
+        ret = std::make_shared<Branch>(branch, condition, statement);
         break;
     }
 
     case SyntaxNodeType::BoundBranch: {
-        ErrorOrNode ret_or_error = process_branch<BoundBranch, BoundExpression>(tree, ctx, processor);
-        if (ret_or_error.is_error())
-            return ret_or_error.error();
-        ret = ret_or_error.value();
+        auto branch = std::dynamic_pointer_cast<BoundBranch>(tree);
+        std::shared_ptr<BoundExpression> condition { nullptr };
+        if (branch->condition())
+            condition = TRY_AND_CAST(BoundExpression, processor(branch->condition(), ctx));
+        auto statement = TRY_AND_CAST(Statement, processor(branch->statement(), ctx));
+        ret = std::make_shared<BoundBranch>(branch, condition, statement);
         break;
     }
 
@@ -448,34 +452,22 @@ ErrorOrNode process_tree(std::shared_ptr<SyntaxNode> const& tree, Context& ctx, 
     }
 
     case SyntaxNodeType::CaseStatement: {
-        ErrorOrNode ret_or_error = process_branch<CaseStatement, Expression>(tree, ctx, processor);
-        if (ret_or_error.is_error())
-            return ret_or_error.error();
-        ret = ret_or_error.value();
-        break;
-    }
-
-    case SyntaxNodeType::BoundCaseStatement: {
-        ErrorOrNode ret_or_error = process_branch<BoundCaseStatement, BoundExpression>(tree, ctx, processor);
-        if (ret_or_error.is_error())
-            return ret_or_error.error();
-        ret = ret_or_error.value();
+        auto stmt = std::dynamic_pointer_cast<CaseStatement>(tree);
+        std::shared_ptr<Expression> condition { nullptr };
+        if (stmt->condition())
+            condition = TRY_AND_CAST(Expression, processor(stmt->condition(), ctx));
+        auto statement = TRY_AND_CAST(Statement, processor(stmt->statement(), ctx));
+        ret = std::make_shared<CaseStatement>(stmt, condition, statement);
         break;
     }
 
     case SyntaxNodeType::DefaultCase: {
-        ErrorOrNode ret_or_error = process_branch<DefaultCase, Expression>(tree, ctx, processor);
-        if (ret_or_error.is_error())
-            return ret_or_error.error();
-        ret = ret_or_error.value();
-        break;
-    }
-
-    case SyntaxNodeType::BoundDefaultCase: {
-        ErrorOrNode ret_or_error = process_branch<BoundDefaultCase, BoundExpression>(tree, ctx, processor);
-        if (ret_or_error.is_error())
-            return ret_or_error.error();
-        ret = ret_or_error.value();
+        auto stmt = std::dynamic_pointer_cast<DefaultCase>(tree);
+        std::shared_ptr<Expression> condition { nullptr };
+        if (stmt->condition())
+            condition = TRY_AND_CAST(Expression, processor(stmt->condition(), ctx));
+        auto statement = TRY_AND_CAST(Statement, processor(stmt->statement(), ctx));
+        ret = std::make_shared<DefaultCase>(stmt, condition, statement);
         break;
     }
 
@@ -494,11 +486,11 @@ ErrorOrNode process_tree(std::shared_ptr<SyntaxNode> const& tree, Context& ctx, 
     case SyntaxNodeType::BoundSwitchStatement: {
         auto switch_stmt = std::dynamic_pointer_cast<BoundSwitchStatement>(tree);
         auto expr = TRY_AND_CAST(BoundExpression, processor(switch_stmt->expression(), ctx));
-        BoundCaseStatements cases;
+        BoundBranches cases;
         for (auto& case_stmt : switch_stmt->cases()) {
-            cases.push_back(TRY_AND_CAST(BoundCaseStatement, processor(case_stmt, ctx)));
+            cases.push_back(TRY_AND_CAST(BoundBranch, processor(case_stmt, ctx)));
         }
-        auto default_case = TRY_AND_CAST(BoundDefaultCase, processor(switch_stmt->default_case(), ctx));
+        auto default_case = TRY_AND_CAST(BoundBranch, processor(switch_stmt->default_case(), ctx));
         ret = std::make_shared<BoundSwitchStatement>(switch_stmt, expr, cases, default_case);
         break;
     }
@@ -524,17 +516,6 @@ ErrorOrNode process_block(std::shared_ptr<SyntaxNode> const& tree, Context& ctx,
         return std::make_shared<StmtClass>(tree->token(), statements, std::forward<Args>(args)...);
     else
         return tree;
-}
-
-template<class BranchClass, class ExprClass, typename Context, typename Processor, typename... Args>
-ErrorOrNode process_branch(std::shared_ptr<SyntaxNode> const& tree, Context& ctx, Processor processor, Args&&... args)
-{
-    auto branch = std::dynamic_pointer_cast<BranchClass>(tree);
-    std::shared_ptr<ExprClass> condition { nullptr };
-    if (branch->condition())
-        condition = TRY_AND_CAST(ExprClass, processor(branch->condition(), ctx));
-    auto statement = TRY_AND_CAST(Statement, processor(branch->statement(), ctx));
-    return std::make_shared<BranchClass>(branch, condition, statement, std::forward<Args>(args)...);
 }
 
 template<typename Context, typename Processor>
@@ -627,7 +608,7 @@ ErrorOrNode process_node(std::shared_ptr<SyntaxNode> const& tree, Ctx& ctx)
 
 ErrorOrNode fold_constants(std::shared_ptr<SyntaxNode> const&);
 ErrorOrNode bind_types(std::shared_ptr<SyntaxNode> const&, Config const&);
-ErrorOrNode lower(std::shared_ptr<SyntaxNode> const&);
+ErrorOrNode lower(std::shared_ptr<SyntaxNode> const&, Config const&);
 ErrorOrNode resolve_operators(std::shared_ptr<SyntaxNode> const&);
 
 }

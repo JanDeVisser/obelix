@@ -1,0 +1,9 @@
+func main() : int
+{
+   var x = 3
+   switch (x) {
+   default:
+     putln("Something else")
+   }
+   return 0;
+}

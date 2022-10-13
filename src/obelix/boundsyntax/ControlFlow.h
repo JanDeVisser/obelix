@@ -85,33 +85,20 @@ private:
     bool m_must_declare_variable { false };
 };
 
-NODE_CLASS(BoundCaseStatement, BoundBranch)
-public:
-    BoundCaseStatement(std::shared_ptr<SyntaxNode> const&, std::shared_ptr<BoundExpression>, std::shared_ptr<Statement>);
-    BoundCaseStatement(Token, std::shared_ptr<BoundExpression>, std::shared_ptr<Statement>);
-};
-
-using BoundCaseStatements = std::vector<std::shared_ptr<BoundCaseStatement>>;
-
-NODE_CLASS(BoundDefaultCase, BoundBranch)
-public:
-    BoundDefaultCase(std::shared_ptr<SyntaxNode> const&, std::shared_ptr<Statement>);
-    BoundDefaultCase(std::shared_ptr<SyntaxNode> const&, std::shared_ptr<BoundExpression> const&, std::shared_ptr<Statement>);
-};
-
 NODE_CLASS(BoundSwitchStatement, Statement)
 public:
-    BoundSwitchStatement(std::shared_ptr<SyntaxNode> const&, std::shared_ptr<BoundExpression>, BoundCaseStatements, std::shared_ptr<BoundDefaultCase>);
+    BoundSwitchStatement(std::shared_ptr<SyntaxNode> const&, std::shared_ptr<BoundExpression>, BoundBranches, std::shared_ptr<BoundBranch>);
+    BoundSwitchStatement(Token token, std::shared_ptr<BoundExpression>, BoundBranches, std::shared_ptr<BoundBranch>);
     [[nodiscard]] std::shared_ptr<BoundExpression> const& expression() const;
-    [[nodiscard]] BoundCaseStatements const& cases() const;
-    [[nodiscard]] std::shared_ptr<BoundDefaultCase> const& default_case() const;
+    [[nodiscard]] BoundBranches const& cases() const;
+    [[nodiscard]] std::shared_ptr<BoundBranch> const& default_case() const;
     [[nodiscard]] Nodes children() const override;
     [[nodiscard]] std::string to_string() const override;
 
 private:
     std::shared_ptr<BoundExpression> m_switch_expression;
-    BoundCaseStatements m_cases {};
-    std::shared_ptr<BoundDefaultCase> m_default {};
+    BoundBranches m_cases {};
+    std::shared_ptr<BoundBranch> m_default {};
 };
 
 }

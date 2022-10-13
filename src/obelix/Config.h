@@ -17,6 +17,7 @@ namespace Obelix {
 
 struct Config {
 public:
+    Config() = default;
     Config(int argc, char const** argv);
 
     std::string filename { "" };

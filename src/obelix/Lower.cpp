@@ -38,23 +38,27 @@ NODE_PROCESSOR(BoundFunctionDef)
     return tree;
 }
 
-NODE_PROCESSOR(BoundCaseStatement)
-{
-    auto case_stmt = std::dynamic_pointer_cast<BoundCaseStatement>(tree);
-    auto condition = TRY_AND_CAST(BoundExpression, process(case_stmt->condition(), ctx));
-    auto stmt = TRY_AND_CAST(Statement, process(case_stmt->statement(), ctx));
-    return std::make_shared<BoundCaseStatement>(case_stmt->token(), condition, stmt);
-}
-
 NODE_PROCESSOR(BoundSwitchStatement)
 {
     auto switch_stmt = std::dynamic_pointer_cast<BoundSwitchStatement>(tree);
     auto switch_expr = TRY_AND_CAST(BoundExpression, process(switch_stmt->expression(), ctx));
-    auto default_case = TRY_AND_CAST(BoundCaseStatement, process(switch_stmt->default_case(), ctx));
 
-    BoundCaseStatements cases;
+    if (ctx.config.target == Architecture::C_TRANSPILER) {
+        switch (switch_expr->type()->type()) {
+        case PrimitiveType::IntegerNumber:
+        case PrimitiveType::SignedIntegerNumber:
+        case PrimitiveType::Enum:
+            return tree;
+        default:
+            break;
+        }
+    }
+
+    auto default_case = TRY_AND_CAST(BoundBranch, process(switch_stmt->default_case(), ctx));
+
+    BoundBranches cases;
     for (auto& c : switch_stmt->cases()) {
-        auto new_case = TRY_AND_CAST(BoundCaseStatement, process(c, ctx));
+        auto new_case = TRY_AND_CAST(BoundBranch, process(c, ctx));
         cases.push_back(new_case);
     }
 
@@ -71,9 +75,16 @@ NODE_PROCESSOR(BoundSwitchStatement)
     return process(std::make_shared<BoundIfStatement>(switch_stmt->token(), branches), ctx);
 }
 
-#if 0
 NODE_PROCESSOR(BoundWhileStatement)
 {
+    auto while_stmt = std::dynamic_pointer_cast<BoundWhileStatement>(tree);
+    auto condition = TRY_AND_CAST(BoundExpression, process(while_stmt->condition(), ctx));
+    auto stmt = TRY_AND_CAST(Statement, process(while_stmt->statement(), ctx));
+
+    if (ctx.config.target == Architecture::C_TRANSPILER) {
+        return std::make_shared<BoundWhileStatement>(while_stmt, condition, stmt);
+    }
+
     //
     // while (x < 10) {
     //   foo(x);
@@ -89,9 +100,6 @@ NODE_PROCESSOR(BoundWhileStatement)
     // label_1:
     // }
     //
-    auto while_stmt = std::dynamic_pointer_cast<BoundWhileStatement>(tree);
-    auto condition = TRY_AND_CAST(BoundExpression, process(while_stmt->condition(), ctx));
-    auto stmt = TRY_AND_CAST(Statement, process(while_stmt->statement(), ctx));
 
     Statements while_block;
     auto start_of_loop = std::make_shared<Label>(while_stmt->token());
@@ -113,6 +121,17 @@ NODE_PROCESSOR(BoundWhileStatement)
 
 NODE_PROCESSOR(BoundForStatement)
 {
+    if (ctx.config.target == Architecture::C_TRANSPILER) {
+        auto for_stmt = std::dynamic_pointer_cast<BoundForStatement>(tree);
+        auto variable = TRY_AND_CAST(BoundVariable, process(for_stmt->variable(), ctx));
+        auto range = std::dynamic_pointer_cast<BoundBinaryExpression>(for_stmt->range());
+        auto range_low = TRY_AND_CAST(BoundExpression, process(range->lhs(), ctx));
+        auto range_high = TRY_AND_CAST(BoundExpression, process(range->rhs(), ctx));
+        range = std::make_shared<BoundBinaryExpression>(range->token(), range_low, BinaryOperator::Range, range_high, range->type());
+        auto stmt = TRY_AND_CAST(Statement, process(for_stmt->statement(), ctx));
+        return std::make_shared<BoundForStatement>(for_stmt, variable, range, stmt);
+    }
+
     //
     // for (x in 1..5) {
     //   foo(x);
@@ -180,19 +199,6 @@ NODE_PROCESSOR(BoundForStatement)
     for_block.push_back(std::make_shared<Label>(jump_past_loop));
     return process(std::make_shared<Block>(stmt->token(), for_block), ctx);
 }
-#endif
-
-NODE_PROCESSOR(BoundForStatement)
-{
-    auto for_stmt = std::dynamic_pointer_cast<BoundForStatement>(tree);
-    auto variable = TRY_AND_CAST(BoundVariable, process(for_stmt->variable(), ctx));
-    auto range = std::dynamic_pointer_cast<BoundBinaryExpression>(for_stmt->range());
-    auto range_low = TRY_AND_CAST(BoundExpression, process(range->lhs(), ctx));
-    auto range_high = TRY_AND_CAST(BoundExpression, process(range->rhs(), ctx));
-    range = std::make_shared<BoundBinaryExpression>(range->token(), range_low, BinaryOperator::Range, range_high, range->type());
-    auto stmt = TRY_AND_CAST(Statement, process(for_stmt->statement(), ctx));
-    return std::make_shared<BoundForStatement>(for_stmt, variable, range, stmt);
-}
 
 NODE_PROCESSOR(BoundBinaryExpression)
 {
@@ -251,8 +257,10 @@ NODE_PROCESSOR(BoundUnaryExpression)
     return tree;
 }
 
-ErrorOrNode lower(std::shared_ptr<SyntaxNode> const& tree)
+ErrorOrNode lower(std::shared_ptr<SyntaxNode> const& tree, Config const& config)
 {
+    LowerContext ctx;
+    ctx.config = config;
     auto lowered = TRY(process<LowerContext>(tree));
     return resolve_operators(lowered);
 }

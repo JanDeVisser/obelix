@@ -361,6 +361,7 @@ std::shared_ptr<SwitchStatement> Parser::parse_switch_statement(Token const& swi
         return nullptr;
     }
     CaseStatements cases;
+    std::shared_ptr<DefaultCase> default_case { nullptr };
     while (true) {
         switch (current_code()) {
         case KeywordCase: {
@@ -384,11 +385,12 @@ std::shared_ptr<SwitchStatement> Parser::parse_switch_statement(Token const& swi
             auto stmt = parse_statement();
             if (!stmt)
                 return nullptr;
-            return std::make_shared<SwitchStatement>(switch_token, switch_expr, cases, std::make_shared<DefaultCase>(default_token, stmt));
+            default_case = std::make_shared<DefaultCase>(default_token, stmt);
+            break;
         }
         case TokenCode::CloseBrace:
             lex();
-            return std::make_shared<SwitchStatement>(switch_token, switch_expr, cases, nullptr);
+            return std::make_shared<SwitchStatement>(switch_token, switch_expr, cases, default_case);
         default:
             add_error(peek(), "Syntax Error: Unexpected token '{}' in switch statement");
             return nullptr;

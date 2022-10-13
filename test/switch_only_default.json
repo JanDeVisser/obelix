@@ -1,0 +1,9 @@
+{
+  "name": "switch_only_default",
+  "exit": 0,
+  "stdout": [
+    "Something else"
+  ],
+  "stderr": [],
+  "args": []
+}
