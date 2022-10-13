@@ -108,10 +108,9 @@ NODE_PROCESSOR(EnumDef)
         type = ObjectType::get(enum_def->name());
         if (type->type() != PrimitiveType::Enum)
             return SyntaxError { ErrorCode::NoSuchType, enum_def->token(), "Cannot extend non-existing enum '{}'", enum_def->name() };
-        auto type_or_error = ObjectType::extend_enum_type(type, enum_values);
-        if (type_or_error.is_error())
-            return SyntaxError { type_or_error.error().code(), enum_def->token(), type_or_error.error().message() };
-        type = type_or_error.value();
+        auto error_maybe = type->extend_enum_type(enum_values);
+        if (error_maybe.is_error())
+            return SyntaxError { error_maybe.error().code(), enum_def->token(), error_maybe.error().message() };
     }
     return std::make_shared<BoundEnumDef>(enum_def, type, bound_values);
 }

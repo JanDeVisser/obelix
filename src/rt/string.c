@@ -10,7 +10,7 @@
 
 #include <rt/crt.h>
 
-string string_alloc(char const *s)
+string string_alloc(char *s)
 {
     string ret;
     ret.length = strlen(s);
@@ -26,7 +26,8 @@ string string_alloc(char const *s)
 string to_string_s(int64_t num, int radix)
 {
     char buf[65];
-    char *ptr = buf + 65;
+    buf[64] = 0;
+    char *ptr = &buf[64];
 
     int sign = num < 0;
     if (sign)
@@ -34,9 +35,8 @@ string to_string_s(int64_t num, int radix)
     if (radix == 0)
         radix = 10;
      do {
-        ptr--;
-        int digit = num % radix;
-        *ptr = (digit < 10) ? (digit + '0') : (digit - 10 + 'A');
+        uint32_t digit = num % radix;
+        *(--ptr) = (digit < 10) ? (digit + '0') : (digit - 10 + 'A');
         num /= radix;
     } while (num > 0);
     if (sign)
@@ -46,8 +46,9 @@ string to_string_s(int64_t num, int radix)
 
 string to_string_u(uint64_t num, int radix)
 {
-    char buf[65];  // max string length: radix=2, 64th bit 1.
-    char *ptr = buf + 65;
+    char buf[65];
+    buf[64] = 0;
+    char *ptr = &buf[64];
 
     if (radix == 0)
         radix = 10;

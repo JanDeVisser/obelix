@@ -110,12 +110,10 @@ private:
             auto transformed = TRY(bind_types(tree, config()));
             if (!m_config.lower)
                 return transformed;
-            if (m_config.target == Architecture::C_TRANSPILER) {
-                transformed = TRY(lower(transformed));
-                if (config().cmdline_flag("show-tree"))
-                    std::cout << "\n\nFlattened:\n"
-                              << transformed->to_xml() << "\n";
-            }
+            transformed = TRY(lower(transformed));
+            if (config().cmdline_flag("show-tree"))
+                std::cout << "\n\nFlattened:\n"
+                          << transformed->to_xml() << "\n";
             if (!m_config.fold_constants)
                 return transformed;
             transformed = TRY(fold_constants(transformed));

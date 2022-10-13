@@ -71,6 +71,7 @@ NODE_PROCESSOR(BoundSwitchStatement)
     return process(std::make_shared<BoundIfStatement>(switch_stmt->token(), branches), ctx);
 }
 
+#if 0
 NODE_PROCESSOR(BoundWhileStatement)
 {
     //
@@ -179,12 +180,29 @@ NODE_PROCESSOR(BoundForStatement)
     for_block.push_back(std::make_shared<Label>(jump_past_loop));
     return process(std::make_shared<Block>(stmt->token(), for_block), ctx);
 }
+#endif
+
+NODE_PROCESSOR(BoundForStatement)
+{
+    auto for_stmt = std::dynamic_pointer_cast<BoundForStatement>(tree);
+    auto variable = TRY_AND_CAST(BoundVariable, process(for_stmt->variable(), ctx));
+    auto range = std::dynamic_pointer_cast<BoundBinaryExpression>(for_stmt->range());
+    auto range_low = TRY_AND_CAST(BoundExpression, process(range->lhs(), ctx));
+    auto range_high = TRY_AND_CAST(BoundExpression, process(range->rhs(), ctx));
+    range = std::make_shared<BoundBinaryExpression>(range->token(), range_low, BinaryOperator::Range, range_high, range->type());
+    auto stmt = TRY_AND_CAST(Statement, process(for_stmt->statement(), ctx));
+    return std::make_shared<BoundForStatement>(for_stmt, variable, range, stmt);
+}
 
 NODE_PROCESSOR(BoundBinaryExpression)
 {
     auto expr = std::dynamic_pointer_cast<BoundBinaryExpression>(tree);
     auto lhs = TRY_AND_CAST(BoundExpression, process(expr->lhs(), ctx));
     auto rhs = TRY_AND_CAST(BoundExpression, process(expr->rhs(), ctx));
+
+    if (expr->op() == BinaryOperator::Range) {
+        return tree;
+    }
 
     if (expr->op() == BinaryOperator::GreaterEquals) {
         return std::make_shared<BoundBinaryExpression>(expr->token(),

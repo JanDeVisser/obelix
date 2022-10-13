@@ -1,8 +1,10 @@
 add_library(
         oblcrt
         STATIC
+        main.c
         puts.c
-        string.c)
+        string.c
+)
 
 install(TARGETS oblcrt
         ARCHIVE DESTINATION lib

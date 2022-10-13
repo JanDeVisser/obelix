@@ -8,6 +8,8 @@
 #define OBELIX_CRT_H
 
 #include <stdint.h>
+#include <stdlib.h>
+#include <unistd.h>
 
 typedef struct _string {
   uint32_t length;
@@ -26,12 +28,14 @@ extern int fputs(int, string);
 extern int puts(string);
 extern int eputs(string);
 extern int putln(string);
+extern int putint(int64_t);
+extern int putint(int64_t);
 
-extern string cstr_to_string(char const*);
-extern int cputs(char const*);
-extern int cputln(char const*);
+extern string cstr_to_string(char *);
+extern int cputs(int8_t *);
+extern int cputln(int8_t *);
 
-extern string string_alloc(char const *);
+extern string string_alloc(char *);
 extern string to_string_s(int64_t, int);
 extern string to_string_u(uint64_t, int);
 extern string string_concat(string, string);

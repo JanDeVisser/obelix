@@ -198,7 +198,6 @@ void RootContext::clear_unresolved_functions()
 
 void RootContext::add_module(std::shared_ptr<BoundModule> const& module)
 {
-    std::cout << "Adding module " << module->name() << "\n";
     m_modules.insert({ module->name(), module });
 }
 

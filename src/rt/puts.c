@@ -12,7 +12,13 @@
 
 int fputs(int fd, string s)
 {
-    int ret = write(fd, s.data, s.length);
+    char *ptr = (char *) s.data;
+    size_t len = s.length;
+    if (!ptr) {
+        ptr = "[[null]]";
+        len = strlen(ptr);
+    }
+    int ret = write(fd, ptr, len);
     if (ret < 0)
         return -errno;
     return ret;
@@ -49,7 +55,7 @@ int puthex(int64_t num)
     return puts(to_string_s(num, 16));
 }
 
-int cputs(char const* s)
+int cputs(int8_t *s)
 {
     int ret = write(1, s, strlen(s));
     if (ret < 0)
@@ -57,7 +63,7 @@ int cputs(char const* s)
     return ret;
 }
 
-int cputln(char const* s)
+int cputln(int8_t *s)
 {
     int ret = cputs(s);
     if (ret < 0)

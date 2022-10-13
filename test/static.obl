@@ -6,7 +6,7 @@ func foo(x: s64): s64
   return ret
 }
 
-func main(argc: int, argv: ptr<ptr<char>>) : s32
+func main() : s32
 {
   foo(42)
   return foo(13)

@@ -6,7 +6,6 @@
 
 #pragma once
 
-#include "obelix/Context.h"
 #include <functional>
 #include <string>
 #include <unordered_map>

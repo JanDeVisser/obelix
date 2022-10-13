@@ -204,10 +204,36 @@ struct Converter<TemplateParameterType> {
     }
 };
 
+#define ENUMERATE_TEMPLATE_PARAMETER_MULTIPLICITIES(S) \
+    S(Optional /* 0-1 */)                              \
+    S(Required /* 1 */)                                \
+    S(Multiple /* 1- */)
+
 enum class TemplateParameterMultiplicity {
-    Optional, /* 0-1 */
-    Required, /* 1 */
-    Multiple, /* 1- */
+#undef ENUM_TEMPLATE_PARAMETER_MULTIPLICITY
+#define ENUM_TEMPLATE_PARAMETER_MULTIPLICITY(t) t,
+    ENUMERATE_TEMPLATE_PARAMETER_MULTIPLICITIES(ENUM_TEMPLATE_PARAMETER_MULTIPLICITY)
+#undef ENUM_TEMPLATE_PARAMETER_MULTIPLICITY
+};
+
+const char* TemplateParameterMultiplicity_name(TemplateParameterMultiplicity t);
+
+template<>
+struct Converter<TemplateParameterMultiplicity> {
+    static std::string to_string(TemplateParameterMultiplicity val)
+    {
+        return TemplateParameterMultiplicity_name(val);
+    }
+
+    static double to_double(TemplateParameterMultiplicity val)
+    {
+        return static_cast<double>(val);
+    }
+
+    static long to_long(TemplateParameterMultiplicity val)
+    {
+        return static_cast<long>(val);
+    }
 };
 
 using NVP = std::pair<std::string, long>;
@@ -272,6 +298,8 @@ struct TemplateParameter {
     TemplateParameterType type { TemplateParameterType::Unknown };
     TemplateParameterMultiplicity multiplicity { TemplateParameterMultiplicity::Required };
     TemplateArgument default_value {};
+
+    [[nodiscard]] std::string to_string() const;
 };
 
 using TemplateParameters = std::unordered_map<std::string, TemplateParameter>;
@@ -378,6 +406,7 @@ public:
     [[nodiscard]] std::optional<MethodDescription> get_method(Operator op, ObjectTypes const& argument_types) const;
     [[nodiscard]] FieldDefs const& fields() const;
     [[nodiscard]] FieldDef const& field(std::string const&) const;
+    ErrorOr<void> extend_enum_type(NVPs const&);
 
     bool operator==(ObjectType const&) const;
     [[nodiscard]] bool is_assignable_to(std::shared_ptr<ObjectType> const&) const;
@@ -434,7 +463,6 @@ public:
     static ErrorOr<std::shared_ptr<ObjectType>> make_struct_type(std::string, FieldDefs, ObjectTypeBuilder const& = nullptr);
     static std::shared_ptr<ObjectType> register_struct_type(std::string const&, FieldDefs, ObjectTypeBuilder const& = nullptr);
     static std::shared_ptr<ObjectType> make_enum_type(std::string const&, NVPs const&);
-    static ErrorOr<std::shared_ptr<ObjectType>> extend_enum_type(std::shared_ptr<ObjectType> const&, NVPs const&);
     static void dump();
 
 private:

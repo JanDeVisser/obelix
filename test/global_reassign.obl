@@ -1,6 +1,6 @@
 global var x = 12
 
-func main(argc: int, argv: ptr<ptr<char>>) : s32
+func main() : s32
 {
   x = 42
   return x

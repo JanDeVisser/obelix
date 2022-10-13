@@ -48,20 +48,6 @@ std::optional<PrimitiveType> PrimitiveType_by_name(std::string const& t)
     return {};
 }
 
-const char* TemplateParameterType_name(TemplateParameterType t)
-{
-    switch (t) {
-#undef ENUM_TEMPLATE_PARAMETER_TYPE
-#define ENUM_TEMPLATE_PARAMETER_TYPE(t) \
-    case TemplateParameterType::t:      \
-        return #t;
-        ENUMERATE_TEMPLATE_PARAMETER_TYPES(ENUM_TEMPLATE_PARAMETER_TYPE)
-#undef ENUM_TEMPLATE_PARAMETER_TYPE
-    default:
-        fatal("Unknown TemplateParameterType '{}'", (int)t);
-    }
-}
-
 FieldDef::FieldDef(std::string n, PrimitiveType t)
     : name(std::move(n))
     , type(ObjectType::get(t))
@@ -226,14 +212,14 @@ static void initialize_types()
 
     s_byte = ObjectType::register_type("s8", s_signed_integer_number, TemplateArguments { { "signed", true }, { "size", 1 } },
         [](std::shared_ptr<ObjectType> const& type) {
-            type->has_alias("byte");
+            type->has_alias("char");
             type->has_size(1);
             type->add_method(MethodDescription { Operator::Negate, PrimitiveType::Self, IntrinsicType::negate_s8, {}, true });
         });
 
     s_char = ObjectType::register_type("u8", s_integer_number, TemplateArguments { { "signed", false }, { "size", 1 } },
         [](std::shared_ptr<ObjectType> const& type) {
-            type->has_alias("char");
+            type->has_alias("byte");
             type->has_size(1);
         });
 
@@ -323,7 +309,30 @@ static void initialize_types()
 
 std::string ObjectType::to_string() const
 {
-    return name();
+    std::string ret = name();
+    if (is_template_specialization()) {
+        ret += format("[{} ", specializes_template()->name());
+        auto first { true };
+        for (auto const& [arg, value] : m_template_arguments) {
+            if (!first)
+                ret += " ";
+            ret += format("{}={}", arg, value);
+            first = false;
+        }
+        ret += "]";
+    }
+    if (is_parameterized()) {
+        ret += "<";
+        auto first { true };
+        for (auto const& [param, def] : m_template_parameters) {
+            if (!first)
+                ret += " ";
+            ret += def.to_string();
+            first = false;
+        }
+        ret += ">";
+    }
+    return ret;
 }
 
 MethodDescription& ObjectType::add_method(MethodDescription md)
@@ -971,11 +980,11 @@ std::shared_ptr<ObjectType> ObjectType::make_enum_type(std::string const& name, 
     return register_type(name, s_enum, args);
 }
 
-ErrorOr<std::shared_ptr<ObjectType>> ObjectType::extend_enum_type(std::shared_ptr<ObjectType> const& enum_type, NVPs const& new_values)
+ErrorOr<void> ObjectType::extend_enum_type(NVPs const& new_values)
 {
-    if (enum_type->type() != PrimitiveType::Enum)
-        return Error<int> { ErrorCode::TypeMismatch, "Type '{}' is not an enum", enum_type->name() };
-    auto values = enum_type->template_argument<NVPs>("values");
+    if (type() != PrimitiveType::Enum)
+        return Error<int> { ErrorCode::TypeMismatch, "Type '{}' is not an enum", name() };
+    auto values = template_argument<NVPs>("values");
     for (auto const &v : new_values) {
         values.push_back(v);
     }
@@ -983,8 +992,8 @@ ErrorOr<std::shared_ptr<ObjectType>> ObjectType::extend_enum_type(std::shared_pt
     for (auto const& nvp : values) {
         arg_values.push_back(nvp);
     }
-    enum_type->m_template_arguments["values"] = TemplateArgument { TemplateParameterType::NameValue, arg_values };
-    return enum_type;
+    m_template_arguments["values"] = TemplateArgument { TemplateParameterType::NameValue, arg_values };
+    return {};
 }
 
 void ObjectType::register_type_in_caches(std::shared_ptr<ObjectType> const& type)

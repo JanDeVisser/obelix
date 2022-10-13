@@ -8,6 +8,39 @@
 
 namespace Obelix {
 
+const char* TemplateParameterType_name(TemplateParameterType t)
+{
+    switch (t) {
+#undef ENUM_TEMPLATE_PARAMETER_TYPE
+#define ENUM_TEMPLATE_PARAMETER_TYPE(t) \
+    case TemplateParameterType::t:      \
+        return #t;
+        ENUMERATE_TEMPLATE_PARAMETER_TYPES(ENUM_TEMPLATE_PARAMETER_TYPE)
+#undef ENUM_TEMPLATE_PARAMETER_TYPE
+    default:
+        fatal("Unknown TemplateParameterType '{}'", (int)t);
+    }
+}
+
+const char* TemplateParameterMultiplicity_name(TemplateParameterMultiplicity t)
+{
+    switch (t) {
+#undef ENUM_TEMPLATE_PARAMETER_MULTIPLICITY
+#define ENUM_TEMPLATE_PARAMETER_MULTIPLICITY(t) \
+    case TemplateParameterMultiplicity::t:      \
+        return #t;
+        ENUMERATE_TEMPLATE_PARAMETER_MULTIPLICITIES(ENUM_TEMPLATE_PARAMETER_MULTIPLICITY)
+#undef ENUM_TEMPLATE_PARAMETER_MULTIPLICITY
+    default:
+        fatal("Unknown TemplateParameterMultiplicity '{}'", (int)t);
+    }
+}
+
+std::string TemplateParameter::to_string() const
+{
+    return format("{} {} {}", multiplicity, type, name);
+}
+
 size_t hash(TemplateArgumentValue const& arg)
 {
     if (std::holds_alternative<long>(arg))
@@ -179,12 +212,7 @@ size_t TemplateArgument::hash() const
 std::string TemplateArgument::to_string() const
 {
     if (multiplicity == TemplateParameterMultiplicity::Multiple) {
-        std::string ret = "[ ";
-        for (auto const& arg : value) {
-            ret += Obelix::to_string(arg);
-            ret += ' ';
-        }
-        return ret + "]";
+        return format("[ {} ]", join(value, ' ', [](TemplateArgumentValue const& v) { return Obelix::to_string(v); }));
     }
     if (!value.empty())
         return Obelix::to_string(value[0]);

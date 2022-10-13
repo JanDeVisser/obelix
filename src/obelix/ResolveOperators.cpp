@@ -55,6 +55,9 @@ NODE_PROCESSOR(BoundUnaryExpression)
 NODE_PROCESSOR(BoundBinaryExpression)
 {
     auto expr = std::dynamic_pointer_cast<BoundBinaryExpression>(tree);
+
+    if (expr->op() == BinaryOperator::Range)
+        return tree;
     auto lhs = TRY_AND_CAST(BoundExpression, process(expr->lhs(), ctx));
     auto rhs = TRY_AND_CAST(BoundExpression, process(expr->rhs(), ctx));
 
