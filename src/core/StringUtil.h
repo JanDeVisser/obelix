@@ -21,6 +21,7 @@ namespace Obelix {
 int stricmp(const char *, const char *);
 std::string to_upper(std::string const&);
 std::string to_lower(std::string const&);
+std::size_t replace_all(std::string&, std::string_view, std::string_view);
 
 std::string c_escape(std::string const& s);
 std::vector<std::string> split(std::string const& s, char sep);

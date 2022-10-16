@@ -4,10 +4,6 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
-//
-// Created by Jan de Visser on 2021-09-20.
-//
-
 #include <cassert>
 #include <cctype>
 #include <cstring>
@@ -42,6 +38,17 @@ std::string to_lower(std::string const& input)
         ret += (char) tolower((int) ch);
     }
     return ret;
+}
+
+std::size_t replace_all(std::string& inout, std::string_view what, std::string_view with)
+{
+    std::size_t count{};
+    for (std::string::size_type pos{};
+         inout.npos != (pos = inout.find(what.data(), pos, what.length()));
+         pos += with.length(), ++count) {
+        inout.replace(pos, what.length(), with.data(), with.length());
+    }
+    return count;
 }
 
 std::string c_escape(std::string const& s)
