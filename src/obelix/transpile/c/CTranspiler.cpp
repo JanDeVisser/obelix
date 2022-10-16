@@ -361,6 +361,7 @@ NODE_PROCESSOR(BoundStringLiteral)
 {
     auto literal = std::dynamic_pointer_cast<BoundStringLiteral>(tree);
     auto s = literal->value();
+    replace_all(s, "\n", "\\n");
     ctx.write(format(R"((string) {{ {}, (uint8_t *) "{}" })", s.length(), s));
     return tree;
 }
