@@ -1,0 +1,13 @@
+{
+  "name": "putln",
+  "exit": 0,
+  "stdout": [
+    "Hello",
+    "There",
+    "Hello",
+    "There\u0000",
+    "1"
+  ],
+  "stderr": [],
+  "args": []
+}

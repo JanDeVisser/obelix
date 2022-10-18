@@ -1,0 +1,9 @@
+func main(): s32
+{
+  putln("Hello")
+  const a = "There"
+  putln(a)
+  putln("Hello\nThere")
+  putln(1);
+  return 0
+}

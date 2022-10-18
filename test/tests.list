@@ -23,3 +23,6 @@ array
 argv arg1 arg2 arg3
 extend_enum
 import
+switch
+switch_only_default
+putln

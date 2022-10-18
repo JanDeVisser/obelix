@@ -41,6 +41,28 @@ int putln(string s)
     return ret;
 }
 
+int putln_u(uint64_t i)
+{
+    int ret = putint(i);
+    if (ret < 0)
+        return ret;
+    ret = write(1, "\n", 1);
+    if (ret < 0)
+        return -errno;
+    return ret;
+}
+
+int putln_s(int64_t i)
+{
+    int ret = putint(i);
+    if (ret < 0)
+        return ret;
+    ret = write(1, "\n", 1);
+    if (ret < 0)
+        return -errno;
+    return ret;
+}
+
 int putint(int64_t num)
 {
     return puts(to_string_s(num, 10));
@@ -51,7 +73,7 @@ int puthex(int64_t num)
     return puts(to_string_s(num, 16));
 }
 
-int cputs(int8_t *s)
+int cputs(char *s)
 {
     int ret = write(1, s, strlen(s));
     if (ret < 0)
