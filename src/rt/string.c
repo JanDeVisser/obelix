@@ -8,7 +8,7 @@
 #include <string.h>
 #include <unistd.h>
 
-#include <rt/crt.h>
+#include <rt/obelix.h>
 
 string string_alloc(char *s)
 {

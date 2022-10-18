@@ -4,11 +4,7 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
-#include <errno.h>
-#include <string.h>
-#include <unistd.h>
-
-#include <rt/crt.h>
+#include <rt/obelix.h>
 
 int fputs(int fd, string s)
 {

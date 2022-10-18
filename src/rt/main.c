@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
-#include <rt/crt.h>
+#include <rt/obelix.h>
 
 extern int obelix_main(int32_t, int8_t**);
 

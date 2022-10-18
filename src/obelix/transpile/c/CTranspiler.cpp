@@ -129,13 +129,11 @@ NODE_PROCESSOR(BoundModule)
     fs::path path { join(split(name, '/'), "-") };
     TRY_RETURN(ctx.open_output_file(path.replace_extension(fs::path("c"))));
     ctx.writeln(
-R"(#include <fcntl.h>
-#include <stdbool.h>
-#include <stdint.h>
-#include <stdlib.h>
-#include <unistd.h>
+R"(/*
+ * This is generated code. Modify at your peril.
+ */
 
-#include <crt.h>
+#include <obelix.h>
 )");
     static std::unordered_set<std::string> runtime_symbols;
     if (runtime_symbols.empty()) {
