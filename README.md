@@ -1,6 +1,10 @@
 # What
 
-``obelix`` is a system programming language. It's firmly in the ``C`` family, and I'd like to keep it there, while addressing some bug bears I have with ``C``. It currently compiles to native ARM64 code which is only tested on MacOS. If you want to help me port it over to Linux, maybe Windows, and the Raspberry Pi: pull requests welcome!
+``obelix`` is a system programming language. It's firmly in the ``C`` family, and I'd like to keep it 
+there, while addressing some bug bears I have with ``C``. After some experimentation with a backend
+generating native `ARM64` code we concluded that in order to accelerate forward progress transpiling to
+C code is better; the `ARM64` backend, and potentially `ARM32` and `x86_64` backend, could be added later, 
+or maybe even implemented using an `LLVM` backend.
 
 # How
 
@@ -49,3 +53,5 @@ look around and a play.
 - [ ] Expose `format()` to Obelix. Will probably involve rewriting into C.
 - [ ] Unify signed and unsigned integers. Or at least allow some sort of coercion.
 - [ ] Improve explicit cast and implicit coercions.
+- [ ] Keep `ARM64` backend up-to-date.
+- [ ] Investigate `ARM32`, `x86_64`, and/or `LLVM` backends.
