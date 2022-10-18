@@ -112,23 +112,24 @@ private:
 
 ABSTRACT_NODE_CLASS(BoundFunction, BoundExpression)
 public:
-    BoundFunction(Token, std::string);
+    BoundFunction(Token, std::shared_ptr<BoundFunctionDecl>);
     [[nodiscard]] std::string const& name() const;
     [[nodiscard]] std::string attributes() const override;
     [[nodiscard]] std::string to_string() const override;
+    [[nodiscard]] std::shared_ptr<BoundFunctionDecl> const& declaration() const;
 
 private:
-    std::string m_name;
+    std::shared_ptr<BoundFunctionDecl> m_declaration;
 };
 
 NODE_CLASS(BoundLocalFunction, BoundFunction)
 public:
-    BoundLocalFunction(Token, std::string);
+    BoundLocalFunction(Token, std::shared_ptr<BoundFunctionDecl>);
 };
 
 NODE_CLASS(BoundImportedFunction, BoundFunction)
 public:
-    BoundImportedFunction(Token, std::shared_ptr<BoundModule>, std::string);
+    BoundImportedFunction(Token, std::shared_ptr<BoundModule>, std::shared_ptr<BoundFunctionDecl>);
     [[nodiscard]] std::shared_ptr<BoundModule> const& module() const;
 
 private:

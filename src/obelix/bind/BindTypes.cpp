@@ -29,7 +29,7 @@ ErrorOr<std::shared_ptr<BoundFunctionCall>, SyntaxError> make_function_call(Bind
     std::shared_ptr<BoundFunctionDecl> func_decl;
     switch (function->node_type()) {
     case SyntaxNodeType::BoundLocalFunction: {
-        func_decl = ctx.match(function->name(), arg_types);
+        func_decl = ctx.match(function->name(), arg_types, true);
         break;
     }
     case SyntaxNodeType::BoundImportedFunction: {
@@ -131,21 +131,14 @@ NODE_PROCESSOR(Module)
 {
     auto module = std::dynamic_pointer_cast<Module>(tree);
     assert(ctx.type() == BindContextType::RootContext);
-    BindContext module_ctx(ctx, BindContextType::ModuleContext);
+    BindContext module_ctx(ctx, module->name());
     Statements statements;
     for (auto& stmt : module->statements()) {
         auto new_statement = TRY_AND_CAST(Statement, process(stmt, module_ctx));
         statements.push_back(new_statement);
     }
     auto block = std::make_shared<Block>(tree->token(), statements);
-    BoundFunctionDecls exports;
-    for (const auto& name : module_ctx.names()) {
-        auto const& declaration = std::dynamic_pointer_cast<BoundFunctionDecl>(name.second);
-        if (declaration) {
-            exports.push_back(declaration);
-        }
-    }
-    auto ret = std::make_shared<BoundModule>(module->token(), module->name(), block, exports, module_ctx.imported_functions());
+    auto ret = std::make_shared<BoundModule>(module->token(), module->name(), block, module_ctx.exported_functions(), module_ctx.imported_functions());
     ctx.declare(ret->name(), ret);
     ctx.add_module(ret);
     return ret;
@@ -248,6 +241,7 @@ NODE_PROCESSOR(FunctionDecl)
     }
     ctx.declare(bound_decl->name(), bound_decl);
     ctx.add_declared_function(bound_decl->name(), bound_decl);
+    ctx.add_exported_function(bound_decl);
     return bound_decl;
 }
 
@@ -354,7 +348,7 @@ NODE_PROCESSOR(BinaryExpression)
             auto func = module->exported(module_member->name());
             if (func != nullptr) {
                 ctx.add_imported_function(func);
-                return std::make_shared<BoundImportedFunction>(rhs->token(), module, module_member->name());
+                return std::make_shared<BoundImportedFunction>(rhs->token(), module, func);
             }
             return SyntaxError { ErrorCode::CannotAccessMember, rhs->token(), rhs->to_string() };
         }
@@ -367,29 +361,21 @@ NODE_PROCESSOR(BinaryExpression)
     auto rhs_bound = std::dynamic_pointer_cast<BoundExpression>(rhs_processed);
 
     if (op == BinaryOperator::Call) {
+        if (rhs_bound == nullptr || rhs_bound->type()->type() != PrimitiveType::List)
+            return SyntaxError { ErrorCode::SyntaxError, format("Cannot call {} with {}", lhs, expr->rhs()) };
+        auto arg_list = std::dynamic_pointer_cast<BoundExpressionList>(rhs_bound);
+        ObjectTypes arg_types = arg_list->expression_types();
         if (lhs != nullptr && lhs->type()->type() != PrimitiveType::Function)
             return SyntaxError { ErrorCode::ObjectNotCallable, expr->lhs() };
         if (lhs == nullptr) {
             if (auto variable = std::dynamic_pointer_cast<Variable>(expr->lhs()); variable != nullptr) {
-                auto declaration_maybe = ctx.get(variable->name());
-                if (declaration_maybe.has_value()) {
-                    if (auto declaration = std::dynamic_pointer_cast<BoundFunctionDecl>(declaration_maybe.value()); declaration != nullptr)
-                        lhs = std::make_shared<BoundLocalFunction>(variable->token(), variable->name());
-                }
-                if (lhs == nullptr) {
-                    auto root_module = ctx.module("");
-                    assert(root_module != nullptr);
-                    if (auto declaration = root_module->exported(variable->name()); declaration != nullptr) {
-                        ctx.add_imported_function(declaration);
-                        lhs = std::make_shared<BoundImportedFunction>(variable->token(), root_module, variable->name());
-                    }
+                if (auto declaration = ctx.match(variable->name(), arg_types, true); declaration != nullptr) {
+                    lhs = std::make_shared<BoundLocalFunction>(variable->token(), declaration);
                 }
             }
         }
         if (lhs == nullptr)
             return SyntaxError { ErrorCode::ObjectNotCallable, expr->lhs() };
-        if (rhs_bound == nullptr || rhs_bound->type()->type() != PrimitiveType::List)
-            return SyntaxError { ErrorCode::SyntaxError, format("Cannot call {} with {}", lhs, expr->rhs()) };
         auto ret = TRY(make_function_call(ctx, std::dynamic_pointer_cast<BoundFunction>(lhs), std::dynamic_pointer_cast<BoundExpressionList>(rhs_bound)));
         return ret;
     }
@@ -540,7 +526,7 @@ NODE_PROCESSOR(Variable)
             return std::make_shared<BoundVariable>(variable, declaration->type());
         auto func_decl = std::dynamic_pointer_cast<BoundFunctionDecl>(declaration_maybe.value());
         if (func_decl != nullptr)
-            return std::make_shared<BoundLocalFunction>(variable->token(), variable->name());
+            return std::make_shared<BoundLocalFunction>(variable->token(), func_decl);
         auto module = std::dynamic_pointer_cast<BoundModule>(declaration_maybe.value());
         if (module != nullptr)
             return module;

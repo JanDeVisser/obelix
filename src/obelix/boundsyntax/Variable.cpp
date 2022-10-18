@@ -323,20 +323,18 @@ std::shared_ptr<BoundFunctionDecl> BoundModule::resolve(std::string const& name,
     debug(parser, "resolving function {}({})", name, arg_types);
     std::shared_ptr<BoundFunctionDecl> func_decl = nullptr;
     for (auto const& declaration : exports()) {
+        debug(parser, "checking {}({})", declaration->name(), declaration->parameters());
         if (declaration->name() != name)
             continue;
-        debug(parser, "checking {}({})", declaration->name(), declaration->parameters());
         if (arg_types.size() != declaration->parameters().size())
             continue;
 
         bool all_matched = true;
-        for (auto ix = 0u; ix < arg_types.size(); ix++) {
+        for (auto ix = 0u; all_matched && ix < arg_types.size(); ix++) {
             auto& arg_type = arg_types.at(ix);
             auto& param = declaration->parameters().at(ix);
-            if (!arg_type->is_assignable_to(param->type())) {
+            if (!arg_type->is_assignable_to(param->type()))
                 all_matched = false;
-                break;
-            }
         }
         if (all_matched) {
             func_decl = declaration;

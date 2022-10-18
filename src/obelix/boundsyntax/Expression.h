@@ -34,6 +34,7 @@ public:
     [[nodiscard]] BoundExpressions const& expressions() const;
     [[nodiscard]] Nodes children() const override;
     [[nodiscard]] std::string to_string() const override;
+    [[nodiscard]] ObjectTypes expression_types() const;
 
 private:
     BoundExpressions m_expressions;

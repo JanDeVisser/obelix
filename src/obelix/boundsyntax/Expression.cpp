@@ -64,6 +64,15 @@ BoundExpressions const& BoundExpressionList::expressions() const
     return m_expressions;
 }
 
+ObjectTypes BoundExpressionList::expression_types() const
+{
+    ObjectTypes ret;
+    for (auto const& expr : expressions()) {
+        ret.push_back(expr->type());
+    }
+    return ret;
+}
+
 Nodes BoundExpressionList::children() const
 {
     Nodes ret;

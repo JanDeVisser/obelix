@@ -321,15 +321,20 @@ IntrinsicType BoundIntrinsicCall::intrinsic() const
 
 // -- BoundFunction ---------------------------------------------------------
 
-BoundFunction::BoundFunction(Token token, std::string name)
+BoundFunction::BoundFunction(Token token, std::shared_ptr<BoundFunctionDecl> declaration)
     : BoundExpression(std::move(token), PrimitiveType::Function)
-    , m_name(std::move(name))
+    , m_declaration(std::move(declaration))
 {
 }
 
 std::string const& BoundFunction::name() const
 {
-    return m_name;
+    return m_declaration->name();
+}
+
+std::shared_ptr<BoundFunctionDecl> const& BoundFunction::declaration() const
+{
+    return m_declaration;
 }
 
 std::string BoundFunction::attributes() const
@@ -344,15 +349,15 @@ std::string BoundFunction::to_string() const
 
 // -- BoundLocalFunction ----------------------------------------------------
 
-BoundLocalFunction::BoundLocalFunction(Token token, std::string name)
-    : BoundFunction(std::move(token), std::move(name))
+BoundLocalFunction::BoundLocalFunction(Token token, std::shared_ptr<BoundFunctionDecl> declaration)
+    : BoundFunction(std::move(token), std::move(declaration))
 {
 }
 
 // -- BoundImportedFunction -------------------------------------------------
 
-BoundImportedFunction::BoundImportedFunction(Token token, std::shared_ptr<BoundModule> module, std::string name)
-    : BoundFunction(std::move(token), std::move(name))
+BoundImportedFunction::BoundImportedFunction(Token token, std::shared_ptr<BoundModule> module, std::shared_ptr<BoundFunctionDecl> declaration)
+    : BoundFunction(std::move(token), std::move(declaration))
     , m_module(std::move(module))
 {
 }

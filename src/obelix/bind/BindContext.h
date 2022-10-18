@@ -51,65 +51,94 @@ constexpr char const* BindContextType_name(BindContextType type)
     }
 }
 
+template<>
+struct Converter<BindContextType> {
+    static std::string to_string(BindContextType val)
+    {
+        return BindContextType_name(val);
+    }
+
+    static double to_double(BindContextType val)
+    {
+        return static_cast<double>(val);
+    }
+
+    static long to_long(BindContextType val)
+    {
+        return static_cast<long>(val);
+    }
+};
+
 class BindContext;
+class ContextImpl;
 class ModuleContext;
 class RootContext;
 
-class ContextImpl {
-public:
-    explicit ContextImpl(BindContextType, BindContext*);
-    [[nodiscard]] BindContextType type() const;
-    [[nodiscard]] BindContext const* owner() const;
-    [[nodiscard]] BindContext* owner();
+using RawContextImpls = std::vector<ContextImpl*>;
+using ContextImpls = std::vector<std::shared_ptr<ContextImpl>>;
 
-    [[nodiscard]] ContextImpl const* parent_impl() const;
-    [[nodiscard]] ContextImpl* parent_impl();
-    [[nodiscard]] ModuleContext const* module_impl() const;
-    [[nodiscard]] ModuleContext* module_impl();
-    [[nodiscard]] RootContext const* root_impl() const;
-    [[nodiscard]] RootContext* root_impl();
+class ContextImpl : public std::enable_shared_from_this<ContextImpl> {
+public:
+    ContextImpl(BindContextType, BindContext&);
+    virtual ~ContextImpl();
+
+    [[nodiscard]] BindContextType type() const;
+
+    [[nodiscard]] std::shared_ptr<ContextImpl> parent_impl();
+    [[nodiscard]] std::shared_ptr<ModuleContext> module_impl();
+    [[nodiscard]] std::shared_ptr<RootContext> root_impl();
+    [[nodiscard]] ContextImpls children() const;
 private:
     BindContextType m_type;
-    BindContext* m_owner;
+    std::shared_ptr<ContextImpl> m_parent_impl { nullptr };
+    RawContextImpls m_child_impls;
 };
 
 class SubContext : public ContextImpl {
 public:
-    explicit SubContext(BindContext*);
+    explicit SubContext(BindContext&);
 };
 
 using FunctionRegistry = std::multimap<std::string, std::shared_ptr<BoundFunctionDecl>>;
 
 class ModuleContext : public ContextImpl {
 public:
-    explicit ModuleContext(BindContext*);
+    explicit ModuleContext(BindContext&, std::string name);
 
+    [[nodiscard]] std::string const& name() const;
     void add_declared_function(std::string const&, std::shared_ptr<BoundFunctionDecl> const&);
     [[nodiscard]] FunctionRegistry const& declared_functions() const;
-    void clear_declared_functions();
     void add_imported_function(std::shared_ptr<BoundFunctionDecl> const&);
     [[nodiscard]] BoundFunctionDecls const& imported_functions() const;
-    void clear_imported_functions();
+    void add_exported_function(std::shared_ptr<BoundFunctionDecl> const&);
+    [[nodiscard]] BoundFunctionDecls const& exported_functions() const;
     [[nodiscard]] std::shared_ptr<BoundFunctionDecl> match(std::string const& name, ObjectTypes arg_types) const;
 
 private:
+    std::string m_name;
     FunctionRegistry m_declared_functions;
     BoundFunctionDecls m_imported_functions;
+    BoundFunctionDecls m_exported_functions;
 };
+
+using ModuleContexts = std::vector<std::shared_ptr<ModuleContext>>;
 
 class RootContext : public ContextImpl {
 public:
-    RootContext(BindContext*);
+    RootContext(BindContext&);
 
     void add_unresolved_function(FunctionCall);
     [[nodiscard]] FunctionCalls const& unresolved_functions() const;
     void clear_unresolved_functions();
     void add_module(std::shared_ptr<BoundModule> const& module);
     [[nodiscard]] std::shared_ptr<BoundModule> module(std::string const& name) const;
+    [[nodiscard]] std::shared_ptr<ModuleContext> module_context(std::string const& name);
+    void add_module_context(std::shared_ptr<ModuleContext>);
 
 private:
     FunctionCalls m_unresolved_functions;
     std::unordered_map<std::string, std::shared_ptr<BoundModule>> m_modules;
+    ModuleContexts m_module_contexts;
 };
 
 class BindContext : public Context<std::shared_ptr<SyntaxNode>> {
@@ -118,7 +147,8 @@ public:
     int stage { 0 };
 
     BindContext();
-    explicit BindContext(BindContext&, BindContextType = BindContextType::SubContext);
+    explicit BindContext(BindContext& parent, BindContextType type = BindContextType::SubContext);
+    BindContext(BindContext& parent, std::string name);
     BindContext(BindContext*) = delete;
 
     BindContextType type() const { return m_impl->type(); }
@@ -129,17 +159,21 @@ public:
     [[nodiscard]] FunctionRegistry const& declared_functions() const;
     void add_imported_function(std::shared_ptr<BoundFunctionDecl> const& func);
     [[nodiscard]] BoundFunctionDecls const& imported_functions() const;
+    void add_exported_function(std::shared_ptr<BoundFunctionDecl> const& func);
+    [[nodiscard]] BoundFunctionDecls const& exported_functions() const;
     void add_module(std::shared_ptr<BoundModule> const& module);
     [[nodiscard]] std::shared_ptr<BoundModule> module(std::string const& name) const;
-    [[nodiscard]] std::shared_ptr<BoundFunctionDecl> match(std::string const& name, ObjectTypes arg_types) const;
+    [[nodiscard]] std::shared_ptr<BoundFunctionDecl> match(std::string const& name, ObjectTypes arg_types, bool = false) const;
 
 protected:
     friend class ContextImpl;
-    [[nodiscard]] ContextImpl const* impl() const { return m_impl.get(); };
-    [[nodiscard]] ContextImpl* impl() { return m_impl.get(); }
+    [[nodiscard]] std::shared_ptr<ContextImpl> const& impl() const { return m_impl; };
+    [[nodiscard]] std::shared_ptr<ContextImpl> impl() { return m_impl; }
 
 private:
-    std::unique_ptr<ContextImpl> m_impl;
+    std::shared_ptr<ContextImpl> m_impl;
 };
+
+
 
 }
