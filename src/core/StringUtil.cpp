@@ -297,7 +297,7 @@ std::optional<bool> to_bool(std::string const& str)
     if (str == "true" || str == "True" || str == "TRUE")
         return true;
     if (str == "false" || str == "False" || str == "FALSE")
-        return true;
+        return false;
     auto ret = to_long(str);
     if (!ret.has_value())
         return {};
