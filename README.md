@@ -50,6 +50,8 @@ look around and a play.
     }
     read(fh, 256) /* Auto unwrap */
 ```
+- [ ] Develop object life cycle mechanism. Investigate and compare Go `defer`, Python
+`context` and C++ destructors.
 - [ ] Expose `format()` to Obelix. Will probably involve rewriting into C.
 - [ ] Unify signed and unsigned integers. Or at least allow some sort of coercion.
 - [ ] Improve explicit cast and implicit coercions.
