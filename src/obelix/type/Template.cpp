@@ -71,14 +71,19 @@ std::string to_string(TemplateArgumentValue const& arg)
     return format("{}={}", nvp.first, nvp.second);
 }
 
-bool compare(TemplateArgumentValue const& arg1, TemplateArgumentValue const& arg2)
+bool compare(TemplateArgumentValue const& arg1, TemplateArgumentValue const& arg2, bool match_any)
 {
     if (arg1.index() != arg2.index())
         return false;
     if (arg1.valueless_by_exception() != arg2.valueless_by_exception())
         return false;
-    if (std::holds_alternative<std::shared_ptr<ObjectType>>(arg1))
-        return *std::get<std::shared_ptr<ObjectType>>(arg1) == *std::get<std::shared_ptr<ObjectType>>(arg2);
+    if (std::holds_alternative<std::shared_ptr<ObjectType>>(arg1)) {
+        auto type1 = std::get<std::shared_ptr<ObjectType>>(arg1);
+        auto type2 = std::get<std::shared_ptr<ObjectType>>(arg2);
+        if (match_any && (type2->type() == PrimitiveType::Any || type1->type() == PrimitiveType::Any))
+            return true;
+        return *type1 == *type2;
+    }
     return arg1 == arg2;
 }
 

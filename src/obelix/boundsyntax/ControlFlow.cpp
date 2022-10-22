@@ -87,10 +87,16 @@ std::string BoundWhileStatement::to_string() const
 
 // -- BoundReturn -----------------------------------------------------------
 
-BoundReturn::BoundReturn(std::shared_ptr<SyntaxNode> const& ret, std::shared_ptr<BoundExpression> expression)
+BoundReturn::BoundReturn(std::shared_ptr<SyntaxNode> const& ret, std::shared_ptr<BoundExpression> expression, bool return_error)
     : Statement(ret->token())
     , m_expression(std::move(expression))
+    , m_return_error(return_error)
 {
+}
+
+std::string BoundReturn::attributes() const
+{
+    return format(R"(return_error="{}")", return_error());
 }
 
 Nodes BoundReturn::children() const
@@ -102,7 +108,7 @@ Nodes BoundReturn::children() const
 
 std::string BoundReturn::to_string() const
 {
-    std::string ret = "return";
+    std::string ret = (return_error()) ? "error" : "return";
     if (m_expression)
         ret = format("{} {}", ret, m_expression->to_string());
     return ret;
@@ -111,6 +117,11 @@ std::string BoundReturn::to_string() const
 std::shared_ptr<BoundExpression> const& BoundReturn::expression() const
 {
     return m_expression;
+}
+
+bool BoundReturn::return_error() const
+{
+    return m_return_error;
 }
 
 // -- BoundBranch -----------------------------------------------------------

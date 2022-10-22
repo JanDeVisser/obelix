@@ -106,6 +106,25 @@ public:
     {
     }
 
+    std::string const& header_name() const
+    {
+        return m_header->name();
+    }
+
+    ErrorOr<void, SyntaxError> open_header(std::string main_module)
+    {
+        if (parent() != nullptr) {
+            return dynamic_cast<CTranspilerContext*>(parent())->open_header(main_module);
+        }
+        if (m_current != nullptr) {
+            if (auto error_maybe = m_current->flush(); error_maybe.is_error())
+                return error_maybe.error();
+        }
+        m_header = std::make_shared<COutputFile>(format("{}.h", main_module));
+        m_current = m_header;
+        return {};
+    }
+
     ErrorOr<void, SyntaxError> open_output_file(std::string name)
     {
         if (parent() != nullptr) {
@@ -122,7 +141,7 @@ public:
 
     std::vector<COutputFile const*> files()
     {
-        std::vector<COutputFile const*> ret;
+        std::vector<COutputFile const*> ret { m_header.get() };
         for (auto const& file : m_modules) {
             ret.push_back(file.second.get());
         }
@@ -191,6 +210,7 @@ public:
     }
 
 private:
+    std::shared_ptr<COutputFile> m_header;
     std::unordered_map<std::string, std::shared_ptr<COutputFile>> m_modules;
     std::shared_ptr<COutputFile> m_current;
 };

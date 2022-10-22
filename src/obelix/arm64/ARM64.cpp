@@ -182,7 +182,7 @@ NODE_PROCESSOR(BoundCastExpression)
 {
     auto cast = std::dynamic_pointer_cast<BoundCastExpression>(tree);
     auto expr = TRY_AND_CAST(BoundExpression, process(cast->expression(), ctx));
-    assert(expr->type()->can_cast_to(cast->type()) != ObjectType::CanCast::Never);
+    assert(expr->type()->can_cast_to(cast->type()) != CanCast::Never);
 
     auto from_pt = expr->type()->type();
     auto to_pt = cast->type()->type();
@@ -196,7 +196,7 @@ NODE_PROCESSOR(BoundCastExpression)
         case PrimitiveType::Pointer:
         case PrimitiveType::Enum:
         case PrimitiveType::Boolean: {
-            if (expr->type()->can_cast_to(cast->type()) == ObjectType::CanCast::Sometimes) {
+            if (expr->type()->can_cast_to(cast->type()) == CanCast::Sometimes) {
                 // Dynamically check that value can be casted
             }
             if (cast->type()->size() < 8) {

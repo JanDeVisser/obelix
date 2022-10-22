@@ -5,7 +5,6 @@
  */
 
 #include <memory>
-#include <map>
 
 #include <obelix/BoundSyntaxNode.h>
 #include <obelix/Context.h>
@@ -59,7 +58,7 @@ ErrorOr<std::shared_ptr<BoundFunctionCall>, SyntaxError> make_function_call(Bind
     }
 }
 
-INIT_NODE_PROCESSOR(BindContext);
+INIT_NODE_PROCESSOR(BindContext)
 
 NODE_PROCESSOR(StructDefinition)
 {
@@ -84,6 +83,7 @@ NODE_PROCESSOR(StructDefinition)
         return SyntaxError { err.code(), struct_def->token(), err.message() };
     }
     auto type = type_maybe.value();
+    ctx.add_custom_type(type);
     return std::make_shared<BoundStructDefinition>(struct_def, type);
 }
 
@@ -104,6 +104,7 @@ NODE_PROCESSOR(EnumDef)
     std::shared_ptr<ObjectType> type;
     if (!enum_def->extend()) {
         type = ObjectType::make_enum_type(enum_def->name(), enum_values);
+        ctx.add_custom_type(type);
     } else {
         type = ObjectType::get(enum_def->name());
         if (type->type() != PrimitiveType::Enum)
@@ -123,7 +124,7 @@ NODE_PROCESSOR(Compilation)
     for (auto& imported : compilation->modules()) {
         modules.push_back(TRY_AND_CAST(BoundModule, process(imported, ctx)));
     }
-    return std::make_shared<BoundCompilation>(modules);
+    return std::make_shared<BoundCompilation>(modules, ctx.custom_types(), compilation->main_module());
 
 }
 
@@ -179,7 +180,6 @@ NODE_PROCESSOR(VariableDeclaration)
             if (int_literal != nullptr) {
                 expr = TRY(int_literal->cast(var_type));
             } else {
-                ObjectType::dump();
                 return SyntaxError { ErrorCode::TypeMismatch, var_decl->token(), var_decl->name(), var_decl->type(), expr->type() };
             }
         }
@@ -189,6 +189,8 @@ NODE_PROCESSOR(VariableDeclaration)
         return SyntaxError { ErrorCode::UntypedVariable, var_decl->token(), var_decl->name() };
     }
 
+    if (var_type->is_custom())
+        ctx.add_custom_type(var_type);
     auto identifier = std::make_shared<BoundIdentifier>(var_decl->identifier(), var_type);
     std::shared_ptr<BoundVariableDeclaration> ret;
     if (tree->node_type() == SyntaxNodeType::StaticVariableDeclaration)
@@ -203,9 +205,9 @@ NODE_PROCESSOR(VariableDeclaration)
     return ret;
 }
 
-ALIAS_NODE_PROCESSOR(StaticVariableDeclaration, VariableDeclaration);
-ALIAS_NODE_PROCESSOR(LocalVariableDeclaration, VariableDeclaration);
-ALIAS_NODE_PROCESSOR(GlobalVariableDeclaration, VariableDeclaration);
+ALIAS_NODE_PROCESSOR(StaticVariableDeclaration, VariableDeclaration)
+ALIAS_NODE_PROCESSOR(LocalVariableDeclaration, VariableDeclaration)
+ALIAS_NODE_PROCESSOR(GlobalVariableDeclaration, VariableDeclaration)
 
 NODE_PROCESSOR(FunctionDecl)
 {
@@ -213,11 +215,9 @@ NODE_PROCESSOR(FunctionDecl)
     if (decl->type() == nullptr)
         return SyntaxError { ErrorCode::UntypedFunction, decl->token(), decl->name() };
 
-    // auto ret_type_or_error = decl->type()->resolve_type();
-    // if (ret_type_or_error.is_error()) {
-    //     return SyntaxError { ret_type_or_error.error(), decl->token() };
-    // }
     auto ret_type = TRY_ADAPT(decl->type()->resolve_type(), decl->token());
+    if (ret_type->is_custom() && decl->node_type() != SyntaxNodeType::IntrinsicDecl)
+        ctx.add_custom_type(ret_type);
 
     auto identifier = std::make_shared<BoundIdentifier>(decl->identifier(), ret_type);
     BoundIdentifiers bound_parameters;
@@ -226,6 +226,8 @@ NODE_PROCESSOR(FunctionDecl)
             return SyntaxError { ErrorCode::UntypedParameter, parameter->token(), parameter->name() };
         auto parameter_type = TRY_ADAPT(parameter->type()->resolve_type(), identifier->token());
         bound_parameters.push_back(std::make_shared<BoundIdentifier>(parameter, parameter_type));
+        if (parameter_type->is_custom() && decl->node_type() != SyntaxNodeType::IntrinsicDecl)
+            ctx.add_custom_type(parameter_type);
     }
     std::shared_ptr<BoundFunctionDecl> bound_decl;
     switch (decl->node_type()) {
@@ -245,8 +247,8 @@ NODE_PROCESSOR(FunctionDecl)
     return bound_decl;
 }
 
-ALIAS_NODE_PROCESSOR(IntrinsicDecl, FunctionDecl);
-ALIAS_NODE_PROCESSOR(NativeFunctionDecl, FunctionDecl);
+ALIAS_NODE_PROCESSOR(IntrinsicDecl, FunctionDecl)
+ALIAS_NODE_PROCESSOR(NativeFunctionDecl, FunctionDecl)
 
 NODE_PROCESSOR(FunctionDef)
 {
@@ -327,6 +329,18 @@ NODE_PROCESSOR(BinaryExpression)
             auto member_identifier = std::make_shared<BoundIdentifier>(rhs->token(), field_var->name(), field.type);
             return std::make_shared<BoundMemberAccess>(lhs, member_identifier);
         }
+        case PrimitiveType::Conditional: {
+            auto field_var = std::dynamic_pointer_cast<Variable>(rhs);
+            if (field_var == nullptr)
+                return SyntaxError { ErrorCode::NotMember, rhs->token(), rhs, lhs };
+            if (field_var->name() != "value" && field_var->name() != "error")
+                return SyntaxError { ErrorCode::NotMember, rhs->token(), rhs, lhs };
+            auto type = (field_var->name() == "value")
+                ? lhs->type()->template_argument<std::shared_ptr<ObjectType>>("success_type")
+                : lhs->type()->template_argument<std::shared_ptr<ObjectType>>("error_type");
+            auto member_identifier = std::make_shared<BoundIdentifier>(rhs->token(), field_var->name(), type);
+            return std::make_shared<BoundMemberAccess>(lhs, member_identifier);
+        }
         case PrimitiveType::Type: {
             auto type_literal = std::dynamic_pointer_cast<BoundTypeLiteral>(lhs);
             auto value_var = std::dynamic_pointer_cast<Variable>(rhs);
@@ -401,18 +415,23 @@ NODE_PROCESSOR(BinaryExpression)
         auto assignee = std::dynamic_pointer_cast<BoundVariableAccess>(lhs);
         if (assignee == nullptr)
             return SyntaxError { ErrorCode::CannotAssignToRValue, lhs->token(), lhs->to_string() };
-        auto lhs_as_ident = std::dynamic_pointer_cast<BoundIdentifier>(assignee);
-        if (lhs_as_ident) {
-            auto identifier = std::dynamic_pointer_cast<BoundIdentifier>(lhs);
-            auto var_decl_maybe = ctx.get(identifier->name());
+
+        if (auto lhs_as_ident = std::dynamic_pointer_cast<BoundIdentifier>(assignee); lhs_as_ident) {
+            auto var_decl_maybe = ctx.get(lhs_as_ident->name());
             if (!var_decl_maybe.has_value())
-                return SyntaxError { ErrorCode::UndeclaredVariable, lhs->token(), identifier->name() };
+                return SyntaxError { ErrorCode::UndeclaredVariable, lhs->token(), lhs_as_ident->name() };
             auto var_decl = std::dynamic_pointer_cast<BoundVariableDeclaration>(var_decl_maybe.value());
             if (var_decl == nullptr)
-                return SyntaxError { ErrorCode::CannotAssignToFunction, lhs->token(), identifier->name() };
+                return SyntaxError { ErrorCode::CannotAssignToFunction, lhs->token(), lhs_as_ident->name() };
             if (var_decl->is_const())
                 return SyntaxError { ErrorCode::CannotAssignToConstant, lhs->token(), var_decl->name() };
         }
+
+        if (auto lhs_as_memberaccess = std::dynamic_pointer_cast<BoundMemberAccess>(assignee);
+            lhs_as_memberaccess != nullptr && lhs_as_memberaccess->node_type() != SyntaxNodeType::BoundMemberAssignment) {
+            assignee = std::make_shared<BoundMemberAssignment>(lhs_as_memberaccess->structure(), lhs_as_memberaccess->member());
+        }
+
         if (!rhs_bound->type()->is_assignable_to(lhs->type())) {
             auto int_literal = std::dynamic_pointer_cast<BoundIntLiteral>(rhs_bound);
             if (int_literal != nullptr) {
@@ -420,6 +439,43 @@ NODE_PROCESSOR(BinaryExpression)
             } else {
                 return SyntaxError { ErrorCode::TypeMismatch, expr->token(), rhs->to_string(), lhs->type(), rhs_bound->type() };
             }
+        }
+
+        // var c: type_a/type_b
+        // ...
+        // const x: type_a = c
+        // const y: type_b = c
+        if (rhs_bound->type()->type() == PrimitiveType::Conditional) {
+            std::string member = "value";
+            auto member_type = rhs_bound->type()->template_argument<std::shared_ptr<ObjectType>>("success_type");
+            auto error_type = rhs_bound->type()->template_argument<std::shared_ptr<ObjectType>>("error_type");
+            if (error_type->is_assignable_to(lhs->type())) {
+                member = "error";
+                member_type = error_type;
+            } else {
+                assert(member_type->is_assignable_to(lhs->type()));
+            }
+            auto member_identifier = std::make_shared<BoundIdentifier>(rhs->token(), member, member_type);
+            rhs_bound = std::make_shared<BoundMemberAccess>(rhs_bound, member_identifier);
+        }
+
+        // var x: type_a/type_b
+        // const foo: type_a = ...
+        // const bar: type_b = ...
+        // x = foo
+        // x = bar
+        if (assignee->type()->type() == PrimitiveType::Conditional) {
+            std::string member = "value";
+            auto member_type = assignee->type()->template_argument<std::shared_ptr<ObjectType>>("success_type");
+            if (!rhs_bound->type()->is_assignable_to(member_type)) {
+                member = "error";
+                member_type = assignee->type()->template_argument<std::shared_ptr<ObjectType>>("error_type");
+                if (!rhs_bound->type()->is_assignable_to(member_type)) {
+                    return SyntaxError { ErrorCode::TypeMismatch, expr->token(), rhs->to_string(), lhs->type(), rhs_bound->type() };
+                }
+            }
+            auto member_identifier = std::make_shared<BoundIdentifier>(rhs->token(), member, member_type);
+            assignee = std::make_shared<BoundMemberAssignment>(assignee, member_identifier);
         }
 
         if (op == BinaryOperator::Assign)
@@ -437,8 +493,12 @@ NODE_PROCESSOR(BinaryExpression)
         lhs = TRY(std::dynamic_pointer_cast<BoundIntLiteral>(lhs)->cast(rhs_bound->type()));
     }
     auto return_type_maybe = lhs->type()->return_type_of(to_operator(op), rhs_bound->type());
-    if (return_type_maybe.has_value())
+    if (return_type_maybe.has_value()) {
+        auto return_type = return_type_maybe.value();
+        if (return_type->is_custom())
+            ctx.add_custom_type(return_type);
         return std::make_shared<BoundBinaryExpression>(expr, lhs, op, rhs_bound, return_type_maybe.value());
+    }
     return SyntaxError { ErrorCode::ReturnTypeUnresolved, expr->token(), format("{} {} {}", lhs, op, rhs) };
 }
 
@@ -478,6 +538,8 @@ NODE_PROCESSOR(UnaryExpression)
     auto return_type = operand->type()->return_type_of(to_operator(op));
     if (!return_type.has_value())
         return SyntaxError { ErrorCode::ReturnTypeUnresolved, expr->token(), format("{} {}", op, operand) };
+    if (return_type.value()->is_custom())
+        ctx.add_custom_type(return_type.value());
     return std::make_shared<BoundUnaryExpression>(expr, operand, op, return_type.value());
 }
 
@@ -491,7 +553,7 @@ NODE_PROCESSOR(CastExpression)
         return SyntaxError { err.code(), cast->token(), err.message() };
     }
     auto type = type_maybe.value();
-    if (expr->type()->can_cast_to(type) == ObjectType::CanCast::Never)
+    if (expr->type()->can_cast_to(type) == CanCast::Never)
         return SyntaxError { ErrorCode::TypeMismatch, cast->token(), format("Cannot cast {} to {}", expr->type(), type) };
     return std::make_shared<BoundCastExpression>(cast->token(), expr, type_maybe.value());
 }
@@ -573,16 +635,39 @@ NODE_PROCESSOR(Return)
     auto ret_stmt = std::dynamic_pointer_cast<Return>(tree);
     auto bound_expr = TRY_AND_CAST(BoundExpression, process(ret_stmt->expression(), ctx));
     if (ctx.return_type) {
-        if (!bound_expr) {
-            return tree;
+        if (!bound_expr)
+            return SyntaxError { ErrorCode::SyntaxError, ret_stmt->token(), format("Expected return value of type '{}'", ctx.return_type) };
+        auto ret_type = ctx.return_type;
+        auto check_type = [&bound_expr](std::shared_ptr<ObjectType> const& type) -> ErrorOrNode {
+            if (!bound_expr->type()->is_assignable_to(type)) {
+                auto int_literal = std::dynamic_pointer_cast<BoundIntLiteral>(bound_expr);
+                if (int_literal != nullptr)
+                    return TRY(int_literal->cast(type));
+                return nullptr;
+            }
+            return bound_expr;
+        };
+
+        if ((ret_type->type() == PrimitiveType::Conditional) && (*ret_type != *bound_expr->type())) {
+            auto type_arg_name = (ret_stmt->return_error()) ? "error_type" : "success_type";
+            bool success = !ret_stmt->return_error();
+
+            auto new_bound_expr = TRY_AND_CAST(BoundExpression, check_type(ctx.return_type->template_argument<std::shared_ptr<ObjectType>>(type_arg_name)));
+            if ((new_bound_expr == nullptr) && !ret_stmt->return_error()) {
+                new_bound_expr = TRY_AND_CAST(BoundExpression, check_type(ctx.return_type->template_argument<std::shared_ptr<ObjectType>>("error_type")));
+                success = false;
+            }
+            if (new_bound_expr == nullptr)
+                return SyntaxError { ErrorCode::TypeMismatch, ret_stmt->token(), bound_expr->to_string(), ctx.return_type->name(), bound_expr->type_name() };
+            bound_expr = std::make_shared<BoundConditionalValue>(bound_expr->token(), new_bound_expr, success, ctx.return_type);
+        } else {
+            bound_expr = TRY_AND_CAST(BoundExpression, check_type(ret_type));
         }
-        if (ctx.return_type->type() != bound_expr->type()->type())
-            return SyntaxError { ErrorCode::TypeMismatch, ret_stmt->token(), bound_expr->to_string(), ctx.return_type->name(), bound_expr->type_name() };
     } else {
         if (bound_expr)
             return SyntaxError { ErrorCode::SyntaxError, ret_stmt->token(), format("Expected void return, got a return value of type '{}'", bound_expr->type_name()) };
     }
-    return std::make_shared<BoundReturn>(ret_stmt, bound_expr);
+    return std::make_shared<BoundReturn>(ret_stmt, bound_expr, ret_stmt->return_error());
 }
 
 NODE_PROCESSOR(Branch)

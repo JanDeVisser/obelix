@@ -31,11 +31,23 @@ CTranspilerFunctionType const& get_c_transpiler_intrinsic(IntrinsicType type)
     ErrorOr<void, SyntaxError> c_transpiler_intrinsic_##intrinsic(CTranspilerContext& ctx)
 
 #define INTRINSIC_ALIAS(intrinsic, alias) \
-    auto s_c_transpiler_##intrinsic##_decl = register_c_transpiler_intrinsic(intrinsic, c_transpiler_intrinsic_##alias); \
+    auto s_c_transpiler_##intrinsic##_decl = register_c_transpiler_intrinsic(intrinsic, c_transpiler_intrinsic_##alias);
 
 INTRINSIC(allocate)
 {
     ctx.writeln("malloc(arg0);");
+    return {};
+}
+
+INTRINSIC(ok)
+{
+    ctx.writeln("arg0.success");
+    return {};
+}
+
+INTRINSIC(error)
+{
+    ctx.writeln("!arg0.success");
     return {};
 }
 

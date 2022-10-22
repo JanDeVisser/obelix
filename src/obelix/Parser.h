@@ -104,6 +104,7 @@ private:
 
     Config m_config;
     std::vector<std::string> m_modules;
+    std::string m_current_module;
 };
 
 }

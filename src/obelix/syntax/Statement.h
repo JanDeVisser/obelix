@@ -97,16 +97,19 @@ using Modules = std::vector<std::shared_ptr<Module>>;
 
 NODE_CLASS(Compilation, SyntaxNode)
 public:
-    Compilation(Modules);
+    Compilation(Modules, std::string);
     [[nodiscard]] Modules const& modules() const;
     [[nodiscard]] std::shared_ptr<Module> const& root() const;
+    [[nodiscard]] std::string const& main_module() const;
     [[nodiscard]] Nodes children() const override;
     [[nodiscard]] std::string to_string() const override;
+    [[nodiscard]] std::string attributes() const override;
     [[nodiscard]] std::string root_to_xml() const;
 
 private:
     Modules m_modules;
     std::shared_ptr<Module> m_root;
+    std::string m_main_module;
 };
 
 NODE_CLASS(ExpressionStatement, Statement)
@@ -122,13 +125,16 @@ private:
 
 NODE_CLASS(Return, Statement)
 public:
-    Return(Token, std::shared_ptr<Expression>);
+    Return(Token, std::shared_ptr<Expression>, bool = false);
     [[nodiscard]] Nodes children() const override;
+    [[nodiscard]] std::string attributes() const override;
     [[nodiscard]] std::string to_string() const override;
     [[nodiscard]] std::shared_ptr<Expression> const& expression() const;
+    [[nodiscard]] bool return_error() const;
 
 private:
     std::shared_ptr<Expression> m_expression;
+    bool m_return_error;
 };
 
 }

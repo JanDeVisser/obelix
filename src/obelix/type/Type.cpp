@@ -91,8 +91,10 @@ std::vector<std::shared_ptr<ObjectType>> ObjectType::s_template_specializations 
 [[maybe_unused]] std::shared_ptr<ObjectType> s_null;
 [[maybe_unused]] std::shared_ptr<ObjectType> s_pointer;
 [[maybe_unused]] std::shared_ptr<ObjectType> s_array;
+[[maybe_unused]] std::shared_ptr<ObjectType> s_char_ptr;
 [[maybe_unused]] std::shared_ptr<ObjectType> s_string;
 [[maybe_unused]] std::shared_ptr<ObjectType> s_enum;
+[[maybe_unused]] std::shared_ptr<ObjectType> s_conditional;
 [[maybe_unused]] std::shared_ptr<ObjectType> s_type;
 [[maybe_unused]] std::shared_ptr<ObjectType> s_any;
 
@@ -272,14 +274,18 @@ static void initialize_types()
             });
         });
 
+    s_char_ptr = ObjectType::specialize(s_pointer, { { "target", s_char } }).value();
+
     s_string = ObjectType::register_struct_type("string",
         FieldDefs {
             FieldDef { std::string("length"), s_unsigned },
-            FieldDef { std::string("data"), ObjectType::specialize(s_pointer, { { "target", s_char } }).value() } },
+            FieldDef { std::string("data"), s_char_ptr },
+        },
         [](std::shared_ptr<ObjectType> const& type) {
             type->add_method(MethodDescription { Operator::Add, PrimitiveType::Self, IntrinsicType::add_str_str, { { "other", PrimitiveType::Self } }, true });
             type->add_method(MethodDescription { Operator::Multiply, PrimitiveType::Self, IntrinsicType::multiply_str_int, { { "other", s_unsigned } }, true });
             type->will_be_a(s_comparable);
+            type->will_be_custom(false);
         });
 
     s_enum = ObjectType::register_type(PrimitiveType::Enum,
@@ -291,6 +297,21 @@ static void initialize_types()
             type->has_template_stamp([](std::shared_ptr<ObjectType> const& instantiation) {
                 instantiation->add_method(MethodDescription { Operator::Subscript, s_long,
                     IntrinsicType::NotIntrinsic, { { "subscript", s_string } } });
+            });
+        });
+
+    s_conditional = ObjectType::register_type(PrimitiveType::Conditional,
+        [](std::shared_ptr<ObjectType> const& type) {
+            type->has_template_parameter({ "success_type", TemplateParameterType::Type, TemplateParameterMultiplicity::Required });
+            type->has_template_parameter({ "error_type", TemplateParameterType::Type, TemplateParameterMultiplicity::Required });
+            type->has_size(4);
+
+            type->has_template_stamp([](std::shared_ptr<ObjectType> const& instantiation) {
+                auto success_type = instantiation->template_argument<std::shared_ptr<ObjectType>>("success_type");
+                auto error_type = instantiation->template_argument<std::shared_ptr<ObjectType>>("error_type");
+                instantiation->add_method(MethodDescription { "ok", success_type });
+                instantiation->add_method(MethodDescription { "error", error_type });
+                instantiation->has_size(ObjectType::get(PrimitiveType::Boolean)->size() + std::max(success_type->size(), error_type->size()));
             });
         });
 
@@ -376,6 +397,11 @@ void ObjectType::has_template_stamp(ObjectTypeBuilder const& stamp)
     m_stamp = stamp;
 }
 
+void ObjectType::has_can_cast_to(CanCastTo const& can_cast_to)
+{
+    m_can_cast_to = can_cast_to;
+}
+
 void ObjectType::has_alias(std::string const& alias)
 {
     m_aliases.emplace_back(alias);
@@ -444,7 +470,7 @@ bool ObjectType::is_compatible_with(std::shared_ptr<ObjectType> const& other) co
     return is_compatible_with(*other);
 }
 
-ObjectType::CanCast ObjectType::can_cast_to(std::shared_ptr<ObjectType> const& other) const
+CanCast ObjectType::can_cast_to(std::shared_ptr<ObjectType> const& other) const
 {
     return can_cast_to(*other);
 }
@@ -467,11 +493,7 @@ bool ObjectType::operator==(ObjectType const& other) const
     }
     if (*specializes_template() != *other.specializes_template())
         return false;
-    if (template_arguments().size() != other.template_arguments().size())
-        return false;
-    return std::all_of(template_arguments().cbegin(), template_arguments().cend(), [&other](auto const& arg_item) {
-        return other.m_template_arguments.contains(arg_item.first) && other.m_template_arguments.at(arg_item.first) == arg_item.second;
-    });
+    return template_arguments() == other.template_arguments();
 }
 
 /*
@@ -496,11 +518,34 @@ bool ObjectType::is_assignable_to(ObjectType const& other) const
         }
         return false;
     }
+    if (other.type() == PrimitiveType::Conditional && type() != PrimitiveType::Conditional) {
+        auto success_type = other.template_argument<std::shared_ptr<ObjectType>>("success_type");
+        auto error_type = other.template_argument<std::shared_ptr<ObjectType>>("error_type");
+        return is_assignable_to(success_type) || is_assignable_to(error_type);
+    }
+    if (is_template_specialization() && other.is_template_specialization() && (*specializes_template() == *other.specializes_template())) {
+        auto const& other_args = other.template_arguments();
+        return std::all_of(template_arguments().cbegin(), template_arguments().cend(), [&other_args](auto const& arg_item) {
+            if (!other_args.contains(arg_item.first))
+                return false;
+            auto const& arg_value1 = arg_item.second;
+            auto const& arg_value2 = other_args.at(arg_item.first);
+            if (arg_value1.parameter_type != arg_value2.parameter_type || arg_value1.multiplicity != arg_value2.multiplicity)
+                return false;
+            if (arg_value1.value.size() != arg_value2.value.size())
+                return false;
+            for (auto ix = 0u; ix < arg_value1.value.size(); ++ix) {
+                if (!compare(arg_value1.value[ix], arg_value2.value[ix], true))
+                    return false;
+            }
+            return true;
+        });
+    }
     return *this == other;
 }
 
 /*
- * is_assignable_to - is a value of other type assignable to this type.
+ * is_compatible_with - is a value of other type assignable to this type.
  *  - non-integers: types must be the same.
  *  - integers:
  *      -- signedness is the same and this other size is less or equal this size
@@ -521,11 +566,19 @@ bool ObjectType::is_compatible_with(ObjectType const& other) const
         }
         return false;
     }
+    if (type() == PrimitiveType::Conditional && other.type() != PrimitiveType::Conditional) {
+        auto success_type = template_argument<std::shared_ptr<ObjectType>>("success_type");
+        auto error_type = template_argument<std::shared_ptr<ObjectType>>("error_type");
+        return is_compatible_with(success_type) || is_compatible_with(error_type);
+    }
     return *this == other;
 }
 
-ObjectType::CanCast ObjectType::can_cast_to(Obelix::ObjectType const& other) const
+CanCast ObjectType::can_cast_to(Obelix::ObjectType const& other) const
 {
+    if (m_can_cast_to)
+        return m_can_cast_to(shared_from_this(), other.shared_from_this());
+
     auto from_pt = type();
     auto to_pt = other.type();
     switch (to_pt) {
@@ -904,6 +957,7 @@ std::shared_ptr<ObjectType> ObjectType::register_struct_type(std::string const& 
 
 ErrorOr<std::shared_ptr<ObjectType>> ObjectType::specialize(std::shared_ptr<ObjectType> const& base_type, TemplateArguments const& template_args)
 {
+    static uint16_t counter = 0;
     if (base_type->is_parameterized() && (template_args.size() != base_type->template_parameters().size()))
         return Error<int> { ErrorCode::TemplateParameterMismatch, base_type, base_type->template_parameters().size(), template_args.size() };
     if (!base_type->is_parameterized() && !template_args.empty())
@@ -911,11 +965,11 @@ ErrorOr<std::shared_ptr<ObjectType>> ObjectType::specialize(std::shared_ptr<Obje
     if (!base_type->is_parameterized())
         return base_type;
     for (auto& template_specialization : s_template_specializations) {
-        if (template_specialization->specializes_template() == base_type && template_specialization->template_arguments() == template_args)
+        if ((*template_specialization->specializes_template() == *base_type) && (template_specialization->template_arguments() == template_args))
             return template_specialization;
     }
     debug(type, "Specializing {} with arguments {}", base_type, template_args);
-    auto specialization = register_type(base_type->type(), format("{}{}", base_type->name(), template_args),
+    auto specialization = register_type(base_type->type(), format("{}_{}", base_type->name(), counter++),
         [&template_args, &base_type](std::shared_ptr<ObjectType> const& new_type) {
             new_type->m_specializes_template = base_type;
             new_type->m_template_arguments = template_args;
@@ -932,7 +986,10 @@ ErrorOr<std::shared_ptr<ObjectType>> ObjectType::specialize(std::string const& b
     auto base_type = ObjectType::get(base_type_name);
     if (base_type == nullptr || *base_type == *s_unknown)
         return Error<int> { ErrorCode::NoSuchType, base_type_name };
-    return specialize(base_type, template_args);
+    auto new_type_maybe = specialize(base_type, template_args);
+    if (new_type_maybe.has_value() && base_type->type() != PrimitiveType::Pointer)
+        new_type_maybe.value()->m_custom = true;
+    return new_type_maybe;
 }
 
 ErrorOr<std::shared_ptr<ObjectType>> ObjectType::make_struct_type(std::string name, FieldDefs fields, ObjectTypeBuilder const& builder)
@@ -956,6 +1013,7 @@ ErrorOr<std::shared_ptr<ObjectType>> ObjectType::make_struct_type(std::string na
     }
     assert(!fields.empty()); // TODO return proper error
     ret = std::make_shared<ObjectType>(PrimitiveType::Struct, std::move(name));
+    ret->m_custom = true;
     register_type_in_caches(ret);
     ret->m_fields = std::move(fields);
     size_t sz= 0;
@@ -977,7 +1035,9 @@ std::shared_ptr<ObjectType> ObjectType::make_enum_type(std::string const& name, 
         arg_values.push_back(nvp);
     }
     TemplateArguments args { { "base_type", TemplateArgument { ObjectType::get("u64") } }, { "values", TemplateArgument { TemplateParameterType::NameValue, arg_values } } };
-    return register_type(name, s_enum, args);
+    auto ret = register_type(name, s_enum, args);
+    ret->m_custom = true;
+    return ret;
 }
 
 ErrorOr<void> ObjectType::extend_enum_type(NVPs const& new_values)

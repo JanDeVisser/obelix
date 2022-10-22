@@ -8,6 +8,7 @@
 
 #include <obelix/syntax/Variable.h>
 #include <obelix/boundsyntax/Expression.h>
+#include <obelix/boundsyntax/Typedef.h>
 
 namespace Obelix {
 
@@ -49,6 +50,11 @@ public:
 private:
     std::shared_ptr<BoundExpression> m_struct;
     std::shared_ptr<BoundIdentifier> m_member;
+};
+
+NODE_CLASS(BoundMemberAssignment, BoundMemberAccess)
+public:
+    BoundMemberAssignment(std::shared_ptr<BoundExpression>, std::shared_ptr<BoundIdentifier>);
 };
 
 NODE_CLASS(BoundArrayAccess, BoundVariableAccess)
@@ -146,18 +152,24 @@ using BoundModules = std::vector<std::shared_ptr<BoundModule>>;
 
 NODE_CLASS(BoundCompilation, BoundExpression)
 public:
-    BoundCompilation(BoundModules);
+    BoundCompilation(BoundModules, ObjectTypes const&, std::string);
+    BoundCompilation(BoundModules, BoundTypes, std::string);
     [[nodiscard]] BoundModules const& modules() const;
+    [[nodiscard]] BoundTypes const& custom_types() const;
     [[nodiscard]] std::shared_ptr<BoundModule> const& root() const;
+    [[nodiscard]] std::shared_ptr<BoundModule> const& main() const;
+    [[nodiscard]] std::string const& main_module() const;
     [[nodiscard]] Nodes children() const override;
     [[nodiscard]] std::string to_string() const override;
+    [[nodiscard]] std::string attributes() const override;
     [[nodiscard]] std::string root_to_xml() const;
 
 private:
     BoundModules m_modules;
+    BoundTypes m_custom_types;
+    std::string m_main_module;
     std::shared_ptr<BoundModule> m_root;
+    std::shared_ptr<BoundModule> m_main;
 };
-
-
 
 }

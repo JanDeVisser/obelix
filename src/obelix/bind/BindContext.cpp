@@ -78,50 +78,34 @@ SubContext::SubContext(BindContext& owner)
 {
 }
 
-// -- ModuleContext ---------------------------------------------------------
+// -- ExportsFunctions ------------------------------------------------------
 
-ModuleContext::ModuleContext(BindContext& owner, std::string name)
-    : ContextImpl(BindContextType::ModuleContext, owner)
-    , m_name(std::move(name))
+ExportsFunctions::ExportsFunctions(BindContextType type, BindContext& owner)
+    : ContextImpl(type, owner)
 {
 }
 
-std::string const& ModuleContext::name() const
-{
-    return m_name;
-}
-
-void ModuleContext::add_declared_function(std::string const& name, std::shared_ptr<BoundFunctionDecl> const& func)
+void ExportsFunctions::add_declared_function(std::string const& name, std::shared_ptr<BoundFunctionDecl> const& func)
 {
     m_declared_functions.insert({ name, func });
 }
 
-FunctionRegistry const& ModuleContext::declared_functions() const
+FunctionRegistry const& ExportsFunctions::declared_functions() const
 {
     return m_declared_functions;
 }
 
-void ModuleContext::add_imported_function(std::shared_ptr<BoundFunctionDecl> const& func)
-{
-    m_imported_functions.push_back(func);
-}
-
-BoundFunctionDecls const& ModuleContext::imported_functions() const
-{
-    return m_imported_functions;
-}
-
-void ModuleContext::add_exported_function(std::shared_ptr<BoundFunctionDecl> const& func)
+void ExportsFunctions::add_exported_function(std::shared_ptr<BoundFunctionDecl> const& func)
 {
     m_exported_functions.push_back(func);
 }
 
-BoundFunctionDecls const& ModuleContext::exported_functions() const
+BoundFunctionDecls const& ExportsFunctions::exported_functions() const
 {
     return m_exported_functions;
 }
 
-std::shared_ptr<BoundFunctionDecl> ModuleContext::match(std::string const& name, ObjectTypes arg_types) const
+std::shared_ptr<BoundFunctionDecl> ExportsFunctions::match(std::string const& name, ObjectTypes arg_types) const
 {
     debug(parser, "matching function {}({})", name, arg_types);
     std::shared_ptr<BoundFunctionDecl> func_decl = nullptr;
@@ -153,11 +137,50 @@ std::shared_ptr<BoundFunctionDecl> ModuleContext::match(std::string const& name,
     return func_decl;
 }
 
+// -- ModuleContext ---------------------------------------------------------
+
+ModuleContext::ModuleContext(BindContext& owner, std::string name)
+    : ExportsFunctions(BindContextType::ModuleContext, owner)
+    , m_name(std::move(name))
+{
+}
+
+std::string const& ModuleContext::name() const
+{
+    return m_name;
+}
+
+void ModuleContext::add_imported_function(std::shared_ptr<BoundFunctionDecl> const& func)
+{
+    m_imported_functions.push_back(func);
+}
+
+BoundFunctionDecls const& ModuleContext::imported_functions() const
+{
+    return m_imported_functions;
+}
+
 // -- RootContext -----------------------------------------------------------
 
 RootContext::RootContext(BindContext& owner)
-    : ContextImpl(BindContextType::RootContext, owner)
+    : ExportsFunctions(BindContextType::RootContext, owner)
 {
+}
+
+void RootContext::add_custom_type(std::shared_ptr<ObjectType> type)
+{
+    if (!type->is_custom())
+        return;
+    for (auto const& t : m_custom_types) {
+        if (*t == *type)
+            return;
+    }
+    m_custom_types.push_back(std::move(type));
+}
+
+ObjectTypes const& RootContext::custom_types() const
+{
+    return m_custom_types;
 }
 
 void RootContext::add_unresolved_function(FunctionCall func_call)
@@ -230,6 +253,16 @@ BindContext::BindContext(Obelix::BindContext& parent, std::string name)
     , m_impl(std::make_shared<ModuleContext>(*this, std::move(name)))
 {
     m_impl->root_impl()->add_module_context(std::dynamic_pointer_cast<ModuleContext>(m_impl));
+}
+
+void BindContext::add_custom_type(std::shared_ptr<ObjectType> type)
+{
+    m_impl->root_impl()->add_custom_type(std::move(type));
+}
+
+ObjectTypes const& BindContext::custom_types() const
+{
+    return m_impl->root_impl()->custom_types();
 }
 
 void BindContext::add_unresolved_function(FunctionCall func_call)

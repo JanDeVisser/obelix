@@ -5,6 +5,7 @@
  */
 
 #include <obelix/boundsyntax/Function.h>
+#include <obelix/boundsyntax/Typedef.h>
 #include <obelix/boundsyntax/Variable.h>
 
 namespace Obelix {
@@ -96,6 +97,13 @@ Nodes BoundMemberAccess::children() const
 std::string BoundMemberAccess::to_string() const
 {
     return format("{}.{}: {}", structure(), member(), type_name());
+}
+
+// -- BoundMemberAssignment -------------------------------------------------
+
+BoundMemberAssignment::BoundMemberAssignment(std::shared_ptr<BoundExpression> strukt, std::shared_ptr<BoundIdentifier> member)
+    : BoundMemberAccess(std::move(strukt), std::move(member))
+{
 }
 
 // -- BoundArrayAccess ------------------------------------------------------
@@ -378,13 +386,32 @@ std::string BoundModule::to_string() const
 
 // -- BoundCompilation ------------------------------------------------------
 
-BoundCompilation::BoundCompilation(BoundModules modules)
+BoundCompilation::BoundCompilation(BoundModules modules, ObjectTypes const& custom_types, std::string main_module)
     : BoundExpression(Token {}, PrimitiveType::Compilation)
     , m_modules(std::move(modules))
+    , m_main_module(std::move(main_module))
 {
     for (auto const& module : m_modules) {
         if (module->name() == "")
             m_root = module;
+        else if (module->name() == m_main_module)
+            m_main = module;
+    }
+    for (auto const& type : custom_types)
+        m_custom_types.push_back(std::make_shared<BoundType>(Token {}, type));
+}
+
+BoundCompilation::BoundCompilation(BoundModules modules, BoundTypes custom_types, std::string main_module)
+    : BoundExpression(Token {}, PrimitiveType::Compilation)
+    , m_modules(std::move(modules))
+    , m_custom_types(std::move(custom_types))
+    , m_main_module(std::move(main_module))
+{
+    for (auto const& module : m_modules) {
+        if (module->name() == "")
+            m_root = module;
+        else if (module->name() == m_main_module)
+            m_main = module;
     }
 }
 
@@ -393,23 +420,34 @@ BoundModules const& BoundCompilation::modules() const
     return m_modules;
 }
 
+BoundTypes const& BoundCompilation::custom_types() const
+{
+    return m_custom_types;
+}
+
 std::shared_ptr<BoundModule> const& BoundCompilation::root() const
 {
     return m_root;
 }
 
+std::shared_ptr<BoundModule> const& BoundCompilation::main() const
+{
+    return m_main;
+}
+
+std::string const& BoundCompilation::main_module() const
+{
+    return m_main_module;
+}
+
 Nodes BoundCompilation::children() const
 {
-    Nodes ret;
-    for (auto& module : m_modules) {
-        ret.push_back(module);
-    }
-    return ret;
+    return Nodes { std::make_shared<NodeList<BoundModule>>("modules", m_modules ), std::make_shared<NodeList<BoundType>>("types", m_custom_types ) };
 }
 
 std::string BoundCompilation::to_string() const
 {
-    std::string ret = "boundcompilation";
+    auto ret = format("boundcompilation {}", main_module());
     for (auto const& module : m_modules) {
         ret += "\n";
         ret += "  " + module->to_string();
@@ -417,10 +455,15 @@ std::string BoundCompilation::to_string() const
     return ret;
 }
 
+std::string BoundCompilation::attributes() const
+{
+    return format("main=\"{}\"", main_module());
+}
+
 std::string BoundCompilation::root_to_xml() const
 {
     auto indent = 0u;
-    auto ret = format("<{}", node_type());
+    auto ret = format("<{} {}", node_type(), attributes());
     auto child_nodes = children();
     if (child_nodes.empty())
         return ret + "/>";

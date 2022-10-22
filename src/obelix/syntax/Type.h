@@ -47,9 +47,9 @@ private:
 NODE_CLASS(ExpressionType, TemplateArgumentNode)
 public:
     ExpressionType(Token, std::string, TemplateArgumentNodes);
-    explicit ExpressionType(Token, std::string);
-    explicit ExpressionType(Token, PrimitiveType);
-    explicit ExpressionType(Token, std::shared_ptr<ObjectType> const&);
+    ExpressionType(Token, std::string);
+    ExpressionType(Token, PrimitiveType);
+    ExpressionType(Token, std::shared_ptr<ObjectType> const&);
     [[nodiscard]] bool is_template_instantiation() const;
     [[nodiscard]] std::string const& type_name() const;
     [[nodiscard]] TemplateArgumentNodes const& template_arguments() const;

@@ -15,13 +15,16 @@ namespace Obelix {
 
 NODE_CLASS(BoundReturn, Statement)
 public:
-    BoundReturn(std::shared_ptr<SyntaxNode> const&, std::shared_ptr<BoundExpression>);
+    BoundReturn(std::shared_ptr<SyntaxNode> const&, std::shared_ptr<BoundExpression>, bool = false);
+    [[nodiscard]] std::string attributes() const override;
     [[nodiscard]] Nodes children() const override;
     [[nodiscard]] std::string to_string() const override;
     [[nodiscard]] std::shared_ptr<BoundExpression> const& expression() const;
+    [[nodiscard]] bool return_error() const;
 
 private:
     std::shared_ptr<BoundExpression> m_expression;
+    bool m_return_error;
 };
 
 NODE_CLASS(BoundBranch, Statement)

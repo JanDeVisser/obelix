@@ -95,6 +95,7 @@ namespace Obelix {
     S(BoundLocalFunction)               \
     S(BoundImportedFunction)            \
     S(BoundMemberAccess)                \
+    S(BoundMemberAssignment)            \
     S(BoundArrayAccess)                 \
     S(BoundIntLiteral)                  \
     S(BoundFloatLiteral)                \
@@ -112,6 +113,7 @@ namespace Obelix {
     S(BoundStaticVariableDeclaration)   \
     S(BoundLocalVariableDeclaration)    \
     S(BoundGlobalVariableDeclaration)   \
+    S(BoundType)                        \
     S(BoundStructDefinition)            \
     S(BoundEnumDef)                     \
     S(BoundEnumValueDef)                \
@@ -127,6 +129,7 @@ namespace Obelix {
     S(BoundNativeFunctionDecl)          \
     S(BoundIntrinsicDecl)               \
     S(BoundAssignment)                  \
+    S(BoundConditionalValue)            \
     S(BoundFunctionDef)                 \
     S(Count)
 

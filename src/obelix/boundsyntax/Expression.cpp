@@ -237,4 +237,38 @@ std::string BoundExpressionStatement::to_string() const
     return m_expression->to_string();
 }
 
+// -- BoundConditionalValue -------------------------------------------------
+
+BoundConditionalValue::BoundConditionalValue(Token token, std::shared_ptr<BoundExpression> expression, bool success, std::shared_ptr<ObjectType> type)
+    : BoundExpression(std::move(token), std::move(type))
+    , m_expression(expression)
+    , m_success(success)
+{
+}
+
+std::shared_ptr<BoundExpression> const& BoundConditionalValue::expression() const
+{
+    return m_expression;
+}
+
+bool BoundConditionalValue::success() const
+{
+    return m_success;
+}
+
+std::string BoundConditionalValue::attributes() const
+{
+    return format(R"(success="{}" type="{}")", success(), type());
+}
+
+Nodes BoundConditionalValue::children() const
+{
+    return Nodes { m_expression };
+}
+
+std::string BoundConditionalValue::BoundConditionalValue::to_string() const
+{
+    return format(R"({}: {})", ((m_success) ? "value" : "error"), expression());
+}
+
 }

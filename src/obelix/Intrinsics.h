@@ -19,6 +19,8 @@ namespace Obelix {
 #define INTRINSIC_TYPE_ENUM(S) \
     S(NotIntrinsic)            \
     S(allocate)                \
+    S(ok)                      \
+    S(error)                   \
     S(eputs)                   \
     S(fputs)                   \
     S(fsize)                   \
@@ -68,7 +70,7 @@ enum IntrinsicType {
 #define INTRINSIC_TYPE(intrinsic) intrinsic,
     INTRINSIC_TYPE_ENUM(INTRINSIC_TYPE)
 #undef INTRINSIC_TYPE
-    count
+        count
 };
 
 constexpr const char* IntrinsicType_name(IntrinsicType type)
@@ -78,7 +80,7 @@ constexpr const char* IntrinsicType_name(IntrinsicType type)
 #define INTRINSIC_TYPE(intrinsic)  \
     case IntrinsicType::intrinsic: \
         return #intrinsic;
-    INTRINSIC_TYPE_ENUM(INTRINSIC_TYPE)
+        INTRINSIC_TYPE_ENUM(INTRINSIC_TYPE)
 #undef INTRINSIC_TYPE
     default:
         fatal("Invalid IntrinsicType value {}", (int)type);

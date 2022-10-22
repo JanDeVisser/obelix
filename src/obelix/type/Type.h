@@ -11,6 +11,7 @@
 #include <cstring>
 #include <functional>
 #include <iostream>
+#include <map>
 #include <memory>
 #include <optional>
 #include <string>
@@ -49,6 +50,7 @@ namespace Obelix {
     S(List, "list", 15)                      \
     S(Function, "function", 16)              \
     S(Compilation, "compilation", 17)        \
+    S(Conditional, "conditional", 18)        \
     S(Error, "error", 9995)                  \
     S(Self, "self", 9996)                    \
     S(Compatible, "compatible", 9997)        \
@@ -166,8 +168,6 @@ struct FieldDef {
 };
 
 using FieldDefs = std::vector<FieldDef>;
-
-using ObjectTypeBuilder = std::function<void(std::shared_ptr<ObjectType> const&)>;
 
 #define ENUMERATE_TEMPLATE_PARAMETER_TYPES(S) \
     S(Unknown)                                \
@@ -291,7 +291,23 @@ struct TemplateArgument {
     }
 };
 
-using TemplateArguments = std::unordered_map<std::string, TemplateArgument>;
+class TemplateArguments : public std::map<std::string, TemplateArgument> {
+public:
+    TemplateArguments() = default;
+    TemplateArguments(std::initializer_list<std::map<std::string, Obelix::TemplateArgument>::value_type> init)
+        : std::map<std::string, TemplateArgument>(init)
+    {
+    }
+
+    [[nodiscard]] bool operator==(TemplateArguments const& other) const
+    {
+        if (size() != other.size())
+            return false;
+        return std::all_of(cbegin(), cend(), [&other](auto const& arg_item) {
+            return other.contains(arg_item.first) && other.at(arg_item.first) == arg_item.second;
+        });
+    }
+};
 
 struct TemplateParameter {
     std::string name {};
@@ -302,11 +318,11 @@ struct TemplateParameter {
     [[nodiscard]] std::string to_string() const;
 };
 
-using TemplateParameters = std::unordered_map<std::string, TemplateParameter>;
+using TemplateParameters = std::map<std::string, TemplateParameter>;
 
 size_t hash(TemplateArgumentValue const&);
 std::string to_string(TemplateArgumentValue const&);
-bool compare(TemplateArgumentValue const&, TemplateArgumentValue const&);
+bool compare(TemplateArgumentValue const&, TemplateArgumentValue const&, bool = false);
 
 template<>
 struct Converter<TemplateArguments> {
@@ -334,7 +350,16 @@ struct Converter<TemplateArguments> {
     }
 };
 
-class ObjectType {
+enum class CanCast {
+    Never,
+    Sometimes,
+    Always,
+};
+
+using ObjectTypeBuilder = std::function<void(std::shared_ptr<ObjectType> const&)>;
+using CanCastTo = std::function<CanCast(std::shared_ptr<const ObjectType> const&, std::shared_ptr<const ObjectType> const&)>;
+
+class ObjectType : public std::enable_shared_from_this<ObjectType> {
 public:
     ObjectType(PrimitiveType, const char*) noexcept;
     ObjectType(PrimitiveType, std::string) noexcept;
@@ -342,12 +367,15 @@ public:
     [[nodiscard]] PrimitiveType type() const { return m_type; }
     [[nodiscard]] std::string const& name() const { return m_name; }
     [[nodiscard]] std::string to_string() const;
+    [[nodiscard]] bool is_custom() const { return m_custom; }
+    void will_be_custom(bool custom) { m_custom = custom; }
 
     MethodDescription& add_method(MethodDescription);
     void will_be_a(std::shared_ptr<ObjectType>);
     void has_template_parameter(TemplateParameter const&);
     void has_size(size_t);
     void has_template_stamp(ObjectTypeBuilder const&);
+    void has_can_cast_to(CanCastTo const&);
     void has_alias(std::string const& alias);
     [[nodiscard]] bool is_parameterized() const;
     [[nodiscard]] size_t size() const;
@@ -414,11 +442,6 @@ public:
     [[nodiscard]] bool is_compatible_with(std::shared_ptr<ObjectType> const&) const;
     [[nodiscard]] bool is_compatible_with(ObjectType const&) const;
 
-    enum class CanCast {
-        Never,
-        Sometimes,
-        Always,
-    };
     [[nodiscard]] CanCast can_cast_to(std::shared_ptr<ObjectType> const&) const;
     [[nodiscard]] CanCast can_cast_to(ObjectType const&) const;
 
@@ -470,6 +493,7 @@ private:
     static void register_type_in_caches(std::shared_ptr<ObjectType> const&);
 
     PrimitiveType m_type { PrimitiveType::Unknown };
+    bool m_custom { false };
     std::string m_name;
     size_t m_size { 8 };
     std::vector<std::string> m_aliases {};
@@ -481,6 +505,7 @@ private:
     std::shared_ptr<ObjectType> m_specializes_template { nullptr };
     TemplateArguments m_template_arguments {};
     ObjectTypeBuilder m_stamp {};
+    CanCastTo m_can_cast_to {};
 
     static std::unordered_map<PrimitiveType, std::shared_ptr<ObjectType>> s_types_by_id;
     static std::unordered_map<std::string, std::shared_ptr<ObjectType>> s_types_by_name;
@@ -502,6 +527,14 @@ struct TypeGetter {
             return ObjectType::get("float");
         }
         fatal("Sorry can't do this yet");
+    }
+};
+
+template<>
+struct TypeGetter<bool> {
+    std::shared_ptr<ObjectType> operator()()
+    {
+        return ObjectType::get(PrimitiveType::Boolean);
     }
 };
 

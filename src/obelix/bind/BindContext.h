@@ -101,32 +101,44 @@ public:
 
 using FunctionRegistry = std::multimap<std::string, std::shared_ptr<BoundFunctionDecl>>;
 
-class ModuleContext : public ContextImpl {
+class ExportsFunctions : public ContextImpl {
 public:
-    explicit ModuleContext(BindContext&, std::string name);
-
-    [[nodiscard]] std::string const& name() const;
     void add_declared_function(std::string const&, std::shared_ptr<BoundFunctionDecl> const&);
     [[nodiscard]] FunctionRegistry const& declared_functions() const;
-    void add_imported_function(std::shared_ptr<BoundFunctionDecl> const&);
-    [[nodiscard]] BoundFunctionDecls const& imported_functions() const;
     void add_exported_function(std::shared_ptr<BoundFunctionDecl> const&);
     [[nodiscard]] BoundFunctionDecls const& exported_functions() const;
     [[nodiscard]] std::shared_ptr<BoundFunctionDecl> match(std::string const& name, ObjectTypes arg_types) const;
 
+protected:
+    ExportsFunctions(BindContextType, BindContext&);
+
+private:
+    FunctionRegistry m_declared_functions;
+    BoundFunctionDecls m_exported_functions;
+
+};
+
+class ModuleContext : public ExportsFunctions {
+public:
+    explicit ModuleContext(BindContext&, std::string name);
+
+    [[nodiscard]] std::string const& name() const;
+    void add_imported_function(std::shared_ptr<BoundFunctionDecl> const&);
+    [[nodiscard]] BoundFunctionDecls const& imported_functions() const;
+
 private:
     std::string m_name;
-    FunctionRegistry m_declared_functions;
     BoundFunctionDecls m_imported_functions;
-    BoundFunctionDecls m_exported_functions;
 };
 
 using ModuleContexts = std::vector<std::shared_ptr<ModuleContext>>;
 
-class RootContext : public ContextImpl {
+class RootContext : public ExportsFunctions {
 public:
     RootContext(BindContext&);
 
+    void add_custom_type(std::shared_ptr<ObjectType>);
+    [[nodiscard]] ObjectTypes const& custom_types() const;
     void add_unresolved_function(FunctionCall);
     [[nodiscard]] FunctionCalls const& unresolved_functions() const;
     void clear_unresolved_functions();
@@ -136,6 +148,7 @@ public:
     void add_module_context(std::shared_ptr<ModuleContext>);
 
 private:
+    ObjectTypes m_custom_types;
     FunctionCalls m_unresolved_functions;
     std::unordered_map<std::string, std::shared_ptr<BoundModule>> m_modules;
     ModuleContexts m_module_contexts;
@@ -152,6 +165,8 @@ public:
     BindContext(BindContext*) = delete;
 
     BindContextType type() const { return m_impl->type(); }
+    void add_custom_type(std::shared_ptr<ObjectType>);
+    [[nodiscard]] ObjectTypes const& custom_types() const;
     void add_unresolved_function(FunctionCall);
     [[nodiscard]] FunctionCalls const& unresolved_functions() const;
     void clear_unresolved_functions();

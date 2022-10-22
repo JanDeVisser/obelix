@@ -72,13 +72,16 @@ ErrorOrNode process_tree(std::shared_ptr<SyntaxNode> const& tree, Context& ctx, 
 
     switch (tree->node_type()) {
 
+    case SyntaxNodeType::BoundType:
+        return tree;
+
     case SyntaxNodeType::Compilation: {
         auto compilation = std::dynamic_pointer_cast<Compilation>(tree);
         Modules modules;
         for (auto& module : compilation->modules()) {
             modules.push_back(TRY_AND_CAST(Module, processor(module, ctx)));
         }
-        ret = make_node<Compilation>(modules);
+        ret = make_node<Compilation>(modules, compilation->main_module());
         break;
     }
 
@@ -89,7 +92,11 @@ ErrorOrNode process_tree(std::shared_ptr<SyntaxNode> const& tree, Context& ctx, 
         for (auto& module : compilation->modules()) {
             modules.push_back(TRY_AND_CAST(BoundModule, processor(module, ctx)));
         }
-        ret = std::make_shared<BoundCompilation>(modules);
+        BoundTypes types;
+        for (auto& type : compilation->custom_types()) {
+            types.push_back(TRY_AND_CAST(BoundType, processor(type, ctx)));
+        }
+        ret = std::make_shared<BoundCompilation>(modules, types, compilation->main_module());
         break;
     }
 
@@ -248,6 +255,13 @@ ErrorOrNode process_tree(std::shared_ptr<SyntaxNode> const& tree, Context& ctx, 
         break;
     }
 
+    case SyntaxNodeType::BoundConditionalValue: {
+        auto conditional_value = std::dynamic_pointer_cast<BoundConditionalValue>(tree);
+        auto expr = TRY_AND_CAST(BoundExpression, processor(conditional_value->expression(), ctx));
+        ret = std::make_shared<BoundConditionalValue>(conditional_value->token(), expr, conditional_value->success(), conditional_value->type());
+        break;
+    }
+
     case SyntaxNodeType::CastExpression: {
         auto cast_expr = std::dynamic_pointer_cast<CastExpression>(tree);
         auto expr = TRY_AND_CAST(Expression, processor(cast_expr->expression(), ctx));
@@ -361,14 +375,14 @@ ErrorOrNode process_tree(std::shared_ptr<SyntaxNode> const& tree, Context& ctx, 
     case SyntaxNodeType::Return: {
         auto return_stmt = std::dynamic_pointer_cast<Return>(tree);
         auto expr = TRY_AND_CAST(Expression, processor(return_stmt->expression(), ctx));
-        ret = std::make_shared<Return>(return_stmt->token(), expr);
+        ret = std::make_shared<Return>(return_stmt->token(), expr, return_stmt->return_error());
         break;
     }
 
     case SyntaxNodeType::BoundReturn: {
         auto return_stmt = std::dynamic_pointer_cast<BoundReturn>(tree);
         auto expr = TRY_AND_CAST(BoundExpression, processor(return_stmt->expression(), ctx));
-        ret = std::make_shared<BoundReturn>(return_stmt, expr);
+        ret = std::make_shared<BoundReturn>(return_stmt, expr, return_stmt->return_error());
         break;
     }
 

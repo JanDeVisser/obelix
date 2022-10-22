@@ -185,9 +185,10 @@ const std::string& Module::name() const
 
 // -- Compilation -----------------------------------------------------------
 
-Compilation::Compilation(Modules modules)
+Compilation::Compilation(Modules modules, std::string main_module)
     : SyntaxNode(Token {})
     , m_modules(std::move(modules))
+    , m_main_module(std::move(main_module))
 {
     for (auto const& module : m_modules) {
         if (module->name() == "")
@@ -205,6 +206,11 @@ std::shared_ptr<Module> const& Compilation::root() const
     return m_root;
 }
 
+std::string const& Compilation::main_module() const
+{
+    return m_main_module;
+}
+
 Nodes Compilation::children() const
 {
     Nodes ret;
@@ -214,9 +220,14 @@ Nodes Compilation::children() const
     return ret;
 }
 
+std::string Compilation::attributes() const
+{
+    return format("main=\"{}\"", m_main_module);
+}
+
 std::string Compilation::to_string() const
 {
-    auto ret = std::string("compilation");
+    auto ret = std::string("compilation ") + main_module();
     for (auto const& module : m_modules) {
         ret += "\n";
         ret += "  " + module->to_string();
@@ -227,7 +238,7 @@ std::string Compilation::to_string() const
 std::string Compilation::root_to_xml() const
 {
     auto indent = 0u;
-    auto ret = format("<{}", node_type());
+    auto ret = format("<{} {}", node_type(), attributes());
     auto child_nodes = children();
     if (child_nodes.empty())
         return ret + "/>";
@@ -264,10 +275,16 @@ std::string ExpressionStatement::to_string() const
 
 // -- Return ----------------------------------------------------------------
 
-Return::Return(Token token, std::shared_ptr<Expression> expression)
+Return::Return(Token token, std::shared_ptr<Expression> expression, bool return_error)
     : Statement(std::move(token))
     , m_expression(std::move(expression))
+    , m_return_error(return_error)
 {
+}
+
+std::string Return::attributes() const
+{
+    return format(R"(return_error="{}")", return_error());
 }
 
 Nodes Return::children() const
@@ -279,7 +296,7 @@ Nodes Return::children() const
 
 std::string Return::to_string() const
 {
-    std::string ret = "return";
+    std::string ret = (return_error()) ? "error" : "return";
     if (m_expression)
         ret = format("{} {}", ret, m_expression->to_string());
     return ret;
@@ -288,6 +305,11 @@ std::string Return::to_string() const
 std::shared_ptr<Expression> const& Return::expression() const
 {
     return m_expression;
+}
+
+bool Return::return_error() const
+{
+    return m_return_error;
 }
 
 }

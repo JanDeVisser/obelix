@@ -55,6 +55,7 @@ std::string type_to_c_type(std::shared_ptr<ObjectType> const& type)
     }
     case PrimitiveType::Struct:
     case PrimitiveType::Enum:
+    case PrimitiveType::Conditional:
         c_type = type->name();
         break;
     default:
@@ -88,6 +89,7 @@ std::string type_initialize(std::shared_ptr<ObjectType> const& type)
     }
     case PrimitiveType::Struct:
     case PrimitiveType::Array:
+    case PrimitiveType::Conditional:
         initial_value = "{ 0 }";
         break;
     default:
@@ -113,6 +115,54 @@ INIT_NODE_PROCESSOR(CTranspilerContext)
 NODE_PROCESSOR(BoundCompilation)
 {
     auto compilation = std::dynamic_pointer_cast<BoundCompilation>(tree);
+    TRY_RETURN(ctx.open_header(compilation->main_module()));
+    ctx.writeln(format(
+R"(/*
+ * This is generated code. Modify at your peril.
+ */
+
+#ifndef __OBELIX_{}_H__
+#define __OBELIX_{}_H__
+
+)", compilation->main_module(), compilation->main_module()));
+    for (auto const& bound_type : compilation->custom_types()) {
+        auto type = bound_type->type();
+        switch (type->type()) {
+        case PrimitiveType::Conditional: {
+            ctx.writeln(format("typedef struct _{} {", type->name()));
+            ctx.writeln("  bool success;");
+            ctx.writeln("  union {");
+            ctx.writeln(format("    {} value;", type_to_c_type(type->template_argument<std::shared_ptr<ObjectType>>("success_type"))));
+            ctx.writeln(format("    {} error;", type_to_c_type(type->template_argument<std::shared_ptr<ObjectType>>("error_type"))));
+            ctx.writeln("  };");
+            ctx.writeln(format("} {};\n", type->name()));
+            break;
+        }
+        case PrimitiveType::Struct: {
+            ctx.writeln(format("typedef struct _{} {", type->name()));
+            for (auto const& f : type->fields()) {
+                ctx.writeln(format("  {} {};", type_to_c_type(f.type), f.name));
+            }
+            ctx.writeln(format("} {};\n", type->name()));
+            break;
+        }
+        case PrimitiveType::Enum: {
+            ctx.writeln(format("typedef enum _{} {", type->name()));
+            for (auto const& v : type->template_argument_values<NVP>("values")) {
+                ctx.writeln(format("  {} = {},", v.first, v.second));
+            }
+            ctx.writeln(format("} {};\n", type->name()));
+            break;
+        }
+        default:
+            fatal("Ur mom {}", 12);
+        }
+    }
+    ctx.writeln(format(
+R"(
+#endif /* __OBELIX_{}_H__ */
+)", compilation->main_module()));
+    TRY_RETURN(ctx.flush());
     return process_tree(tree, ctx, CTranspilerContext_processor);
 }
 
@@ -128,13 +178,15 @@ NODE_PROCESSOR(BoundModule)
 
     fs::path path { join(split(name, '/'), "-") };
     TRY_RETURN(ctx.open_output_file(path.replace_extension(fs::path("c"))));
-    ctx.writeln(
+    ctx.writeln(format(
 R"(/*
  * This is generated code. Modify at your peril.
  */
 
 #include <obelix.h>
-)");
+#include "{}"
+
+)", ctx.header_name()));
     static std::unordered_set<std::string> runtime_symbols;
     if (runtime_symbols.empty()) {
         runtime_symbols.insert("cputln");
@@ -144,54 +196,6 @@ R"(/*
         runtime_symbols.insert("puts");
         runtime_symbols.insert("string");
     }
-
-    std::unordered_set<std::string> struct_types;
-    std::unordered_set<std::string> enum_types;
-    for (auto const& import : module->imports()) {
-        for (auto const& param : import->parameters()) {
-            if (param->type()->type() == PrimitiveType::Struct) {
-                struct_types.insert(param->type()->name());
-            }
-            if (param->type()->type() == PrimitiveType::Enum) {
-                enum_types.insert(param->type()->name());
-            }
-        }
-    }
-
-    auto num_structs = 0;
-    for (auto const& type : struct_types) {
-        if (runtime_symbols.contains(type))
-            continue;
-        num_structs++;
-        auto t = ObjectType::get(type);
-        ctx.writeln(format("typedef struct _{} {", type));
-        ctx.indent();
-        for (auto const& f : t->fields()) {
-            type_to_c_type(ctx, f.type);
-            ctx.writeln(format(" {};", f.name));
-        }
-        ctx.dedent();
-        ctx.writeln(format("} {};\n", type));
-    }
-    if (num_structs > 0)
-        ctx.writeln("");
-
-    auto num_enums = 0;
-    for (auto const& type : enum_types) {
-        if (runtime_symbols.contains(type))
-            continue;
-        num_enums++;
-        auto t = ObjectType::get(type);
-        ctx.writeln(format("typedef enum _{} {", type));
-        ctx.indent();
-        for (auto const& v : t->template_argument_values<NVP>("values")) {
-            ctx.writeln(format(" {};", v.first));
-        }
-        ctx.dedent();
-        ctx.writeln(format("} {};\n", type));
-    }
-    if (num_enums > 0)
-        ctx.writeln("");
 
     auto num_imports = 0;
     for (auto const& import : module->imports()) {
@@ -218,43 +222,6 @@ R"(/*
 
     TRY_RETURN(process_tree(module->block(), ctx, CTranspilerContext_processor));
     TRY_RETURN(ctx.flush());
-    return tree;
-}
-
-NODE_PROCESSOR(BoundStructDefinition)
-{
-    auto struct_def = std::dynamic_pointer_cast<BoundStructDefinition>(tree);
-    ctx.writeln(format("typedef struct _{} {", struct_def->name()));
-    ctx.indent();
-    for (auto const& f : struct_def->type()->fields()) {
-        type_to_c_type(ctx, f.type);
-        ctx.writeln(format(" {};", f.name));
-    }
-    ctx.dedent();
-    ctx.writeln(format("} {};\n", struct_def->name()));
-    return tree;
-}
-
-NODE_PROCESSOR(BoundEnumDef)
-{
-    auto enum_def = std::dynamic_pointer_cast<BoundEnumDef>(tree);
-    if (enum_def->extend())
-        return tree;
-
-    ctx.writeln(format("typedef enum _{} {",  enum_def->type()->name()));
-    ctx.indent();
-    for (auto const& [label, value] : enum_def->type()->template_argument_values<NVP>("values")) {
-        ctx.writeln(format(" {} = {},", label, value));
-    }
-    ctx.dedent();
-    ctx.writeln(format("} {};\n", enum_def->type()->name()));
-    return tree;
-}
-
-NODE_PROCESSOR(BoundEnumValueDef)
-{
-    auto enum_value = std::dynamic_pointer_cast<BoundEnumValueDef>(tree);
-    ctx.writeln(format("{} = {},", enum_value->label(), enum_value->value()));
     return tree;
 }
 
@@ -364,6 +331,13 @@ NODE_PROCESSOR(BoundStringLiteral)
     return tree;
 }
 
+NODE_PROCESSOR(BoundBooleanLiteral)
+{
+    auto literal = std::dynamic_pointer_cast<BoundBooleanLiteral>(tree);
+    ctx.write(format("{}", literal->value()));
+    return tree;
+}
+
 NODE_PROCESSOR(BoundVariable)
 {
     auto variable = std::dynamic_pointer_cast<BoundVariable>(tree);
@@ -371,11 +345,70 @@ NODE_PROCESSOR(BoundVariable)
     return tree;
 }
 
+NODE_PROCESSOR(BoundConditionalValue)
+{
+    auto conditional_value = std::dynamic_pointer_cast<BoundConditionalValue>(tree);
+    ctx.write(format(R"(({}) {{ .success={}, .{}=)", conditional_value->type()->name(), conditional_value->success(),
+        conditional_value->success() ? "value" : "error"));
+    TRY_RETURN(process(conditional_value->expression(), ctx));
+    ctx.write(" }");
+    return tree;
+}
+
+#define CONDITIONAL_VALUE_ERROR "Can't access 'value' field when conditional status is error"
+#define CONDITIONAL_ERROR_ERROR "Can't access 'error' field when conditional status is success"
+
 NODE_PROCESSOR(BoundMemberAccess)
 {
     auto access = std::dynamic_pointer_cast<BoundMemberAccess>(tree);
-    TRY_RETURN(process(access->structure(), ctx));
-    ctx.write(format(".{}", access->member()->name()));
+    switch (access->structure()->type()->type()) {
+    case PrimitiveType::Struct: {
+        TRY_RETURN(process(access->structure(), ctx));
+        ctx.write(format(".{}", access->member()->name()));
+        break;
+    }
+    case PrimitiveType::Conditional: {
+        ctx.writeln("({");
+        ctx.writeln(";");
+        ctx.write(format(R"({} cond = )", access->structure()->type()->name()));
+        TRY_RETURN(process(access->structure(), ctx));
+        ctx.writeln(";");
+        ctx.indent();
+        if (access->member()->name() == "value") {
+            ctx.writeln("if (!cond.success) { fputs(2, (string) { strlen(\"" CONDITIONAL_VALUE_ERROR "\") + 1, (uint8_t *) \"" CONDITIONAL_VALUE_ERROR "\\n\" } ); exit(-1); };");
+        } else {
+            ctx.writeln("if (cond.success) { fputs(2, (string) { strlen(\"" CONDITIONAL_ERROR_ERROR "\") + 1, (uint8_t *) \"" CONDITIONAL_ERROR_ERROR "\\n\" } ); exit(-1); };");
+        }
+        ctx.writeln(format(R"(cond.{};)", access->member()->name()));
+        ctx.dedent();
+        ctx.write("})");
+        break;
+    }
+    default:
+        fatal("Unreachable");
+    }
+    return tree;
+}
+
+NODE_PROCESSOR(BoundMemberAssignment)
+{
+    auto access = std::dynamic_pointer_cast<BoundMemberAssignment>(tree);
+    switch (access->structure()->type()->type()) {
+    case PrimitiveType::Struct: {
+        TRY_RETURN(process(access->structure(), ctx));
+        ctx.write(format(".{}", access->member()->name()));
+        break;
+    }
+    case PrimitiveType::Conditional: {
+        TRY_RETURN(process(access->structure(), ctx));
+        ctx.writeln(format(R"(.success = {};)", access->member()->name() == "value"));
+        TRY_RETURN(process(access->structure(), ctx));
+        ctx.write(format(".{}", access->member()->name()));
+        break;
+    }
+    default:
+        fatal("Unreachable");
+    }
     return tree;
 }
 
@@ -577,16 +610,16 @@ ErrorOrNode transpile_to_c(std::shared_ptr<SyntaxNode> const& tree, Config const
         if (config.cmdline_flag("show-c-file")) {
             std::cout << module_file->to_string();
         }
-
-        std::vector<std::string> cc_args = { p.string(), "-c", "-o", p.replace_extension("o"), format("-I{}/include", obl_dir), "-O3" };
-        if (auto code = execute("cc", cc_args); code.is_error())
-            return SyntaxError { code.error(), Token {} };
-
-        if (!config.cmdline_flag("keep-c-file")) {
-            auto c_file = p.replace_extension("c");
-            unlink(c_file.c_str());
+        if (!module_file->name().ends_with(".h")) {
+            std::vector<std::string> cc_args = { p.string(), "-c", "-o", p.replace_extension("o"), format("-I{}/include", obl_dir), "-O3" };
+            if (auto code = execute("cc", cc_args); code.is_error())
+                return SyntaxError { code.error(), Token {} };
+            modules.push_back(p.replace_extension("o"));
         }
-        modules.push_back(p.replace_extension("o"));
+        if (!config.cmdline_flag("keep-c-file")) {
+            unlink(p.replace_extension("c").c_str());
+            unlink(p.replace_extension("h").c_str());
+        }
     }
 
     if (!modules.empty()) {

@@ -58,6 +58,12 @@ private:
 template<class NodeClass>
 NODE_CLASS(NodeList, SyntaxNode, public std::vector<std::shared_ptr<NodeClass>>)
 public:
+    explicit NodeList(std::string tag)
+        : SyntaxNode()
+        , m_tag(std::move(tag))
+    {
+    }
+
     NodeList(std::string tag, std::vector<std::shared_ptr<NodeClass>> nodes)
         : SyntaxNode()
         , std::vector<std::shared_ptr<NodeClass>>(std::move(nodes))

@@ -18,6 +18,8 @@
  */
 
 intrinsic allocate(size: int) : ptr<char>
+intrinsic ok(c: conditional<any, any>) : bool
+intrinsic error(c: conditional<any, any>) : bool
 
 intrinsic eputs(s: string) : u64
 intrinsic fputs(fd: s32, s: string) : u64

@@ -10,6 +10,29 @@ namespace Obelix {
 
 extern_logging_category(parser);
 
+// -- BoundType -------------------------------------------------------------
+
+BoundType::BoundType(Token token, std::shared_ptr<ObjectType> type)
+    : SyntaxNode(std::move(token))
+    , m_type(std::move(type))
+{
+}
+
+std::shared_ptr<ObjectType> BoundType::type() const
+{
+    return m_type;
+}
+
+std::string BoundType::attributes() const
+{
+    return format(R"(name="{}" type="{}")", type()->name(), type()->to_string());
+}
+
+std::string BoundType::to_string() const
+{
+    return m_type->to_string();
+}
+
 // -- BoundStructDefinition -------------------------------------------------
 
 BoundStructDefinition::BoundStructDefinition(std::shared_ptr<StructDefinition> const& struct_def, std::shared_ptr<ObjectType> type)

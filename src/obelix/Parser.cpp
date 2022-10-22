@@ -22,12 +22,18 @@ Parser::Parser(Config const& config, std::string const& file_name)
     , m_config(config)
 {
     initialize();
+    m_current_module = file_name;
+    if (m_current_module.starts_with("./"))
+        m_current_module = m_current_module.substr(2);
+    if (m_current_module.ends_with(".obl"))
+        m_current_module = m_current_module.substr(0, m_current_module.length()-4);
 }
 
 Parser::Parser(Config const& config, StringBuffer& src)
     : BasicParser(src)
     , m_config(config)
 {
+    m_current_module = "--stdin";
     initialize();
 }
 
@@ -35,6 +41,7 @@ Parser::Parser(Config const& config)
     : BasicParser()
     , m_config(config)
 {
+    m_current_module = "--stdin";
     initialize();
 }
 
@@ -114,13 +121,18 @@ std::shared_ptr<Compilation> Parser::parse()
                 modules.push_back(imported_module);
         }
         modules.push_back(main_module);
-        return std::make_shared<Compilation>(modules);
+        return std::make_shared<Compilation>(modules, main_module->name());
     }
     return nullptr;
 }
 
 std::shared_ptr<Module> Parser::parse_module(std::string const& module_name)
 {
+    m_current_module = module_name;
+    if (m_current_module.starts_with("./"))
+        m_current_module = m_current_module.substr(2);
+    if (m_current_module.ends_with(".obl"))
+        m_current_module = m_current_module.substr(0, m_current_module.length()-4);
     if (auto ret = read_file(module_name, new ObelixBufferLocator(m_config)); ret.is_error())
         return nullptr;
     return parse_module();
@@ -132,7 +144,7 @@ std::shared_ptr<Module> Parser::parse_module()
     parse_statements(statements, true);
     if (has_errors())
         return nullptr;
-    return std::make_shared<Module>(statements, file_name());
+    return std::make_shared<Module>(statements, m_current_module);
 }
 
 std::shared_ptr<Statement> Parser::parse_top_level_statement()
@@ -211,6 +223,16 @@ std::shared_ptr<Statement> Parser::parse_statement()
             return nullptr;
         return std::make_shared<Return>(token, expr);
     };
+    case TokenCode::Identifier: {
+        if (token.value() == "error") {
+            lex();
+            auto expr = parse_expression();
+            if (!expr)
+                return nullptr;
+            return std::make_shared<Return>(token, expr, true);
+        }
+        break;
+    }
     case KeywordBreak:
         return std::make_shared<Break>(lex());
     case KeywordContinue:
@@ -219,12 +241,13 @@ std::shared_ptr<Statement> Parser::parse_statement()
     case TokenCode::EndOfFile:
         return nullptr;
     default: {
-        auto expr = parse_expression();
-        if (!expr)
-            return nullptr;
-        return std::make_shared<ExpressionStatement>(expr);
+        break;
     }
     }
+    auto expr = parse_expression();
+    if (!expr)
+        return nullptr;
+    return std::make_shared<ExpressionStatement>(expr);
 }
 
 void Parser::parse_statements(Statements& block, bool top_level)
@@ -862,7 +885,8 @@ std::shared_ptr<ExpressionType> Parser::parse_type()
         return nullptr;
     auto type_token = lex();
     auto type_name = type_token.value();
-    if (current_code() == TokenCode::LessThan) {
+    switch (current_code()) {
+    case TokenCode::LessThan: {
         auto lt_token = lex();
         TemplateArgumentNodes arguments;
         while (true) {
@@ -902,7 +926,21 @@ std::shared_ptr<ExpressionType> Parser::parse_type()
                 return nullptr;
         }
     }
-    return std::make_shared<ExpressionType>(type_token, type_name);
+    case TokenCode::Slash: {
+        auto success_type = std::make_shared<ExpressionType>(type_token, type_name);
+        auto slash = lex();
+        if (current_code() != TokenCode::Identifier) {
+            add_error(peek(), format("Syntax Error: Expected type, got '{}' ({})", peek().value(), peek().code_name()));
+            return nullptr;
+        }
+        auto error_type = parse_type();
+        if (error_type == nullptr)
+            return nullptr;
+        return std::make_shared<ExpressionType>(slash, "conditional", TemplateArgumentNodes { success_type, error_type });
+    }
+    default:
+        return std::make_shared<ExpressionType>(type_token, type_name);
+    }
 }
 
 std::shared_ptr<EnumDef> Parser::parse_enum_definition(Token const& enum_token)

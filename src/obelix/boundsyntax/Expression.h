@@ -97,4 +97,19 @@ private:
     std::shared_ptr<BoundExpression> m_expression;
 };
 
+NODE_CLASS(BoundConditionalValue, BoundExpression)
+public:
+    BoundConditionalValue(Token, std::shared_ptr<BoundExpression>, bool, std::shared_ptr<ObjectType>);
+    [[nodiscard]] std::shared_ptr<BoundExpression> const& expression() const;
+    [[nodiscard]] bool success() const;
+    [[nodiscard]] std::string attributes() const override;
+    [[nodiscard]] Nodes children() const override;
+    [[nodiscard]] std::string to_string() const override;
+
+private:
+    std::shared_ptr<BoundExpression> m_expression;
+    bool m_success;
+
+};
+
 }

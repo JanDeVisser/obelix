@@ -12,6 +12,19 @@ namespace Obelix {
 
 // -- Typedef.h -------------------------------------------------------------
 
+NODE_CLASS(BoundType, SyntaxNode)
+public:
+    BoundType(Token, std::shared_ptr<ObjectType>);
+    [[nodiscard]] std::shared_ptr<ObjectType> type() const;
+    [[nodiscard]] std::string attributes() const override;
+    [[nodiscard]] std::string to_string() const override;
+
+private:
+    std::shared_ptr<ObjectType> m_type;
+};
+
+using BoundTypes = std::vector<std::shared_ptr<BoundType>>;
+
 NODE_CLASS(BoundStructDefinition, Statement)
 public:
     BoundStructDefinition(std::shared_ptr<StructDefinition> const&, std::shared_ptr<ObjectType>);
