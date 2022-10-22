@@ -70,7 +70,7 @@ public:
         return 0;
     }
 
-    ErrorOr<int, SyntaxError> run(std::string const& file_name)
+    ErrorOrNode run(std::string const& file_name)
     {
         std::string fname = file_name;
         for (auto ix = 0u; ix < fname.length(); ++ix) {
@@ -89,18 +89,13 @@ public:
             }
             return SyntaxError { ErrorCode::SyntaxError, parser.errors()[0].message };
         }
-        if (auto eval_result = evaluate_tree(tree, file_name); eval_result.is_error()) {
-            printf("ERROR: %s\n", eval_result.error().message().c_str());
-        } else {
-            printf("%s\n", eval_result.value()->to_string().c_str());
-        }
-        return 0;
+        return evaluate_tree(tree, file_name);
     }
 
     [[nodiscard]] Config& config() { return m_config; }
 
 private:
-    ErrorOr<std::shared_ptr<SyntaxNode>, SyntaxError> evaluate_tree(std::shared_ptr<SyntaxNode> const& tree, std::string file_name = "")
+    ErrorOrNode evaluate_tree(std::shared_ptr<SyntaxNode> const& tree, std::string file_name = "")
     {
         if (tree) {
             if (config().cmdline_flag("show-tree"))
@@ -197,8 +192,9 @@ int main(int argc, char const** argv)
 
     auto ret_or_error = repl.run(config.filename);
     if (ret_or_error.is_error()) {
-        printf("ERROR: %s\n", ret_or_error.error().message().c_str());
+        auto err = ret_or_error.error();
+        std::cerr << "ERROR: " << err.payload().location.to_string() << " " << ret_or_error.error().message() << "\n";
         return -1;
     }
-    return ret_or_error.value();
+    return 0;
 }
