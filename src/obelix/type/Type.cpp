@@ -503,33 +503,38 @@ bool ObjectType::operator==(ObjectType const& other) const
  *      -- signedness is the same and this size is less or equal to other
  *      -- signedness is different and this size is stritcly less than other
  */
-bool ObjectType::is_assignable_to(ObjectType const& other) const
+bool ObjectType::is_assignable_to(ObjectType const& assignee) const
 {
     if (type() == PrimitiveType::SignedIntegerNumber || type() == PrimitiveType::IntegerNumber) {
-        if (type() == other.type()) {
-            bool ret = size() <= other.size();
-            debug(type, "{}.is_assignable_to({}) = {}", to_string(), other.to_string(), ret);
+        if (type() == assignee.type()) {
+            bool ret = size() <= assignee.size();
+            debug(type, "{}.is_assignable_to({}) = {}", to_string(), assignee.to_string(), ret);
             return ret;
         }
-        if (other.type() == PrimitiveType::IntegerNumber || other.type() == PrimitiveType::SignedIntegerNumber) {
-            bool ret = size() < other.size();
-            debug(type, "{}.is_assignable_to({}) = {}", to_string(), other.to_string(), ret);
+        if (assignee.type() == PrimitiveType::IntegerNumber || assignee.type() == PrimitiveType::SignedIntegerNumber) {
+            bool ret = size() < assignee.size();
+            debug(type, "{}.is_assignable_to({}) = {}", to_string(), assignee.to_string(), ret);
             return ret;
         }
         return false;
     }
-    if (other.type() == PrimitiveType::Conditional && type() != PrimitiveType::Conditional) {
-        auto success_type = other.template_argument<std::shared_ptr<ObjectType>>("success_type");
-        auto error_type = other.template_argument<std::shared_ptr<ObjectType>>("error_type");
+    if (assignee.type() == PrimitiveType::Conditional && type() != PrimitiveType::Conditional) {
+        auto success_type = assignee.template_argument<std::shared_ptr<ObjectType>>("success_type");
+        auto error_type = assignee.template_argument<std::shared_ptr<ObjectType>>("error_type");
         return is_assignable_to(success_type) || is_assignable_to(error_type);
     }
-    if (is_template_specialization() && other.is_template_specialization() && (*specializes_template() == *other.specializes_template())) {
-        auto const& other_args = other.template_arguments();
-        return std::all_of(template_arguments().cbegin(), template_arguments().cend(), [&other_args](auto const& arg_item) {
-            if (!other_args.contains(arg_item.first))
+    if (assignee.type() != PrimitiveType::Conditional && type() == PrimitiveType::Conditional) {
+        auto success_type = template_argument<std::shared_ptr<ObjectType>>("success_type");
+        auto error_type = template_argument<std::shared_ptr<ObjectType>>("error_type");
+        return success_type.is_assignable_to(assignee) || error_type.is_assignable_to(assignee);
+    }
+    if (is_template_specialization() && assignee.is_template_specialization() && (*specializes_template() == *assignee.specializes_template())) {
+        auto const& assignee_args = assignee.template_arguments();
+        return std::all_of(template_arguments().cbegin(), template_arguments().cend(), [&assignee_args](auto const& arg_item) {
+            if (!assignee_args.contains(arg_item.first))
                 return false;
             auto const& arg_value1 = arg_item.second;
-            auto const& arg_value2 = other_args.at(arg_item.first);
+            auto const& arg_value2 = assignee_args.at(arg_item.first);
             if (arg_value1.parameter_type != arg_value2.parameter_type || arg_value1.multiplicity != arg_value2.multiplicity)
                 return false;
             if (arg_value1.value.size() != arg_value2.value.size())
@@ -541,7 +546,7 @@ bool ObjectType::is_assignable_to(ObjectType const& other) const
             return true;
         });
     }
-    return *this == other;
+    return *this == assignee;
 }
 
 /*

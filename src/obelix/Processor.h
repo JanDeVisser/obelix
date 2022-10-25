@@ -523,8 +523,14 @@ ErrorOrNode process_block(std::shared_ptr<SyntaxNode> const& tree, Context& ctx,
     Context child_ctx(ctx);
     Statements statements;
     for (auto& stmt : block->statements()) {
-        auto new_statement = TRY_AND_CAST(Statement, processor(stmt, child_ctx));
-        statements.push_back(new_statement);
+        auto processed_node = TRY(processor(stmt, child_ctx));
+        if (auto new_statement = std::dynamic_pointer_cast<Statement>(processed_node); new_statement != nullptr) {
+            statements.push_back(new_statement);
+        } else if (auto node_list = std::dynamic_pointer_cast<NodeList<Statement>>(processed_node); node_list != nullptr) {
+            for (auto const& node : *node_list) {
+                statements.push_back(node);
+            }
+        }
     }
     if (statements != block->statements())
         return std::make_shared<StmtClass>(tree->token(), statements, std::forward<Args>(args)...);

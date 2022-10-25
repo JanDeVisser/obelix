@@ -432,28 +432,19 @@ NODE_PROCESSOR(BinaryExpression)
             assignee = std::make_shared<BoundMemberAssignment>(lhs_as_memberaccess->structure(), lhs_as_memberaccess->member());
         }
 
-        if (!rhs_bound->type()->is_assignable_to(lhs->type())) {
-            auto int_literal = std::dynamic_pointer_cast<BoundIntLiteral>(rhs_bound);
-            if (int_literal != nullptr) {
-                rhs_bound = TRY(int_literal->cast(lhs->type()));
-            } else {
-                return SyntaxError { ErrorCode::TypeMismatch, expr->token(), rhs->to_string(), lhs->type(), rhs_bound->type() };
-            }
-        }
-
         // var c: type_a/type_b
         // ...
         // const x: type_a = c
         // const y: type_b = c
-        if (rhs_bound->type()->type() == PrimitiveType::Conditional) {
+        if (rhs_bound->type()->type() == PrimitiveType::Conditional && rhs_bound->type()->is_assignable_to(assignee->type()) && rhs_bound->type() != assignee->type()) {
             std::string member = "value";
             auto member_type = rhs_bound->type()->template_argument<std::shared_ptr<ObjectType>>("success_type");
             auto error_type = rhs_bound->type()->template_argument<std::shared_ptr<ObjectType>>("error_type");
             if (error_type->is_assignable_to(lhs->type())) {
                 member = "error";
                 member_type = error_type;
-            } else {
-                assert(member_type->is_assignable_to(lhs->type()));
+            } else if (!member_type->is_assignable_to(lhs->type())) {
+                return SyntaxError { ErrorCode::TypeMismatch, expr->token(), rhs->to_string(), assignee->type(), rhs_bound->type() };
             }
             auto member_identifier = std::make_shared<BoundIdentifier>(rhs->token(), member, member_type);
             rhs_bound = std::make_shared<BoundMemberAccess>(rhs_bound, member_identifier);
@@ -476,6 +467,15 @@ NODE_PROCESSOR(BinaryExpression)
             }
             auto member_identifier = std::make_shared<BoundIdentifier>(rhs->token(), member, member_type);
             assignee = std::make_shared<BoundMemberAssignment>(assignee, member_identifier);
+        }
+
+        if (!rhs_bound->type()->is_assignable_to(assignee->type())) {
+            auto int_literal = std::dynamic_pointer_cast<BoundIntLiteral>(rhs_bound);
+            if (int_literal != nullptr) {
+                rhs_bound = TRY(int_literal->cast(lhs->type()));
+            } else {
+                return SyntaxError { ErrorCode::TypeMismatch, expr->token(), rhs->to_string(), assignee->type(), rhs_bound->type() };
+            }
         }
 
         if (op == BinaryOperator::Assign)
