@@ -43,10 +43,10 @@ public:
         auto c_file = ".obelix/" + name();
         std::fstream s(c_file, std::fstream::out);
         if (!s.is_open())
-            return SyntaxError { ErrorCode::IOError, format("Could not open C file {}", c_file) };
+            return SyntaxError { ErrorCode::IOError, format("Could not open transpiled file {}", c_file) };
         s << m_text;
         if (s.fail() || s.bad())
-            return SyntaxError { ErrorCode::IOError, format("Could not write C file {}", c_file) };
+            return SyntaxError { ErrorCode::IOError, format("Could not write transpiled file {}", c_file) };
         m_flushed = true;
         return {};
     }
