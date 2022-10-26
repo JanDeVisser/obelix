@@ -526,7 +526,7 @@ bool ObjectType::is_assignable_to(ObjectType const& assignee) const
     if (assignee.type() != PrimitiveType::Conditional && type() == PrimitiveType::Conditional) {
         auto success_type = template_argument<std::shared_ptr<ObjectType>>("success_type");
         auto error_type = template_argument<std::shared_ptr<ObjectType>>("error_type");
-        return success_type.is_assignable_to(assignee) || error_type.is_assignable_to(assignee);
+        return success_type->is_assignable_to(assignee) || error_type->is_assignable_to(assignee);
     }
     if (is_template_specialization() && assignee.is_template_specialization() && (*specializes_template() == *assignee.specializes_template())) {
         auto const& assignee_args = assignee.template_arguments();
