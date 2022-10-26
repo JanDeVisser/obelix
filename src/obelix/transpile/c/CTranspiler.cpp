@@ -124,7 +124,7 @@ R"(/*
 #ifndef __OBELIX_{}_H__
 #define __OBELIX_{}_H__
 
-)", compilation->main_module(), compilation->main_module()));
+)", to_upper(compilation->main_module()), to_upper(compilation->main_module())));
     for (auto const& bound_type : compilation->custom_types()) {
         auto type = bound_type->type();
         switch (type->type()) {
@@ -161,7 +161,7 @@ R"(/*
     ctx.writeln(format(
 R"(
 #endif /* __OBELIX_{}_H__ */
-)", compilation->main_module()));
+)", to_upper(compilation->main_module())));
     TRY_RETURN(ctx.flush());
     return process_tree(tree, ctx, CTranspilerContext_processor);
 }
@@ -175,6 +175,8 @@ NODE_PROCESSOR(BoundModule)
 
     if (name.starts_with("./"))
         name = name.substr(2);
+    if (to_lower(name).ends_with(".obl"))
+        name = name.substr(0, name.length() - 4);
 
     fs::path path { join(split(name, '/'), "-") };
     TRY_RETURN(ctx.open_output_file(path.replace_extension(fs::path("c"))));
@@ -604,24 +606,28 @@ ErrorOrNode transpile_to_c(std::shared_ptr<SyntaxNode> const& tree, Config const
 #endif
 
     std::vector<std::string> modules;
+    std::vector<fs::path> files;
     for (auto& module_file : root.files()) {
         auto p = fs::path(".obelix/" + module_file->name());
+        files.push_back(p);
 
         if (config.cmdline_flag("show-c-file")) {
             std::cout << module_file->to_string();
         }
-        if (!module_file->name().ends_with(".h")) {
-            std::vector<std::string> cc_args = { p.string(), "-c", "-o", p.replace_extension("o"), format("-I{}/include", obl_dir), "-O3" };
-            if (auto code = execute("cc", cc_args); code.is_error())
-                return SyntaxError { code.error(), Token {} };
-            modules.push_back(p.replace_extension("o"));
-        }
-        if (!config.cmdline_flag("keep-c-file")) {
-            unlink(p.replace_extension("c").c_str());
-            unlink(p.replace_extension("h").c_str());
-        }
+        if (module_file->name().ends_with(".h"))
+            continue;
+        auto o_file = p;
+        o_file.replace_extension("o");
+        unlink(o_file.c_str());
+        std::vector<std::string> cc_args = { p.string(), "-c", "-o", o_file, format("-I{}/include", obl_dir), "-O3" };
+        if (auto code = execute("cc", cc_args); code.is_error())
+            return SyntaxError { code.error(), Token {} };
+        modules.push_back(o_file);
     }
-
+    if (!config.cmdline_flag("keep-c-file")) {
+        for (auto const& file : files)
+            unlink(file.c_str());
+    }
     if (!modules.empty()) {
         auto file_parts = split(file_name, '/');
         auto p = fs::path { ".obelix/" + join(split(file_name, '/'), "-") };
@@ -637,14 +643,15 @@ ErrorOrNode transpile_to_c(std::shared_ptr<SyntaxNode> const& tree, Config const
 #endif
 
         auto p_here = fs::path { join(split(file_name, '/'), "-") };
-        std::vector<std::string> ld_args = { "-o", p_here.replace_extension(""), "-loblcrt", format("-L{}/lib", obl_dir) };
+        p_here.replace_extension("");
+        std::vector<std::string> ld_args = { "-o", p_here, "-loblcrt", format("-L{}/lib", obl_dir) };
         for (auto& m : modules)
             ld_args.push_back(m);
 
         if (auto code = execute("cc", ld_args); code.is_error())
             return SyntaxError { code.error(), Token {} };
         if (config.run) {
-            auto run_cmd = format("./{}", p.string());
+            auto run_cmd = format("./{}", p_here.string());
             auto exit_code = execute(run_cmd);
             if (exit_code.is_error())
                 return SyntaxError { exit_code.error(), Token {} };
