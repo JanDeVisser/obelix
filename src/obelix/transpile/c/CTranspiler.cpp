@@ -607,11 +607,14 @@ ErrorOrNode transpile_to_c(std::shared_ptr<SyntaxNode> const& tree, Config const
 
     std::vector<std::string> modules;
     std::vector<fs::path> files;
+    auto compiler = config.cmdline_flag<std::string>("with-c-compiler", "cc");
+    auto linker = config.cmdline_flag<std::string>("with-c-linker", compiler);
+
     for (auto& module_file : root.files()) {
         auto p = fs::path(".obelix/" + module_file->name());
         files.push_back(p);
 
-        if (config.cmdline_flag("show-c-file")) {
+        if (config.cmdline_flag<bool>("show-c-file")) {
             std::cout << module_file->to_string();
         }
         if (module_file->name().ends_with(".h"))
@@ -620,27 +623,18 @@ ErrorOrNode transpile_to_c(std::shared_ptr<SyntaxNode> const& tree, Config const
         o_file.replace_extension("o");
         unlink(o_file.c_str());
         std::vector<std::string> cc_args = { p.string(), "-c", "-o", o_file, format("-I{}/include", obl_dir), "-O3" };
-        if (auto code = execute("cc", cc_args); code.is_error())
+        if (auto code = execute(compiler, cc_args); code.is_error())
             return SyntaxError { code.error(), Token {} };
         modules.push_back(o_file);
     }
-    if (!config.cmdline_flag("keep-c-file")) {
+    if (!config.cmdline_flag<bool>("keep-c-file")) {
         for (auto const& file : files)
             unlink(file.c_str());
     }
+
     if (!modules.empty()) {
         auto file_parts = split(file_name, '/');
         auto p = fs::path { ".obelix/" + join(split(file_name, '/'), "-") };
-
-#if 0
-        static std::string sdk_path; // "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX12.1.sdk";
-        if (sdk_path.empty()) {
-            Process process("xcrun", "-sdk", "macosx", "--show-sdk-path");
-            if (auto exit_code_or_error = process.execute(); exit_code_or_error.is_error())
-                return SyntaxError { exit_code_or_error.error(), Token {} };
-            sdk_path = strip(process.standard_out());
-        }
-#endif
 
         auto p_here = fs::path { join(split(file_name, '/'), "-") };
         p_here.replace_extension("");
@@ -648,7 +642,7 @@ ErrorOrNode transpile_to_c(std::shared_ptr<SyntaxNode> const& tree, Config const
         for (auto& m : modules)
             ld_args.push_back(m);
 
-        if (auto code = execute("cc", ld_args); code.is_error())
+        if (auto code = execute(linker, ld_args); code.is_error())
             return SyntaxError { code.error(), Token {} };
         if (config.run) {
             auto run_cmd = format("./{}", p_here.string());

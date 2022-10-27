@@ -14,8 +14,17 @@ namespace Obelix {
 Config::Config(int argc, char const** argv)
 {
     for (int ix = 1; ix < argc; ++ix) {
-        if ((strlen(argv[ix]) > 2) && !strncmp(argv[ix], "--", 2))
-            m_cmdline_flags[std::string(argv[ix] + 2)] = true;
+        if ((strlen(argv[ix]) > 2) && !strncmp(argv[ix], "--", 2)) {
+            if (auto eq_ptr = strchr(argv[ix], '='); eq_ptr == nullptr) {
+                m_cmdline_flags[std::string(argv[ix] + 2)] = true;
+                continue;
+            } else {
+                auto ptr = argv[ix];
+                ptr += 2;
+                std::string flag = argv[ix] + 2;
+                m_cmdline_flags[flag.substr(0, eq_ptr - ptr)] = std::string(eq_ptr + 1);
+            }
+        }
         if (!strcmp(argv[ix], "--help")) {
             help = true;
         } else if (!strncmp(argv[ix], "--debug", 7)) {
@@ -60,13 +69,6 @@ Config::Config(int argc, char const** argv)
             //     exit(-1);
         }
     }
-}
-
-bool Config::cmdline_flag(std::string const& flag) const
-{
-    if (m_cmdline_flags.contains(flag))
-        return m_cmdline_flags.at(flag);
-    return false;
 }
 
 ErrorOr<std::string> ObelixBufferLocator::check_in_dir(std::string const& directory, std::string const& file_path)

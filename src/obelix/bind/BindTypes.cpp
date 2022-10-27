@@ -803,11 +803,11 @@ ErrorOrNode bind_types(std::shared_ptr<SyntaxNode> const& tree, Config const& co
         auto ret = process(tree, root);
 
         if (ret.is_error() || root.unresolved_functions().empty()) {
-            if (!ret.is_error() && config.cmdline_flag("show-tree"))
+            if (!ret.is_error() && config.cmdline_flag<bool>("show-tree"))
                 std::cout << "\n\nTypes bound:\n" << ret.value()->to_xml() << "\n";
             return ret;
         }
-        if (config.cmdline_flag("show-tree") && !root.unresolved_functions().empty()) {
+        if (config.cmdline_flag<bool>("show-tree") && !root.unresolved_functions().empty()) {
             std::cout << "Unresolved after stage " << root.stage << ":\n";
             for (auto const& unresolved : root.unresolved_functions()) {
                 std::cout << unresolved.first->to_string() << "(...)\n";

@@ -464,7 +464,7 @@ NODE_PROCESSOR(BoundIfStatement)
 ErrorOrNode output_arm64(std::shared_ptr<SyntaxNode> const& tree, Config const& config, std::string const& file_name)
 {
     auto processed = TRY(materialize_arm64(tree));
-    if (config.cmdline_flag("show-tree"))
+    if (config.cmdline_flag<bool>("show-tree"))
         std::cout << "\n\nMaterialized:\n"
                   << std::dynamic_pointer_cast<BoundCompilation>(processed)->root_to_xml()
                   << "\n"
@@ -513,14 +513,14 @@ ErrorOrNode output_arm64(std::shared_ptr<SyntaxNode> const& tree, Config const& 
             auto file_name_parts = split(module, '.');
             auto bare_file_name = ".obelix/" + file_name_parts.front();
 
-            if (config.cmdline_flag("show-assembly")) {
+            if (config.cmdline_flag<bool>("show-assembly")) {
                 std::cout << bare_file_name << ".s:"
                           << "\n";
                 std::cout << assembly->to_string();
             }
 
             TRY_RETURN(assembly->save_and_assemble(bare_file_name));
-            if (!config.cmdline_flag("keep-assembly")) {
+            if (!config.cmdline_flag<bool>("keep-assembly")) {
                 auto assembly_file = bare_file_name + ".s";
                 unlink(assembly_file.c_str());
             }

@@ -31,7 +31,17 @@ public:
     bool materialize { true };
     bool compile { true };
     bool run { false };
-    bool cmdline_flag(std::string const& flag) const;
+
+    template <typename T>
+    T cmdline_flag(std::string const& flag, T const& default_value = T()) const
+    {
+        if (m_cmdline_flags.contains(flag)) {
+            auto val = m_cmdline_flags.at(flag);
+            assert(std::holds_alternative<T>(val));
+            return get<T>(val);
+        }
+        return default_value;
+    }
     Architecture target { Architecture::C_TRANSPILER };
 
     [[nodiscard]] std::string obelix_directory() const
@@ -44,7 +54,7 @@ public:
 
 private:
     std::string obelix_dir {};
-    std::unordered_map<std::string, bool> m_cmdline_flags;
+    std::unordered_map<std::string, std::variant<std::string,bool>> m_cmdline_flags;
 };
 
 class ObelixBufferLocator : public BufferLocator {

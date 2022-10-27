@@ -98,7 +98,7 @@ private:
     ErrorOrNode evaluate_tree(std::shared_ptr<SyntaxNode> const& tree, std::string file_name = "")
     {
         if (tree) {
-            if (config().cmdline_flag("show-tree"))
+            if (config().cmdline_flag<bool>("show-tree"))
                 std::cout << "\n\nOriginal:\n" << tree->to_xml() << "\n";
             if (!m_config.bind)
                 return tree;
@@ -106,13 +106,13 @@ private:
             if (!m_config.lower)
                 return transformed;
             transformed = TRY(lower(transformed, config()));
-            if (config().cmdline_flag("show-tree"))
+            if (config().cmdline_flag<bool>("show-tree"))
                 std::cout << "\n\nFlattened:\n"
                           << transformed->to_xml() << "\n";
             if (!m_config.fold_constants)
                 return transformed;
             transformed = TRY(fold_constants(transformed));
-            if (config().cmdline_flag("show-tree"))
+            if (config().cmdline_flag<bool>("show-tree"))
                 std::cout << "\n\nConstants folded:\n" << transformed->to_xml() << "\n";
             if (!m_config.compile)
                 return transformed;
