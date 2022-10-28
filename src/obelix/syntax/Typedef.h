@@ -63,10 +63,23 @@ public:
     [[nodiscard]] std::string attributes() const override;
     [[nodiscard]] std::string to_string() const override;
 
-protected:
+private:
     std::string m_name;
     EnumValues m_values;
     bool m_extend { false };
+};
+
+NODE_CLASS(TypeDef, Statement)
+public:
+    TypeDef(Token, std::string, std::shared_ptr<ExpressionType>);
+    [[nodiscard]] std::string const& name() const;
+    [[nodiscard]] std::shared_ptr<ExpressionType> const& type() const;
+    [[nodiscard]] std::string attributes() const override;
+    [[nodiscard]] std::string to_string() const override;
+
+private:
+    std::string m_name;
+    std::shared_ptr<ExpressionType> m_type;
 };
 
 }

@@ -26,6 +26,7 @@ namespace Obelix {
     S(ExpressionList)                   \
     S(EnumValue)                        \
     S(EnumDef)                          \
+    S(TypeDef)                          \
     S(IntLiteral)                       \
     S(CharLiteral)                      \
     S(FloatLiteral)                     \
@@ -118,6 +119,7 @@ namespace Obelix {
     S(BoundEnumDef)                     \
     S(BoundEnumValueDef)                \
     S(BoundEnumValue)                   \
+    S(BoundTypeDef)                     \
     S(BoundReturn)                      \
     S(BoundExpressionStatement)         \
     S(BoundBranch)                      \

@@ -175,16 +175,22 @@ std::shared_ptr<Statement> Parser::parse_top_level_statement()
         return parse_function_definition(lex());
     case KeywordEnum:
         return parse_enum_definition(lex());
+    case TokenCode::Identifier: {
+        if (token.value() == "type") {
+            return parse_type_definition(lex());
+        }
+        break;
+    }
     case TokenCode::CloseBrace:
     case TokenCode::EndOfFile:
         return nullptr;
-    default: {
-        auto expr = parse_expression();
-        if (!expr)
-            return nullptr;
-        return std::make_shared<ExpressionStatement>(expr);
-    };
+    default:
+        break;
     }
+    auto expr = parse_expression();
+    if (!expr)
+        return nullptr;
+    return std::make_shared<ExpressionStatement>(expr);
 }
 
 std::shared_ptr<Statement> Parser::parse_statement()
@@ -980,6 +986,20 @@ std::shared_ptr<EnumDef> Parser::parse_enum_definition(Token const& enum_token)
     }
     lex(); // Eat the closing brace
     return std::make_shared<EnumDef>(enum_token, name.value(), values, extend);
+}
+
+std::shared_ptr<TypeDef> Parser::parse_type_definition(Token const& type_token)
+{
+    auto name_maybe = match(TokenCode::Identifier);
+    if (!name_maybe.has_value()) {
+        add_error(peek(), "Syntax Error: expecting type alias after the 'type' keyword, got '{}'");
+        return nullptr;
+    }
+    (void) skip(TokenCode::Equals);
+    auto type = parse_type();
+    if (type == nullptr)
+        return nullptr;
+    return std::make_shared<TypeDef>(type_token, name_maybe.value().value(), type);
 }
 
 }

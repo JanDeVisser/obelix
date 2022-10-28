@@ -108,6 +108,15 @@ BoundEnumDef::BoundEnumDef(std::shared_ptr<EnumDef> const& enum_def, std::shared
 {
 }
 
+BoundEnumDef::BoundEnumDef(Token token, std::string name, std::shared_ptr<ObjectType> type, BoundEnumValueDefs values, bool extend)
+    : Statement(std::move(token))
+    , m_name(std::move(name))
+    , m_type(std::move(type))
+    , m_values(std::move(values))
+    , m_extend(extend)
+{
+}
+
 std::string const& BoundEnumDef::name() const
 {
     return m_name;
@@ -148,6 +157,40 @@ std::string BoundEnumDef::to_string() const
     return format("enum {} { {} }", name(), join(values, ", ", [](NVP const& value) {
         return format("{}: {}", value.first, value.second);
     }));
+}
+
+// -- BoundTypeDef -------------------------------------------------------
+
+BoundTypeDef::BoundTypeDef(Token token, std::string name, std::shared_ptr<BoundType> type)
+    : Statement(std::move(token))
+    , m_name(std::move(name))
+    , m_type(std::move(type))
+{
+}
+
+std::string const& BoundTypeDef::name() const
+{
+    return m_name;
+}
+
+std::shared_ptr<BoundType> const& BoundTypeDef::type() const
+{
+    return m_type;
+}
+
+Nodes BoundTypeDef::children() const
+{
+    return Nodes { type() };
+}
+
+std::string BoundTypeDef::attributes() const
+{
+    return format(R"(name="{}")", name());
+}
+
+std::string BoundTypeDef::to_string() const
+{
+    return format("{}: {}", name(), type()->type()->to_string());
 }
 
 }

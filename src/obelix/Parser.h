@@ -96,6 +96,7 @@ private:
     std::shared_ptr<Import> parse_import_statement(Token const&);
     std::shared_ptr<Expression> parse_expression();
     std::shared_ptr<EnumDef> parse_enum_definition(Token const&);
+    std::shared_ptr<TypeDef> parse_type_definition(Token const&);
 
     std::shared_ptr<Expression> parse_expression_1(std::shared_ptr<Expression> lhs, int min_precedence);
     std::shared_ptr<Expression> parse_postfix_unary_operator(std::shared_ptr<Expression> const& expression);

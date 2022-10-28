@@ -158,4 +158,33 @@ std::string EnumDef::to_string() const
     return ret;
 }
 
+// -- TypeDef ---------------------------------------------------------------
+
+TypeDef::TypeDef(Token token, std::string name, std::shared_ptr<ExpressionType> type)
+    : Statement(std::move(token))
+    , m_name(std::move(name))
+    , m_type(std::move(type))
+{
+}
+
+std::string const& TypeDef::name() const
+{
+    return m_name;
+}
+
+std::shared_ptr<ExpressionType> const& TypeDef::type() const
+{
+    return m_type;
+}
+
+std::string TypeDef::attributes() const
+{
+    return format(R"(name="{}" type="{}")", name(), type()->type_name());
+}
+
+std::string TypeDef::to_string() const
+{
+    return format("type {} {}", name(), type()->type_name());
+}
+
 }

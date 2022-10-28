@@ -116,6 +116,27 @@ NODE_PROCESSOR(EnumDef)
     return std::make_shared<BoundEnumDef>(enum_def, type, bound_values);
 }
 
+NODE_PROCESSOR(ExpressionType)
+{
+    auto type = std::dynamic_pointer_cast<ExpressionType>(tree);
+    auto type_maybe = type->resolve_type();
+    if (type_maybe.is_error()) {
+        auto err = type_maybe.error();
+        return SyntaxError { err.code(), tree->token(), err.message() };
+    }
+    return std::make_shared<BoundType>(type->token(), type_maybe.value());
+}
+
+NODE_PROCESSOR(TypeDef)
+{
+    auto type_def = std::dynamic_pointer_cast<TypeDef>(tree);
+
+    // FIXME: Make sure type alias isn't yet used for type or function or var or ...
+    auto bound_type = TRY_AND_CAST(BoundType, process(type_def->type(), ctx));
+    bound_type->type()->has_alias(type_def->name());
+    return std::make_shared<BoundTypeDef>(type_def->token(), type_def->name(), bound_type);
+}
+
 NODE_PROCESSOR(Compilation)
 {
     auto compilation = std::dynamic_pointer_cast<Compilation>(tree);

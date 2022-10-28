@@ -119,11 +119,53 @@ ErrorOrNode process_tree(std::shared_ptr<SyntaxNode> const& tree, Context& ctx, 
     case SyntaxNodeType::ExpressionType: {
         auto expr_type = std::dynamic_pointer_cast<ExpressionType>(tree);
         TemplateArgumentNodes arguments;
-        for (auto& arg : expr_type->template_arguments()) {
+        for (auto const& arg : expr_type->template_arguments()) {
             auto processed_arg = TRY_AND_CAST(ExpressionType, processor(arg, ctx));
             arguments.push_back(arg);
         }
         return std::make_shared<ExpressionType>(expr_type->token(), expr_type->type_name(), arguments);
+    }
+
+    case SyntaxNodeType::StructDefinition: {
+        auto struct_def = std::dynamic_pointer_cast<StructDefinition>(tree);
+        Identifiers fields;
+        for (auto const& field : struct_def->fields()) {
+            auto processed_field = TRY_AND_CAST(Identifier, processor(field, ctx));
+            fields.push_back(processed_field);
+        }
+        return std::make_shared<StructDefinition>(struct_def->token(), struct_def->name(), fields);
+    }
+
+    case SyntaxNodeType::EnumDef: {
+        auto enum_def = std::dynamic_pointer_cast<EnumDef>(tree);
+        EnumValues values;
+        for (auto const& value : enum_def->values()) {
+            auto processed_value = TRY_AND_CAST(EnumValue, processor(value, ctx));
+            values.push_back(processed_value);
+        }
+        return std::make_shared<EnumDef>(enum_def->token(), enum_def->name(), values, enum_def->extend());
+    }
+
+    case SyntaxNodeType::BoundEnumDef: {
+        auto enum_def = std::dynamic_pointer_cast<BoundEnumDef>(tree);
+        BoundEnumValueDefs values;
+        for (auto const& value : enum_def->values()) {
+            auto processed_value = TRY_AND_CAST(BoundEnumValueDef, processor(value, ctx));
+            values.push_back(processed_value);
+        }
+        return std::make_shared<BoundEnumDef>(enum_def->token(), enum_def->name(), enum_def->type(), values, enum_def->extend());
+    }
+
+    case SyntaxNodeType::TypeDef: {
+        auto type_def = std::dynamic_pointer_cast<TypeDef>(tree);
+        auto type = TRY_AND_CAST(ExpressionType, process(type_def, ctx));
+        return std::make_shared<TypeDef>(type_def->token(), type_def->name(), type);
+    }
+
+    case SyntaxNodeType::BoundTypeDef: {
+        auto type_def = std::dynamic_pointer_cast<BoundTypeDef>(tree);
+        auto type = TRY_AND_CAST(BoundType, process(type_def->type(), ctx));
+        return std::make_shared<BoundTypeDef>(type_def->token(), type_def->name(), type);
     }
 
     case SyntaxNodeType::FunctionDef: {

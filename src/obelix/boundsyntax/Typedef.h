@@ -56,6 +56,7 @@ using BoundEnumValueDefs = std::vector<std::shared_ptr<BoundEnumValueDef>>;
 NODE_CLASS(BoundEnumDef, Statement)
 public:
     BoundEnumDef(std::shared_ptr<EnumDef> const& enum_def, std::shared_ptr<ObjectType> type, BoundEnumValueDefs values);
+    BoundEnumDef(Token, std::string name, std::shared_ptr<ObjectType> type, BoundEnumValueDefs values, bool extend);
     [[nodiscard]] std::string const& name() const;
     [[nodiscard]] std::shared_ptr<ObjectType> type() const;
     [[nodiscard]] BoundEnumValueDefs const& values() const;
@@ -69,6 +70,20 @@ private:
     std::shared_ptr<ObjectType> m_type;
     BoundEnumValueDefs m_values;
     bool m_extend { false };
+};
+
+NODE_CLASS(BoundTypeDef, Statement)
+public:
+    BoundTypeDef(Token, std::string, std::shared_ptr<BoundType>);
+    [[nodiscard]] std::string const& name() const;
+    [[nodiscard]] std::shared_ptr<BoundType> const& type() const;
+    [[nodiscard]] Nodes children() const override;
+    [[nodiscard]] std::string attributes() const override;
+    [[nodiscard]] std::string to_string() const override;
+
+private:
+    std::string m_name;
+    std::shared_ptr<BoundType> m_type;
 };
 
 }
