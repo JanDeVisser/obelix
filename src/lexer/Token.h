@@ -290,33 +290,6 @@ inline ErrorOr<std::string, SyntaxError> token_value(Token const& token)
 }
 
 template<>
-inline ErrorOr<int, SyntaxError> token_value(Token const& token)
-{
-    if (token.code() != TokenCode::Float && token.code() != TokenCode::Integer && token.code() != TokenCode::HexNumber)
-        return SyntaxError { ErrorCode::TypeMismatch, token, "Cannot get {} value as int", token.code() };
-    auto v = to_long_unconditional(token.value());
-    if (v < std::numeric_limits<int>::min() || v > std::numeric_limits<int>::max())
-        return SyntaxError { ErrorCode::TypeMismatch, token, "Long value {} overflows int", v };
-    return static_cast<int>(v);
-}
-
-template<>
-inline ErrorOr<long, SyntaxError> token_value(Token const& token)
-{
-    if (token.code() != TokenCode::Float && token.code() != TokenCode::Integer && token.code() != TokenCode::HexNumber)
-        return SyntaxError { ErrorCode::TypeMismatch, token, "Cannot get {} value as long", token.code() };
-    return to_long_unconditional(token.value());
-}
-
-template<>
-inline ErrorOr<double, SyntaxError> token_value(Token const& token)
-{
-    if (token.code() != TokenCode::Float && token.code() != TokenCode::Integer && token.code() != TokenCode::HexNumber)
-        return SyntaxError { ErrorCode::TypeMismatch, token, "Cannot get {} value as double", token.code() };
-    return to_double_unconditional(token.value());
-}
-
-template<>
 inline ErrorOr<bool, SyntaxError> token_value(Token const& token)
 {
     auto number_maybe = token.to_long();
