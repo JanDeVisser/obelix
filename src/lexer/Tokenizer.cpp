@@ -4,15 +4,11 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
-//
-// Created by Jan de Visser on 2021-09-20.
-//
-
 #include <lexer/Tokenizer.h>
 
 namespace Obelix {
 
-logging_category(lexer);
+extern_logging_category(lexer);
 
 class CatchAll : public Scanner {
 public:
@@ -30,35 +26,16 @@ public:
 private:
 };
 
-Tokenizer::Tokenizer(std::string_view const& text)
+Tokenizer::Tokenizer(std::string_view const& text, std::string file_name)
     : m_buffer(text)
+    , m_location { std::move(file_name), 1, 1, 1, 1 }
 {
 }
 
-Tokenizer::Tokenizer(StringBuffer text)
+Tokenizer::Tokenizer(StringBuffer text, std::string file_name)
     : m_buffer(std::move(text))
+    , m_location { std::move(file_name), 1, 1, 1, 1 }
 {
-}
-
-void Tokenizer::assign(StringBuffer buffer)
-{
-    m_buffer.assign(std::move(buffer));
-    m_tokens.clear();
-    reset();
-}
-
-void Tokenizer::assign(char const* text)
-{
-    m_buffer.assign(text);
-    m_tokens.clear();
-    reset();
-}
-
-void Tokenizer::assign(std::string text)
-{
-    m_buffer.assign(move(text));
-    m_tokens.clear();
-    reset();
 }
 
 std::vector<Token> const& Tokenizer::tokenize(std::optional<std::string_view const> text)

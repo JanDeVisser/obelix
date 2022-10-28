@@ -4,13 +4,14 @@ add_library(
         BasicParser.cpp
         IdentifierScanner.cpp
         KeywordScanner.cpp
-        Lexer.h
+        Lexer.cpp
         NumberScanner.cpp
         QStringScanner.cpp
         Token.cpp
         Tokenizer.cpp
         WhitespaceScanner.cpp
-        CommentScanner.cpp)
+        CommentScanner.cpp
+)
 
 target_link_libraries(
         obllexer

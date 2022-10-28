@@ -20,7 +20,7 @@ BasicParser::BasicParser(std::string const& file_name, BufferLocator* locator)
         add_error(Token { TokenCode::Error, file_name }, format("Could not read '{}'", file_name));
         return;
     }
-    m_lexer.assign(buffer.buffer()->str());
+    m_lexer.assign(buffer.buffer()->str(), m_file_name);
     m_buffer_read = true;
 }
 
@@ -46,7 +46,7 @@ ErrorOr<void> BasicParser::read_file(std::string const& file_name, BufferLocator
         add_error(Token { TokenCode::Error, buffer.file_path() }, format("Could not read '{}'", buffer.file_path()));
         return buffer.error();
     }
-    m_lexer.assign(buffer.buffer()->str());
+    m_lexer.assign(buffer.buffer()->str(), m_file_name);
     m_buffer_read = true;
     return {};
 }

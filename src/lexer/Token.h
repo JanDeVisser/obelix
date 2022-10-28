@@ -199,6 +199,7 @@ constexpr char const* TokenCode_to_string(TokenCode code)
 std::string TokenCode_name(TokenCode);
 
 struct Span {
+    std::string file_name;
     size_t start_line;
     size_t start_column;
     size_t end_line;
@@ -206,7 +207,9 @@ struct Span {
 
     [[nodiscard]] std::string to_string() const
     {
-        return format("{}:{} - {}:{}", start_line, start_column, end_line, end_column);
+        return (!file_name.empty())
+            ? format("{}:{}:{} - {}:{}", file_name, start_line, start_column, end_line, end_column)
+            : format("{}:{} - {}:{}", start_line, start_column, end_line, end_column);
     }
 };
 
@@ -254,7 +257,7 @@ public:
     [[nodiscard]] int compare(Token const& other) const;
     [[nodiscard]] bool is_whitespace() const;
 
-    Span location { 0, 0, 0, 0 };
+    Span location { {}, 0, 0, 0, 0 };
 
 private:
     TokenCode m_code { TokenCode::Unknown };
@@ -266,7 +269,18 @@ using SyntaxError = Error<Token>;
 template<typename T>
 inline ErrorOr<T, SyntaxError> token_value(Token const& token)
 {
-    fatal("Specialize token_value(Token const&) for type '{}'", typeid(T).name());
+    fatal("Specialize token_value<T>(Token const&) for T = {}", typeid(T).name());
+}
+
+template<std::convertible_to<long> T>
+inline ErrorOr<T, SyntaxError> token_value(Token const& token)
+{
+    if (token.code() != TokenCode::Float && token.code() != TokenCode::Integer && token.code() != TokenCode::HexNumber)
+        return SyntaxError { ErrorCode::TypeMismatch, token, "Cannot get {} value as {}", token.code(), typeid(T).name() };
+    auto v = to_long_unconditional(token.value());
+    if (v < std::numeric_limits<T>::min() || v > std::numeric_limits<T>::max())
+        return SyntaxError { ErrorCode::TypeMismatch, token, "Long value {} overflows {}", v, typeid(T).name() };
+    return static_cast<T>(v);
 }
 
 template<>

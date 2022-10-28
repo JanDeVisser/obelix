@@ -4,11 +4,9 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
-//
-// Created by Jan de Visser on 2021-10-07.
-//
-
 #pragma once
+
+#include <set>
 
 #include <lexer/Tokenizer.h>
 
@@ -16,15 +14,8 @@ namespace Obelix {
 
 class Lexer {
 public:
-    explicit Lexer(char const* text = nullptr)
-        : m_buffer((text) ? text : "")
-    {
-    }
-
-    explicit Lexer(StringBuffer text)
-        : m_buffer(std::move(text))
-    {
-    }
+    explicit Lexer(char const* = nullptr, std::string = {});
+    explicit Lexer(StringBuffer, std::string = {});
 
     template<typename... Args>
     void filter_codes(TokenCode code, Args&&... args)
@@ -37,73 +28,16 @@ public:
     {
     }
 
-    void assign(char const* text)
-    {
-        m_buffer.assign(text);
-        m_tokens.clear();
-        m_current = 0;
-    }
-
-    void assign(std::string const& text)
-    {
-        m_buffer.assign(text);
-        m_tokens.clear();
-        m_current = 0;
-    }
-
-    [[nodiscard]] StringBuffer const& buffer() const { return m_buffer; }
-
-    std::vector<Token> const& tokenize(char const* text = nullptr)
-    {
-        if (text)
-            assign(text);
-        Tokenizer tokenizer(m_buffer);
-        tokenizer.add_scanners(m_scanners);
-        tokenizer.filter_codes(m_filtered_codes);
-        m_tokens = tokenizer.tokenize();
-        return m_tokens;
-    }
-
-    Token const& peek(size_t how_many = 0)
-    {
-        if (m_tokens.empty())
-            tokenize();
-        oassert(m_current + how_many < m_tokens.size(), "Token buffer underflow");
-        return m_tokens[m_current + how_many];
-    }
-
-    Token const& lex()
-    {
-        auto const& ret = peek(0);
-        if (m_current < (m_tokens.size() - 1))
-            m_current++;
-        return ret;
-    }
-
-    Token const& replace(Token token)
-    {
-        auto const& ret = peek(0);
-        m_tokens[m_current] = std::move(token);
-        return ret;
-    }
-
-    std::optional<Token const> match(TokenCode code)
-    {
-        if (peek().code() != code)
-            return {};
-        return lex();
-    }
-
-    TokenCode current_code()
-    {
-        return peek().code();
-    }
-
-    bool expect(TokenCode code)
-    {
-        auto token_maybe = match(code);
-        return token_maybe.has_value();
-    }
+    void assign(char const*, std::string = {});
+    void assign(std::string const&, std::string = {});
+    [[nodiscard]] StringBuffer const& buffer() const;
+    std::vector<Token> const& tokenize(char const* = nullptr, std::string = {});
+    Token const& peek(size_t = 0);
+    Token const& lex();
+    Token const& replace(Token);
+    std::optional<Token const> match(TokenCode);
+    TokenCode current_code();
+    bool expect(TokenCode);
 
     template<class ScannerClass, class... Args>
     std::shared_ptr<ScannerClass> add_scanner(Args&&... args)
@@ -113,23 +47,12 @@ public:
         return ret;
     }
 
-    void mark()
-    {
-        m_bookmarks.push_back(m_current);
-    }
-
-    void discard_mark()
-    {
-        m_bookmarks.pop_back();
-    }
-
-    void rewind()
-    {
-        m_current = m_bookmarks.back();
-        discard_mark();
-    }
+    void mark();
+    void discard_mark();
+    void rewind();
 
 private:
+    std::string m_file_name;
     StringBuffer m_buffer;
     std::vector<Token> m_tokens {};
     size_t m_current { 0 };

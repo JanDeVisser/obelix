@@ -90,11 +90,8 @@ private:
 class Tokenizer {
 public:
     Tokenizer() = default;
-    explicit Tokenizer(std::string_view const&);
-    explicit Tokenizer(StringBuffer);
-    void assign(StringBuffer buffer);
-    void assign(char const*);
-    void assign(std::string);
+    explicit Tokenizer(std::string_view const&, std::string = {});
+    explicit Tokenizer(StringBuffer, std::string = {});
 
     template<typename... Args>
     void filter_codes(TokenCode code, Args&&... args)
@@ -179,7 +176,7 @@ private:
     size_t m_total_count { 0 };
     bool m_prev_was_cr { false };
     int m_current { 0 };
-    Span m_location { 1, 1, 1, 1 };
+    Span m_location { {}}, 1, 1, 1, 1 };
     bool m_eof { false };
 };
 
