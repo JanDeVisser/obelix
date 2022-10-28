@@ -108,35 +108,39 @@ BoundIntLiteral::BoundIntLiteral(Token t, unsigned short value)
 {
 }
 
-ErrorOr<std::shared_ptr<BoundIntLiteral>, SyntaxError> BoundIntLiteral::cast(std::shared_ptr<ObjectType> const& type) const
+ErrorOr<std::shared_ptr<BoundIntLiteral>, SyntaxError> BoundIntLiteral::cast(std::shared_ptr<ObjectType> const& target_type) const
 {
-    switch (type->size()) {
-    case 1: {
-        auto char_maybe = token_value<char>(token());
-        if (char_maybe.has_value())
-            return std::make_shared<BoundIntLiteral>(token(), char_maybe.value());
-        return char_maybe.error();
+    auto can_cast = type()->can_cast_to(target_type);
+    if (can_cast == CanCast::Always || can_cast == CanCast::Sometimes) {
+        switch (target_type->size()) {
+        case 1: {
+            auto char_maybe = token_value<char>(token());
+            if (char_maybe.has_value())
+                return std::make_shared<BoundIntLiteral>(token(), char_maybe.value());
+            return char_maybe.error();
+        }
+        case 2: {
+            auto short_maybe = token_value<short>(token());
+            if (short_maybe.has_value())
+                return std::make_shared<BoundIntLiteral>(token(), short_maybe.value());
+            return short_maybe.error();
+        }
+        case 4: {
+            auto int_maybe = token_value<int>(token());
+            if (int_maybe.has_value())
+                return std::make_shared<BoundIntLiteral>(token(), int_maybe.value());
+            return int_maybe.error();
+        }
+        case 8: {
+            auto long_probably = token_value<long>(token());
+            assert(long_probably.has_value());
+            return std::make_shared<BoundIntLiteral>(token(), long_probably.value());
+        }
+        default:
+            fatal("Unexpected int size {}", target_type->size());
+        }
     }
-    case 2: {
-        auto short_maybe = token_value<short>(token());
-        if (short_maybe.has_value())
-            return std::make_shared<BoundIntLiteral>(token(), short_maybe.value());
-        return short_maybe.error();
-    }
-    case 4: {
-        auto int_maybe = token_value<int>(token());
-        if (int_maybe.has_value())
-            return std::make_shared<BoundIntLiteral>(token(), int_maybe.value());
-        return int_maybe.error();
-    }
-    case 8: {
-        auto long_probably = token_value<long>(token());
-        assert(long_probably.has_value());
-        return std::make_shared<BoundIntLiteral>(token(), long_probably.value());
-    }
-    default:
-        fatal("Unexpected int size {}", type->size());
-    }
+    return SyntaxError { ErrorCode::TypeMismatch, token(), format("Cannot cast literal value {} of type {} to type {}", token().value(), type(), target_type) };
 }
 
 std::string BoundIntLiteral::attributes() const

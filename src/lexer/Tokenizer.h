@@ -176,7 +176,7 @@ private:
     size_t m_total_count { 0 };
     bool m_prev_was_cr { false };
     int m_current { 0 };
-    Span m_location { {}}, 1, 1, 1, 1 };
+    Span m_location { {}, 1, 1, 1, 1 };
     bool m_eof { false };
 };
 

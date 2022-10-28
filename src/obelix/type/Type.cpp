@@ -589,14 +589,12 @@ CanCast ObjectType::can_cast_to(Obelix::ObjectType const& other) const
     switch (to_pt) {
     case PrimitiveType::IntegerNumber:
     case PrimitiveType::SignedIntegerNumber:
-    case PrimitiveType::Enum:
-    case PrimitiveType::Boolean: {
+    case PrimitiveType::Enum: {
         switch (from_pt) {
         case PrimitiveType::IntegerNumber:
         case PrimitiveType::SignedIntegerNumber:
         case PrimitiveType::Pointer:
         case PrimitiveType::Enum:
-        case PrimitiveType::Boolean:
             return (other.size() >= size()) ? CanCast::Always : CanCast::Sometimes;
         default:
             return CanCast::Never;
@@ -607,7 +605,7 @@ CanCast ObjectType::can_cast_to(Obelix::ObjectType const& other) const
         return CanCast::Always;
     }
     default:
-        return CanCast::Never;
+        return (*this == other) ? CanCast::Always : CanCast::Never;
     }
     }
 }
