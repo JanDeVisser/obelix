@@ -371,16 +371,15 @@ NODE_PROCESSOR(BoundMemberAccess)
     }
     case PrimitiveType::Conditional: {
         ctx.writeln("({");
-        ctx.writeln(";");
+        ctx.indent();
         ctx.write(format(R"({} cond = )", access->structure()->type()->name()));
         TRY_RETURN(process(access->structure(), ctx));
         ctx.writeln(";");
-        ctx.indent();
-        if (access->member()->name() == "value") {
-            ctx.writeln("if (!cond.success) { fputs(2, (string) { strlen(\"" CONDITIONAL_VALUE_ERROR "\") + 1, (uint8_t *) \"" CONDITIONAL_VALUE_ERROR "\\n\" } ); exit(-1); };");
-        } else {
-            ctx.writeln("if (cond.success) { fputs(2, (string) { strlen(\"" CONDITIONAL_ERROR_ERROR "\") + 1, (uint8_t *) \"" CONDITIONAL_ERROR_ERROR "\\n\" } ); exit(-1); };");
-        }
+        char const *msg = (access->member()->name() == "value") ? CONDITIONAL_VALUE_ERROR : CONDITIONAL_ERROR_ERROR;
+        char const *invert = (access->member()->name() == "value") ? "!" : "";
+        auto const& loc = access->token().location;
+        ctx.writeln(format(R"(if ({}cond.success) obelix_fatal((token) {{ .file_name="{}", .line_start={}, .column_start={}, .line_end={}, .column_end={}}, "{}");)",
+            invert, loc.file_name, loc.start_line, loc.start_column, loc.end_line, loc.end_column, msg));
         ctx.writeln(format(R"(cond.{};)", access->member()->name()));
         ctx.dedent();
         ctx.write("})");

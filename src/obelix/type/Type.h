@@ -512,6 +512,8 @@ private:
     static std::vector<std::shared_ptr<ObjectType>> s_template_specializations;
 };
 
+using pObjectType = std::shared_ptr<ObjectType>;
+
 template<typename T>
 struct TypeGetter {
     std::shared_ptr<ObjectType> operator()()

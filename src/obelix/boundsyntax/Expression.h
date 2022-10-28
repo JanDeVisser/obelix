@@ -26,7 +26,8 @@ private:
     std::shared_ptr<ObjectType> m_type { nullptr };
 };
 
-using BoundExpressions = std::vector<std::shared_ptr<BoundExpression>>;
+using pBoundExpression = std::shared_ptr<BoundExpression>;
+using BoundExpressions = std::vector<pBoundExpression>;
 
 NODE_CLASS(BoundExpressionList, BoundExpression)
 public:
