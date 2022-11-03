@@ -215,8 +215,8 @@ private:
     Logger* m_logger { nullptr };
 };
 
-#define logging_category(module) LoggingCategory module##_logger(#module)
-#define extern_logging_category(module) extern LoggingCategory module##_logger
+#define logging_category(module) Obelix::LoggingCategory module##_logger(#module)
+#define extern_logging_category(module) extern Obelix::LoggingCategory module##_logger
 #define debug(module, fmt, args...) (module##_logger).debug_msg(__FILE__, __LINE__, __func__, fmt, ##args)
 #define info(module, fmt, args...) (module##_logger).info_msg(__FILE__, __LINE__, __func__, fmt, ##args)
 #define warning(module, fmt, args...) (module##_logger).warning_msg(__FILE__, __LINE__, __func__, fmt, ##args)
