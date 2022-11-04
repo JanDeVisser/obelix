@@ -154,6 +154,9 @@ R"(/*
             ctx.writeln(format("} {};\n", type->name()));
             break;
         }
+        case PrimitiveType::Array: {
+            break;
+        }
         default:
             fatal("Ur mom {}", 12);
         }

@@ -6,14 +6,24 @@
 
 #pragma once
 
-#include <obelix/syntax/ControlFlow.h>
-#include <obelix/boundsyntax/Variable.h>
+#include <obelix/boundsyntax/Statement.h>
+#include <obelix/boundsyntax/Expression.h>
+#include <obelix/syntax/Forward.h>
 
 namespace Obelix {
 
-// -- FlowControl.h ---------------------------------------------------------
+NODE_CLASS(BoundPass, BoundStatement)
+public:
+    explicit BoundPass(Token, std::shared_ptr<Statement> const& = nullptr);
+    [[nodiscard]] std::shared_ptr<Statement> const& elided_statement() const;
+    [[nodiscard]] std::string text_contents() const override;
+    [[nodiscard]] std::string to_string() const override;
 
-NODE_CLASS(BoundReturn, Statement)
+private:
+    std::shared_ptr<Statement> m_elided_statement;
+};
+
+NODE_CLASS(BoundReturn, BoundStatement)
 public:
     BoundReturn(std::shared_ptr<SyntaxNode> const&, std::shared_ptr<BoundExpression>, bool = false);
     [[nodiscard]] std::string attributes() const override;
@@ -27,7 +37,7 @@ private:
     bool m_return_error;
 };
 
-NODE_CLASS(BoundBranch, Statement)
+NODE_CLASS(BoundBranch, BoundStatement)
 public:
     BoundBranch(std::shared_ptr<SyntaxNode> const&, std::shared_ptr<BoundExpression>, std::shared_ptr<Statement>);
     BoundBranch(Token, std::shared_ptr<BoundExpression>, std::shared_ptr<Statement>);
@@ -43,7 +53,7 @@ private:
 
 using BoundBranches = std::vector<std::shared_ptr<BoundBranch>>;
 
-NODE_CLASS(BoundIfStatement, Statement)
+NODE_CLASS(BoundIfStatement, BoundStatement)
 public:
     BoundIfStatement(std::shared_ptr<IfStatement> const& if_stmt, BoundBranches branches, std::shared_ptr<Statement> else_stmt);
     BoundIfStatement(Token token, BoundBranches branches, std::shared_ptr<Statement> else_stmt = nullptr);
@@ -56,7 +66,7 @@ private:
     std::shared_ptr<Statement> m_else {};
 };
 
-NODE_CLASS(BoundWhileStatement, Statement)
+NODE_CLASS(BoundWhileStatement, BoundStatement)
 public:
     BoundWhileStatement(std::shared_ptr<SyntaxNode> const& node, std::shared_ptr<BoundExpression> condition, std::shared_ptr<Statement> stmt);
 
@@ -69,7 +79,7 @@ private:
     std::shared_ptr<Statement> m_stmt;
 };
 
-NODE_CLASS(BoundForStatement, Statement)
+NODE_CLASS(BoundForStatement, BoundStatement)
 public:
     BoundForStatement(std::shared_ptr<ForStatement> const&, std::shared_ptr<BoundVariable>, std::shared_ptr<BoundExpression>, std::shared_ptr<Statement>, bool);
     BoundForStatement(std::shared_ptr<BoundForStatement> const&, std::shared_ptr<BoundVariable>, std::shared_ptr<BoundExpression>, std::shared_ptr<Statement>);
@@ -88,7 +98,7 @@ private:
     bool m_must_declare_variable { false };
 };
 
-NODE_CLASS(BoundSwitchStatement, Statement)
+NODE_CLASS(BoundSwitchStatement, BoundStatement)
 public:
     BoundSwitchStatement(std::shared_ptr<SyntaxNode> const&, std::shared_ptr<BoundExpression>, BoundBranches, std::shared_ptr<BoundBranch>);
     BoundSwitchStatement(Token token, std::shared_ptr<BoundExpression>, BoundBranches, std::shared_ptr<BoundBranch>);

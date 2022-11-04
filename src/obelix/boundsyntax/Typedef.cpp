@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
+#include <obelix/syntax/Typedef.h>
 #include <obelix/boundsyntax/Typedef.h>
 
 namespace Obelix {
@@ -36,7 +37,7 @@ std::string BoundType::to_string() const
 // -- BoundStructDefinition -------------------------------------------------
 
 BoundStructDefinition::BoundStructDefinition(std::shared_ptr<StructDefinition> const& struct_def, std::shared_ptr<ObjectType> type)
-    : Statement(struct_def->token())
+    : BoundStatement(struct_def->token())
     , m_name(struct_def->name())
     , m_type(std::move(type))
 {
@@ -100,7 +101,7 @@ std::string BoundEnumValueDef::to_string() const
 // -- BoundEnumDef ----------------------------------------------------------
 
 BoundEnumDef::BoundEnumDef(std::shared_ptr<EnumDef> const& enum_def, std::shared_ptr<ObjectType> type, BoundEnumValueDefs values)
-    : Statement(enum_def->token())
+    : BoundStatement(enum_def->token())
     , m_name(enum_def->name())
     , m_type(std::move(type))
     , m_values(std::move(values))
@@ -109,7 +110,7 @@ BoundEnumDef::BoundEnumDef(std::shared_ptr<EnumDef> const& enum_def, std::shared
 }
 
 BoundEnumDef::BoundEnumDef(Token token, std::string name, std::shared_ptr<ObjectType> type, BoundEnumValueDefs values, bool extend)
-    : Statement(std::move(token))
+    : BoundStatement(std::move(token))
     , m_name(std::move(name))
     , m_type(std::move(type))
     , m_values(std::move(values))
@@ -162,7 +163,7 @@ std::string BoundEnumDef::to_string() const
 // -- BoundTypeDef -------------------------------------------------------
 
 BoundTypeDef::BoundTypeDef(Token token, std::string name, std::shared_ptr<BoundType> type)
-    : Statement(std::move(token))
+    : BoundStatement(std::move(token))
     , m_name(std::move(name))
     , m_type(std::move(type))
 {

@@ -486,6 +486,9 @@ public:
     static ErrorOr<std::shared_ptr<ObjectType>> make_struct_type(std::string, FieldDefs, ObjectTypeBuilder const& = nullptr);
     static std::shared_ptr<ObjectType> register_struct_type(std::string const&, FieldDefs, ObjectTypeBuilder const& = nullptr);
     static std::shared_ptr<ObjectType> make_enum_type(std::string const&, NVPs const&);
+
+    [[nodiscard]] ErrorOr<std::shared_ptr<ObjectType>> smallest_compatible_type() const;
+
     static void dump();
 
 private:

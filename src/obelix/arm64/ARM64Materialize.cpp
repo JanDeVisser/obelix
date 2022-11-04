@@ -265,7 +265,7 @@ NODE_PROCESSOR(BoundIntrinsicDecl)
 NODE_PROCESSOR(BoundFunctionDef)
 {
     auto func_def = std::dynamic_pointer_cast<BoundFunctionDef>(tree);
-    auto func_decl = TRY_AND_CAST(MaterializedFunctionDecl, process(func_def->declaration(), ctx));
+    auto func_decl = TRY_AND_CAST(MaterializedFunctionDecl, func_def->declaration(), ctx);
 
     MaterializeContext func_ctx(ctx, func_decl->stack_depth());
     for (auto const& param : func_decl->parameters()) {
@@ -273,7 +273,7 @@ NODE_PROCESSOR(BoundFunctionDef)
     }
     std::shared_ptr<Block> block;
     assert(func_def->statement()->node_type() == SyntaxNodeType::FunctionBlock);
-    block = TRY_AND_CAST(FunctionBlock, process(func_def->statement(), func_ctx));
+    block = TRY_AND_CAST(FunctionBlock, func_def->statement(), func_ctx);
     return make_node<MaterializedFunctionDef>(func_def, func_decl, block, func_ctx.offset());
 }
 
@@ -282,7 +282,7 @@ NODE_PROCESSOR(FunctionBlock)
     auto block = std::dynamic_pointer_cast<FunctionBlock>(tree);
     Statements statements;
     for (auto& stmt : block->statements()) {
-        auto new_statement = TRY_AND_CAST(Statement, process(stmt, ctx));
+        auto new_statement = TRY_AND_CAST(Statement, stmt, ctx);
         statements.push_back(new_statement);
     }
     return std::make_shared<FunctionBlock>(tree->token(), statements);
@@ -291,7 +291,7 @@ NODE_PROCESSOR(FunctionBlock)
 NODE_PROCESSOR(BoundVariableDeclaration)
 {
     auto var_decl = std::dynamic_pointer_cast<BoundVariableDeclaration>(tree);
-    auto expression = TRY_AND_CAST(BoundExpression, process(var_decl->expression(), ctx));
+    auto expression = TRY_AND_CAST(BoundExpression, var_decl->expression(), ctx);
     ctx.increase_offset(var_decl->type()->size());
     auto ret = make_node<MaterializedVariableDecl>(var_decl, ctx.offset(), expression);
     ctx.declare(var_decl->name(), ret);
@@ -301,7 +301,7 @@ NODE_PROCESSOR(BoundVariableDeclaration)
 NODE_PROCESSOR(BoundStaticVariableDeclaration)
 {
     auto var_decl = std::dynamic_pointer_cast<BoundStaticVariableDeclaration>(tree);
-    auto expression = TRY_AND_CAST(BoundExpression, process(var_decl->expression(), ctx));
+    auto expression = TRY_AND_CAST(BoundExpression, var_decl->expression(), ctx);
     auto ret = make_node<MaterializedStaticVariableDecl>(var_decl, expression);
     ctx.declare(var_decl->name(), ret);
     return ret;
@@ -310,7 +310,7 @@ NODE_PROCESSOR(BoundStaticVariableDeclaration)
 NODE_PROCESSOR(BoundLocalVariableDeclaration)
 {
     auto var_decl = std::dynamic_pointer_cast<BoundLocalVariableDeclaration>(tree);
-    auto expression = TRY_AND_CAST(BoundExpression, process(var_decl->expression(), ctx));
+    auto expression = TRY_AND_CAST(BoundExpression, var_decl->expression(), ctx);
     auto ret = make_node<MaterializedLocalVariableDecl>(var_decl, expression);
     ctx.declare(var_decl->name(), ret);
     return ret;
@@ -319,7 +319,7 @@ NODE_PROCESSOR(BoundLocalVariableDeclaration)
 NODE_PROCESSOR(BoundGlobalVariableDeclaration)
 {
     auto var_decl = std::dynamic_pointer_cast<BoundGlobalVariableDeclaration>(tree);
-    auto expression = TRY_AND_CAST(BoundExpression, process(var_decl->expression(), ctx));
+    auto expression = TRY_AND_CAST(BoundExpression, var_decl->expression(), ctx);
     auto ret = make_node<MaterializedGlobalVariableDecl>(var_decl, expression);
     ctx.declare(var_decl->name(), ret);
     return ret;
@@ -346,7 +346,7 @@ NODE_PROCESSOR(BoundFunctionCall)
     case SyntaxNodeType::BoundIntrinsicCall: {
         std::shared_ptr<MaterializedIntrinsicDecl> materialized;
         if (materialized_decl == nullptr) {
-            materialized = TRY_AND_CAST(MaterializedIntrinsicDecl, process(call->declaration(), ctx));
+            materialized = TRY_AND_CAST(MaterializedIntrinsicDecl, call->declaration(), ctx);
             ctx.add_materialized_function(materialized);
             ctx.declare(call->name(), materialized);
         } else {
@@ -405,7 +405,7 @@ NODE_PROCESSOR(BoundVariable)
 NODE_PROCESSOR(BoundMemberAccess)
 {
     auto member_access = std::dynamic_pointer_cast<BoundMemberAccess>(tree);
-    auto strukt = TRY_AND_CAST(MaterializedVariableAccess, process(member_access->structure(), ctx));
+    auto strukt = TRY_AND_CAST(MaterializedVariableAccess, member_access->structure(), ctx);
     auto member = member_access->member();
     auto type = strukt->type();
     auto offset = type->offset_of(member->name());
@@ -418,8 +418,8 @@ NODE_PROCESSOR(BoundMemberAccess)
 NODE_PROCESSOR(BoundArrayAccess)
 {
     auto array_access = std::dynamic_pointer_cast<BoundArrayAccess>(tree);
-    auto array = TRY_AND_CAST(MaterializedVariableAccess, process(array_access->array(), ctx));
-    auto subscript = TRY_AND_CAST(BoundExpression, process(array_access->subscript(), ctx));
+    auto array = TRY_AND_CAST(MaterializedVariableAccess, array_access->array(), ctx);
+    auto subscript = TRY_AND_CAST(BoundExpression, array_access->subscript(), ctx);
     auto type = array->type()->template_argument<std::shared_ptr<ObjectType>>("base_type");
     auto element_size = type->size();
     return make_node<MaterializedArrayAccess>(array_access, array, subscript, element_size);

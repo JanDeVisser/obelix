@@ -17,12 +17,14 @@ NODE_CLASS(Break, Statement)
 public:
     explicit Break(Token);
     [[nodiscard]] std::string to_string() const override;
+    [[nodiscard]] bool is_fully_bound() const override { return true; }
 };
 
 NODE_CLASS(Continue, Statement)
 public:
     explicit Continue(Token);
     [[nodiscard]] std::string to_string() const override;
+    [[nodiscard]] bool is_fully_bound() const override { return true; }
 };
 
 NODE_CLASS(Branch, Statement)

@@ -610,6 +610,23 @@ CanCast ObjectType::can_cast_to(Obelix::ObjectType const& other) const
     }
 }
 
+ErrorOr<std::shared_ptr<ObjectType>> ObjectType::smallest_compatible_type() const
+{
+    if (type() != PrimitiveType::IntegerNumber && type() != PrimitiveType::SignedIntegerNumber)
+        return get(this);
+    size_t min_size = size();
+    std::string name = this->name();
+    for (auto const& pair : s_types_by_name) {
+        if (pair.second->type() == type() && pair.second->size() < min_size) {
+            min_size = size();
+            name = pair.first;
+        }
+    }
+    if (name.empty())
+        return Error<int> { ErrorCode::TypeMismatch };
+    return get(name);
+}
+
 size_t ObjectType::size() const
 {
     if (m_type != PrimitiveType::Struct)
@@ -691,7 +708,7 @@ bool ObjectType::is_compatible(MethodDescription const& mth, ObjectTypes const& 
                     return false;
                 break;
             case PrimitiveType::Compatible:
-                if (!is_compatible_with(arg_type))
+                if (auto smallest = arg_type->smallest_compatible_type(); !smallest.has_value() || !is_compatible_with(smallest.value()))
                     return false;
                 break;
             case PrimitiveType::AssignableTo:
@@ -699,7 +716,7 @@ bool ObjectType::is_compatible(MethodDescription const& mth, ObjectTypes const& 
                     return false;
                 break;
             default:
-                if (*param.type != *arg_type)
+                if (auto smallest = arg_type->smallest_compatible_type(); !smallest.has_value() || !param.type->is_compatible_with(smallest.value()))
                     return false;
                 break;
         }

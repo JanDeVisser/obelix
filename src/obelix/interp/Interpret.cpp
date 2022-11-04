@@ -34,7 +34,7 @@ INIT_NODE_PROCESSOR(InterpContext);
 NODE_PROCESSOR(BoundVariableDeclaration)
 {
     auto var_decl = std::dynamic_pointer_cast<BoundVariableDeclaration>(tree);
-    auto expr = TRY_AND_CAST(BoundExpression, process(var_decl->expression(), ctx));
+    auto expr = TRY_AND_CAST(BoundExpression, var_decl->expression(), ctx);
     auto literal = std::dynamic_pointer_cast<BoundLiteral>(expr);
     if (var_decl->is_const() && (literal != nullptr)) {
         ctx.declare(var_decl->name(), literal);
@@ -66,7 +66,7 @@ NODE_PROCESSOR(BoundIntrinsicCall)
     auto call = std::dynamic_pointer_cast<BoundIntrinsicCall>(tree);
     BoundLiterals processed;
     for (auto const& arg : call->arguments()) {
-        auto literal = TRY_AND_TRY_CAST(BoundLiteral, process(arg, ctx));
+        auto literal = TRY_AND_TRY_CAST(BoundLiteral, arg, ctx);
         if (literal == nullptr)
             return tree;
         processed.push_back(literal);

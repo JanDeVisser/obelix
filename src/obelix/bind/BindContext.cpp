@@ -8,7 +8,7 @@
 
 namespace Obelix {
 
-FunctionCall make_functioncall(std::shared_ptr<BoundFunction> function, ObjectTypes types)
+FunctionCallPair make_functioncall(std::shared_ptr<BoundFunction> function, ObjectTypes types)
 {
     return std::make_pair<std::shared_ptr<BoundFunction>, ObjectTypes>(std::move(function), std::move(types));
 }
@@ -183,12 +183,12 @@ ObjectTypes const& RootContext::custom_types() const
     return m_custom_types;
 }
 
-void RootContext::add_unresolved_function(FunctionCall func_call)
+void RootContext::add_unresolved_function(FunctionCallPair func_call)
 {
     m_unresolved_functions.push_back(std::move(func_call));
 }
 
-FunctionCalls const& RootContext::unresolved_functions() const
+FunctionCallPairs const& RootContext::unresolved_functions() const
 {
     return m_unresolved_functions;
 }
@@ -265,12 +265,12 @@ ObjectTypes const& BindContext::custom_types() const
     return m_impl->root_impl()->custom_types();
 }
 
-void BindContext::add_unresolved_function(FunctionCall func_call)
+void BindContext::add_unresolved_function(FunctionCallPair func_call)
 {
     m_impl->root_impl()->add_unresolved_function(std::move(func_call));
 }
 
-FunctionCalls const& BindContext::unresolved_functions() const
+FunctionCallPairs const& BindContext::unresolved_functions() const
 {
     return m_impl->root_impl()->unresolved_functions();
 }

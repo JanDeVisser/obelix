@@ -7,7 +7,9 @@
 #pragma once
 
 #include <obelix/syntax/Variable.h>
+#include <obelix/boundsyntax/ControlFlow.h>
 #include <obelix/boundsyntax/Expression.h>
+#include <obelix/boundsyntax/Function.h>
 #include <obelix/boundsyntax/Typedef.h>
 
 namespace Obelix {
@@ -29,8 +31,6 @@ public:
 private:
     std::string m_identifier;
 };
-
-using BoundIdentifiers = std::vector<std::shared_ptr<BoundIdentifier>>;
 
 NODE_CLASS(BoundVariable, BoundIdentifier)
 public:
@@ -71,7 +71,7 @@ private:
     std::shared_ptr<BoundExpression> m_index;
 };
 
-NODE_CLASS(BoundVariableDeclaration, Statement)
+NODE_CLASS(BoundVariableDeclaration, BoundStatement)
 public:
     explicit BoundVariableDeclaration(std::shared_ptr<VariableDeclaration> const&, std::shared_ptr<BoundIdentifier>, std::shared_ptr<BoundExpression>);
     explicit BoundVariableDeclaration(Token, std::shared_ptr<BoundIdentifier>, bool, std::shared_ptr<BoundExpression>);
@@ -123,53 +123,6 @@ public:
 private:
     std::shared_ptr<BoundVariableAccess> m_assignee;
     std::shared_ptr<BoundExpression> m_expression;
-};
-
-class BoundFunctionDecl;
-using BoundFunctionDecls = std::vector<std::shared_ptr<BoundFunctionDecl>>;
-
-NODE_CLASS(BoundModule, BoundExpression)
-public:
-    BoundModule(Token, std::string, std::shared_ptr<Block>, BoundFunctionDecls, BoundFunctionDecls);
-    [[nodiscard]] std::string const& name() const;
-    [[nodiscard]] std::shared_ptr<Block> const& block() const;
-    [[nodiscard]] BoundFunctionDecls const& exports() const;
-    [[nodiscard]] BoundFunctionDecls const& imports() const;
-    [[nodiscard]] std::shared_ptr<BoundFunctionDecl> exported(std::string const&);
-    [[nodiscard]] std::string attributes() const override;
-    [[nodiscard]] Nodes children() const override;
-    [[nodiscard]] std::string to_string() const override;
-    [[nodiscard]] std::shared_ptr<BoundFunctionDecl> resolve(std::string const&, ObjectTypes const&) const;
-
-private:
-    std::string m_name;
-    std::shared_ptr<Block> m_block;
-    BoundFunctionDecls m_exports;
-    BoundFunctionDecls m_imports;
-};
-
-using BoundModules = std::vector<std::shared_ptr<BoundModule>>;
-
-NODE_CLASS(BoundCompilation, BoundExpression)
-public:
-    BoundCompilation(BoundModules, ObjectTypes const&, std::string);
-    BoundCompilation(BoundModules, BoundTypes, std::string);
-    [[nodiscard]] BoundModules const& modules() const;
-    [[nodiscard]] BoundTypes const& custom_types() const;
-    [[nodiscard]] std::shared_ptr<BoundModule> const& root() const;
-    [[nodiscard]] std::shared_ptr<BoundModule> const& main() const;
-    [[nodiscard]] std::string const& main_module() const;
-    [[nodiscard]] Nodes children() const override;
-    [[nodiscard]] std::string to_string() const override;
-    [[nodiscard]] std::string attributes() const override;
-    [[nodiscard]] std::string root_to_xml() const;
-
-private:
-    BoundModules m_modules;
-    BoundTypes m_custom_types;
-    std::string m_main_module;
-    std::shared_ptr<BoundModule> m_root;
-    std::shared_ptr<BoundModule> m_main;
 };
 
 }

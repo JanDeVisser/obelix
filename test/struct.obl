@@ -8,5 +8,5 @@ func main(): s32
   var a: A
   a.foo = 2
   a.bar = 5
-  return a.foo + a.bar
+  return (a.foo + a.bar) as s32
 }

@@ -1,8 +1,8 @@
 /*
-* Copyright (c) 2021, Jan de Visser <jan@finiandarcy.com>
-*
-* SPDX-License-Identifier: GPL-3.0-or-later
-*/
+ * Copyright (c) 2021, Jan de Visser <jan@finiandarcy.com>
+ *
+ * SPDX-License-Identifier: GPL-3.0-or-later
+ */
 
 #pragma once
 
@@ -13,8 +13,8 @@
 
 #include <core/Logging.h>
 #include <lexer/Token.h>
-#include <obelix/Type.h>
 #include <obelix/SyntaxNodeType.h>
+#include <obelix/Type.h>
 
 namespace Obelix {
 
@@ -23,8 +23,24 @@ namespace Obelix {
         : public derives_from {
 
 #define NODE_CLASS(name, derives_from, ...)                     \
+    class name;                                                 \
+    using p##name = std::shared_ptr<name>;                      \
+    using name##s = std::vector<p##name>;                       \
     class name                                                  \
-        : public derives_from __VA_OPT__(, ) __VA_ARGS__ {       \
+        : public derives_from                                   \
+          __VA_OPT__(, ) __VA_ARGS__ {                          \
+    public:                                                     \
+        [[nodiscard]] SyntaxNodeType node_type() const override \
+        {                                                       \
+            return SyntaxNodeType::name;                        \
+        }                                                       \
+                                                                \
+    private:
+
+#define NODE_CLASS_TEMPLATE(name, derives_from, ...)            \
+    class name                                                  \
+        : public derives_from                                   \
+          __VA_OPT__(, ) __VA_ARGS__ {                          \
     public:                                                     \
         [[nodiscard]] SyntaxNodeType node_type() const override \
         {                                                       \
@@ -55,9 +71,13 @@ private:
     Token m_token;
 };
 
+using pSyntaxNode = std::shared_ptr<SyntaxNode>;
+using SyntaxNodes = Nodes;
+
 template<class NodeClass>
-NODE_CLASS(NodeList, SyntaxNode, public std::vector<std::shared_ptr<NodeClass>>)
+NODE_CLASS_TEMPLATE(NodeList, SyntaxNode, public std::vector<std::shared_ptr<NodeClass>>)
 public:
+
     explicit NodeList(std::string tag)
         : SyntaxNode()
         , m_tag(std::move(tag))
@@ -116,5 +136,4 @@ struct Converter<SyntaxNode*> {
         return 0;
     }
 };
-
 }

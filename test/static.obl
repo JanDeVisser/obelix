@@ -1,6 +1,6 @@
-func foo(x: s64): s64
+func foo(x: s32): s32
 {
-  static var y: s64 = 12
+  static var y: s32 = 12
   var ret = y
   y = x
   return ret
@@ -11,4 +11,3 @@ func main() : s32
   foo(42)
   return foo(13)
 }
-

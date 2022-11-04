@@ -824,13 +824,10 @@ std::shared_ptr<Expression> Parser::parse_primary_expression()
     }
     case TokenCode::Integer:
     case TokenCode::HexNumber: {
-        auto type_mnemonic = std::string("s64");
+        std::string type_mnemonic;
         debug(parser, "next after number: {}", peek());
         if (auto int_type = peek(); int_type.code() == TokenCode::Identifier) {
-            if (int_type.value() == "u8" || int_type.value() == "s8" ||
-                    int_type.value() == "u16" || int_type.value() == "s16" ||
-                    int_type.value() == "u32" || int_type.value() == "s32" ||
-                    int_type.value() == "u64" || int_type.value() == "s64") {
+            if (int_type.value() == "u8" || int_type.value() == "s8" || int_type.value() == "u16" || int_type.value() == "s16" || int_type.value() == "u32" || int_type.value() == "s32" || int_type.value() == "u64" || int_type.value() == "s64") {
                 type_mnemonic = int_type.value();
                 lex();
             } else if (int_type.value() == "uc" || int_type.value() == "sc") {
@@ -847,7 +844,9 @@ std::shared_ptr<Expression> Parser::parse_primary_expression()
                 lex();
             }
         }
-        expr = std::make_shared<IntLiteral>(t, ObjectType::get(type_mnemonic));
+        expr = (!type_mnemonic.empty())
+            ? std::make_shared<IntLiteral>(t, std::make_shared<ExpressionType>(t, type_mnemonic))
+            : std::make_shared<IntLiteral>(t);
         break;
     }
     case TokenCode::Float:

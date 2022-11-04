@@ -55,7 +55,7 @@ INIT_NODE_PROCESSOR(FoldContext);
 NODE_PROCESSOR(BoundVariableDeclaration)
 {
     auto var_decl = std::dynamic_pointer_cast<BoundVariableDeclaration>(tree);
-    auto expr = TRY_AND_CAST(BoundExpression, process(var_decl->expression(), ctx));
+    auto expr = TRY_AND_CAST(BoundExpression, var_decl->expression(), ctx);
     auto literal = std::dynamic_pointer_cast<BoundLiteral>(expr);
     if (var_decl->is_const() && (literal != nullptr)) {
         ctx.declare(var_decl->name(), literal);
@@ -78,7 +78,7 @@ NODE_PROCESSOR(BoundIntrinsicCall)
     auto call = std::dynamic_pointer_cast<BoundIntrinsicCall>(tree);
     BoundExpressions processed_args;
     for (auto const& arg : call->arguments()) {
-        auto processed = TRY_AND_CAST(BoundExpression, process(arg, ctx));
+        auto processed = TRY_AND_CAST(BoundExpression, arg, ctx);
         processed_args.push_back(processed);
     }
     auto processed_call = make_node<BoundIntrinsicCall>(call, processed_args, std::dynamic_pointer_cast<BoundIntrinsicDecl>(call->declaration()));
@@ -92,8 +92,8 @@ NODE_PROCESSOR(BoundIntrinsicCall)
 NODE_PROCESSOR(BoundBinaryExpression)
 {
     auto expr = std::dynamic_pointer_cast<BoundBinaryExpression>(tree);
-    auto lhs = TRY_AND_CAST(BoundExpression, process(expr->lhs(), ctx));
-    auto rhs = TRY_AND_CAST(BoundExpression, process(expr->rhs(), ctx));
+    auto lhs = TRY_AND_CAST(BoundExpression, expr->lhs(), ctx);
+    auto rhs = TRY_AND_CAST(BoundExpression, expr->rhs(), ctx);
 
     if (lhs->node_type() == SyntaxNodeType::BoundIntLiteral && rhs->node_type() == SyntaxNodeType::BoundIntLiteral && expr->op() != BinaryOperator::Range && !BinaryOperator_is_assignment(expr->op())) {
         return TRY(interpret(expr));
@@ -166,10 +166,10 @@ NODE_PROCESSOR(BoundBranch)
     if (auto switch_expr = ctx.last_switch_expression(); switch_expr != nullptr && cond != nullptr) {
         cond = std::make_shared<BoundBinaryExpression>(branch->token(), switch_expr, BinaryOperator::Equals, branch->condition(), ObjectType::get(PrimitiveType::Boolean));
     }
-    auto stmt = TRY_AND_CAST(Statement, process(branch->statement(), ctx));
+    auto stmt = TRY_AND_CAST(Statement, branch->statement(), ctx);
     if (cond == nullptr)
         return std::make_shared<BoundBranch>(branch->token(), nullptr, stmt);;
-    cond = TRY_AND_CAST(BoundExpression, process(cond, ctx));
+    cond = TRY_AND_CAST(BoundExpression, cond, ctx);
 
     auto cond_literal = std::dynamic_pointer_cast<BoundBooleanLiteral>(cond);
     if (cond_literal != nullptr) {
@@ -180,7 +180,7 @@ NODE_PROCESSOR(BoundBranch)
             return nullptr;
         }
     }
-    cond = TRY_AND_CAST(BoundExpression, process(branch->condition(), ctx));
+    cond = TRY_AND_CAST(BoundExpression, branch->condition(), ctx);
     return std::make_shared<BoundBranch>(branch->token(), cond, stmt);
 }
 
@@ -188,7 +188,7 @@ ErrorOr<BoundBranches, SyntaxError> new_branches(BoundBranches current_branches,
 {
     Statements branches;
     for (auto const& branch : current_branches) {
-        auto b = TRY_AND_CAST(Statement, process(branch, ctx));
+        auto b = TRY_AND_CAST(Statement, branch, ctx);
         if (b != nullptr) // b is nullptr if the condition is constant false
             branches.push_back(b);
     }
@@ -239,11 +239,11 @@ NODE_PROCESSOR(BoundIfStatement)
 NODE_PROCESSOR(BoundSwitchStatement)
 {
     auto stmt = std::dynamic_pointer_cast<BoundSwitchStatement>(tree);
-    auto expr = TRY_AND_CAST(BoundExpression, process(stmt->expression(), ctx));
+    auto expr = TRY_AND_CAST(BoundExpression, stmt->expression(), ctx);
     ctx.push_switch_expression(expr);
     auto branches = TRY(new_branches(stmt->cases(), ctx));
     ctx.pop_switch_expression();
-    auto default_branch = TRY_AND_CAST(BoundBranch, process(stmt->default_case(), ctx));
+    auto default_branch = TRY_AND_CAST(BoundBranch, stmt->default_case(), ctx);
 
     // Nothing left. Everything was false:
     if (branches.empty()) {

@@ -1,5 +1,5 @@
 func main() : s32
 {
-   const x = 12
+   const x: s32 = 12
    return x
 }

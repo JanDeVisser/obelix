@@ -6,7 +6,8 @@
 
 #pragma once
 
-#include <obelix/syntax/Typedef.h>
+#include <obelix/syntax/Forward.h>
+#include <obelix/boundsyntax/Statement.h>
 
 namespace Obelix {
 
@@ -23,9 +24,7 @@ private:
     std::shared_ptr<ObjectType> m_type;
 };
 
-using BoundTypes = std::vector<std::shared_ptr<BoundType>>;
-
-NODE_CLASS(BoundStructDefinition, Statement)
+NODE_CLASS(BoundStructDefinition, BoundStatement)
 public:
     BoundStructDefinition(std::shared_ptr<StructDefinition> const&, std::shared_ptr<ObjectType>);
     [[nodiscard]] std::string const& name() const;
@@ -53,7 +52,7 @@ private:
 
 using BoundEnumValueDefs = std::vector<std::shared_ptr<BoundEnumValueDef>>;
 
-NODE_CLASS(BoundEnumDef, Statement)
+NODE_CLASS(BoundEnumDef, BoundStatement)
 public:
     BoundEnumDef(std::shared_ptr<EnumDef> const& enum_def, std::shared_ptr<ObjectType> type, BoundEnumValueDefs values);
     BoundEnumDef(Token, std::string name, std::shared_ptr<ObjectType> type, BoundEnumValueDefs values, bool extend);
@@ -72,7 +71,7 @@ private:
     bool m_extend { false };
 };
 
-NODE_CLASS(BoundTypeDef, Statement)
+NODE_CLASS(BoundTypeDef, BoundStatement)
 public:
     BoundTypeDef(Token, std::string, std::shared_ptr<BoundType>);
     [[nodiscard]] std::string const& name() const;

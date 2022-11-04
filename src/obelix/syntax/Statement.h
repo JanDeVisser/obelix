@@ -16,9 +16,11 @@ ABSTRACT_NODE_CLASS(Statement, SyntaxNode)
 public:
     Statement() = default;
     explicit Statement(Token);
+    [[nodiscard]] virtual bool is_fully_bound() const { return false; }
 };
 
-using Statements = std::vector<std::shared_ptr<Statement>>;
+using pStatement = std::shared_ptr<Statement>;
+using Statements = std::vector<pStatement>;
 
 NODE_CLASS(Import, Statement)
 public:
@@ -35,6 +37,7 @@ NODE_CLASS(Pass, Statement)
 public:
     explicit Pass(Token);
     explicit Pass(std::shared_ptr<Statement> elided_statement);
+    [[nodiscard]] std::shared_ptr<Statement> const& elided_statement() const;
     [[nodiscard]] std::string text_contents() const override;
     [[nodiscard]] std::string to_string() const override;
 
@@ -51,6 +54,7 @@ public:
     [[nodiscard]] std::string attributes() const override;
     [[nodiscard]] std::string to_string() const override;
     [[nodiscard]] int label_id() const;
+    [[nodiscard]] bool is_fully_bound() const override { return true; }
     static int reserve_id();
 
 private:
@@ -63,6 +67,7 @@ public:
     explicit Goto(Token = {}, std::shared_ptr<Label> const& = nullptr);
     [[nodiscard]] std::string attributes() const override;
     [[nodiscard]] std::string to_string() const override;
+    [[nodiscard]] bool is_fully_bound() const override { return true; }
     [[nodiscard]] int label_id() const;
 
 private:
@@ -75,6 +80,8 @@ public:
     [[nodiscard]] Statements const& statements() const;
     [[nodiscard]] Nodes children() const override;
     [[nodiscard]] std::string to_string() const override;
+    [[nodiscard]] bool is_fully_bound() const override;
+    [[nodiscard]] int unbound_statements() const;
 
 protected:
     Statements m_statements {};
@@ -93,7 +100,8 @@ private:
     std::string m_name;
 };
 
-using Modules = std::vector<std::shared_ptr<Module>>;
+using pModule = std::shared_ptr<Module>;
+using Modules = std::vector<pModule>;
 
 NODE_CLASS(Compilation, SyntaxNode)
 public:
@@ -105,6 +113,8 @@ public:
     [[nodiscard]] std::string to_string() const override;
     [[nodiscard]] std::string attributes() const override;
     [[nodiscard]] std::string root_to_xml() const;
+    [[nodiscard]] bool is_fully_bound() const;
+    [[nodiscard]] int unbound_statements() const;
 
 private:
     Modules m_modules;

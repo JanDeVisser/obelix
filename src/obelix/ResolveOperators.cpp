@@ -19,7 +19,7 @@ INIT_NODE_PROCESSOR(ResolveOperatorContext);
 NODE_PROCESSOR(BoundUnaryExpression)
 {
     auto expr = std::dynamic_pointer_cast<BoundUnaryExpression>(tree);
-    auto operand = TRY_AND_CAST(BoundExpression, process(expr->operand(), ctx));
+    auto operand = TRY_AND_CAST(BoundExpression, expr->operand(), ctx);
 
     IntrinsicType intrinsic;
     std::shared_ptr<BoundIntrinsicDecl> decl;
@@ -58,8 +58,8 @@ NODE_PROCESSOR(BoundBinaryExpression)
 
     if (expr->op() == BinaryOperator::Range)
         return tree;
-    auto lhs = TRY_AND_CAST(BoundExpression, process(expr->lhs(), ctx));
-    auto rhs = TRY_AND_CAST(BoundExpression, process(expr->rhs(), ctx));
+    auto lhs = TRY_AND_CAST(BoundExpression, expr->lhs(), ctx);
+    auto rhs = TRY_AND_CAST(BoundExpression, expr->rhs(), ctx);
 
     if (lhs->type()->type() == PrimitiveType::Pointer && (expr->op() == BinaryOperator::Add || expr->op() == BinaryOperator::Subtract)) {
         std::shared_ptr<BoundExpression> offset { nullptr };
@@ -76,7 +76,7 @@ NODE_PROCESSOR(BoundBinaryExpression)
             if (expr->op() == BinaryOperator::Subtract)
                 offset = make_node<BoundUnaryExpression>(expr->token(), offset, UnaryOperator::Negate, expr->type());
             auto size = make_node<BoundIntLiteral>(rhs->token(), target_type->size());
-            offset = TRY_AND_CAST(BoundExpression, process(make_node<BoundBinaryExpression>(expr->token(), size, BinaryOperator::Multiply, offset, ObjectType::get("u64")), ctx));
+            offset = TRY_AND_CAST(BoundExpression, make_node<BoundBinaryExpression>(expr->token(), size, BinaryOperator::Multiply, offset, ObjectType::get("u64")), ctx);
         }
         auto ident = make_node<BoundIdentifier>(Token {}, BinaryOperator_name(expr->op()), lhs->type());
         BoundIdentifiers params;

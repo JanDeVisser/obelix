@@ -1,6 +1,6 @@
 func main(): s32
 {
-  var x: s64 = 12
+  var x: s32 = 12
   x = 24
   return x
 }

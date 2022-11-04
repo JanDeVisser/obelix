@@ -17,7 +17,6 @@ Config::Config(int argc, char const** argv)
         if ((strlen(argv[ix]) > 2) && !strncmp(argv[ix], "--", 2)) {
             if (auto eq_ptr = strchr(argv[ix], '='); eq_ptr == nullptr) {
                 m_cmdline_flags[std::string(argv[ix] + 2)] = true;
-                continue;
             } else {
                 auto ptr = argv[ix];
                 ptr += 2;
@@ -29,9 +28,9 @@ Config::Config(int argc, char const** argv)
             help = true;
         } else if (!strncmp(argv[ix], "--debug", 7)) {
             if (argv[ix][7] == '=') {
-                Obelix::Logger::get_logger().enable(argv[ix] + 8);
+                Logger::get_logger().enable(argv[ix] + 8);
             } else {
-                Obelix::Logger::get_logger().enable("all");
+                Logger::get_logger().enable("all");
             }
         } else if (!strcmp(argv[ix], "--show-tree")) {
             show_tree = true;

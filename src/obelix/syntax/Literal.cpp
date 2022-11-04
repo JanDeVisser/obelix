@@ -12,18 +12,8 @@ extern_logging_category(parser);
 
 // -- BooleanLiteral --------------------------------------------------------
 
-BooleanLiteral::BooleanLiteral(Token const& t)
-    : Literal(t, ObjectType::get("bool"))
-{
-}
-
-BooleanLiteral::BooleanLiteral(Token const& t, std::shared_ptr<ExpressionType> type)
-    : Literal(t, std::move(type))
-{
-}
-
-BooleanLiteral::BooleanLiteral(Token const& t, std::shared_ptr<ObjectType> const& type)
-    : Literal(t, type)
+BooleanLiteral::BooleanLiteral(Token t, std::shared_ptr<ExpressionType> type)
+    : Literal(std::move(t), std::move(type))
 {
 }
 
@@ -40,35 +30,15 @@ std::shared_ptr<Expression> BooleanLiteral::apply(Token const& t)
 
 // -- CharLiteral -----------------------------------------------------------
 
-CharLiteral::CharLiteral(Token const& t)
-    : Literal(t, ObjectType::get("char"))
-{
-}
-
-CharLiteral::CharLiteral(Token const& t, std::shared_ptr<ExpressionType> type)
-    : Literal(t, std::move(type))
-{
-}
-
-CharLiteral::CharLiteral(Token const& t, std::shared_ptr<ObjectType> const& type)
-    : Literal(t, type)
+CharLiteral::CharLiteral(Token t, std::shared_ptr<ExpressionType> type)
+    : Literal(std::move(t), std::move(type))
 {
 }
 
 // -- FloatLiteral ----------------------------------------------------------
 
-FloatLiteral::FloatLiteral(Token const& t)
-    : Literal(t, ObjectType::get("s64"))
-{
-}
-
-FloatLiteral::FloatLiteral(Token const& t, std::shared_ptr<ExpressionType> type)
-    : Literal(t, std::move(type))
-{
-}
-
-FloatLiteral::FloatLiteral(Token const& t, std::shared_ptr<ObjectType> const& type)
-    : Literal(t, type)
+FloatLiteral::FloatLiteral(Token t, std::shared_ptr<ExpressionType> type)
+    : Literal(std::move(t), std::move(type))
 {
 }
 
@@ -90,18 +60,8 @@ std::shared_ptr<Expression> FloatLiteral::apply(Token const& t)
 
 // -- IntLiteral ------------------------------------------------------------
 
-IntLiteral::IntLiteral(Token const& t)
-    : Literal(t, ObjectType::get("s64"))
-{
-}
-
-IntLiteral::IntLiteral(Token const& t, std::shared_ptr<ExpressionType> type)
-    : Literal(t, std::move(type))
-{
-}
-
-IntLiteral::IntLiteral(Token const& t, std::shared_ptr<ObjectType> const& type)
-    : Literal(t, type)
+IntLiteral::IntLiteral(Token t, std::shared_ptr<ExpressionType> type)
+    : Literal(std::move(t), std::move(type))
 {
 }
 
@@ -129,24 +89,21 @@ std::shared_ptr<Expression> IntLiteral::apply(Token const& t)
 
 // -- Literal ---------------------------------------------------------------
 
-Literal::Literal(Token const& t, std::shared_ptr<ExpressionType> type)
-    : Expression(t, std::move(type))
-{
-}
-
-Literal::Literal(Token const& t, std::shared_ptr<ObjectType> const& type)
-    : Expression(t, std::make_shared<ExpressionType>(t, type))
+Literal::Literal(Token t, std::shared_ptr<ExpressionType> type)
+    : Expression(std::move(t), std::move(type))
 {
 }
 
 std::string Literal::attributes() const
 {
-    return format(R"(value="{}" type="{}")", Expression::token().value(), type_name());
+    return format(R"(value="{}" type="{}")", token().value(), type_name());
 }
 
 std::string Literal::to_string() const
 {
-    return format("{}: {}", Expression::token().value(), type()->to_string());
+    if (type() != nullptr)
+        return format("{}: {}", token().value(), type()->to_string());
+    return token().value();
 }
 
 std::shared_ptr<Expression> Literal::apply(Token const& token)
@@ -156,18 +113,8 @@ std::shared_ptr<Expression> Literal::apply(Token const& token)
 
 // -- StringLiteral ---------------------------------------------------------
 
-StringLiteral::StringLiteral(Token const& t)
-    : Literal(t, ObjectType::get("string"))
-{
-}
-
-StringLiteral::StringLiteral(Token const& t, std::shared_ptr<ExpressionType> type)
-    : Literal(t, std::move(type))
-{
-}
-
-StringLiteral::StringLiteral(Token const& t, std::shared_ptr<ObjectType> const& type)
-    : Literal(t, type)
+StringLiteral::StringLiteral(Token t, std::shared_ptr<ExpressionType> type)
+    : Literal(std::move(t), std::move(type))
 {
 }
 

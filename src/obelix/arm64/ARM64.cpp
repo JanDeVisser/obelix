@@ -181,7 +181,7 @@ NODE_PROCESSOR(MaterializedIntrinsicCall)
 NODE_PROCESSOR(BoundCastExpression)
 {
     auto cast = std::dynamic_pointer_cast<BoundCastExpression>(tree);
-    auto expr = TRY_AND_CAST(BoundExpression, process(cast->expression(), ctx));
+    auto expr = TRY_AND_CAST(BoundExpression, cast->expression(), ctx);
     assert(expr->type()->can_cast_to(cast->type()) != CanCast::Never);
 
     auto from_pt = expr->type()->type();
@@ -444,13 +444,13 @@ NODE_PROCESSOR(BoundIfStatement)
         if (branch->condition()) {
             debug(parser, "if ({})", branch->condition()->to_string());
             ctx.assembly()->add_comment(format("if ({})", branch->condition()->to_string()));
-            auto cond = TRY_AND_CAST(BoundExpression, process(branch->condition(), ctx));
+            auto cond = TRY_AND_CAST(BoundExpression, branch->condition(), ctx);
             ctx.assembly()->add_instruction("cmp", "w0,0x00");
             ctx.assembly()->add_instruction("b.eq", "lbl_{}", else_label);
         } else {
             ctx.assembly()->add_comment("else");
         }
-        auto stmt = TRY_AND_CAST(Statement, process(branch->statement(), ctx));
+        auto stmt = TRY_AND_CAST(Statement, branch->statement(), ctx);
         if (count) {
             ctx.assembly()->add_instruction("b", "lbl_{}", end_label);
             ctx.assembly()->add_label(format("lbl_{}", else_label));

@@ -14,8 +14,7 @@ namespace Obelix {
 
 ABSTRACT_NODE_CLASS(Literal, Expression)
 protected:
-    Literal(Token const&, std::shared_ptr<ExpressionType>);
-    Literal(Token const&, std::shared_ptr<ObjectType> const&);
+    Literal(Token, std::shared_ptr<ExpressionType> = nullptr);
 
 public:
     [[nodiscard]] std::string attributes() const override;
@@ -25,39 +24,29 @@ public:
 
 NODE_CLASS(IntLiteral, Literal)
 public:
-    explicit IntLiteral(Token const&);
-    IntLiteral(Token const&, std::shared_ptr<ExpressionType>);
-    IntLiteral(Token const&, std::shared_ptr<ObjectType> const&);
+    IntLiteral(Token, std::shared_ptr<ExpressionType> = nullptr);
     [[nodiscard]] std::shared_ptr<Expression> apply(Token const&) override;
 };
 
 NODE_CLASS(CharLiteral, Literal)
 public:
-    explicit CharLiteral(Token const&);
-    CharLiteral(Token const&, std::shared_ptr<ExpressionType>);
-    CharLiteral(Token const&, std::shared_ptr<ObjectType> const&);
+    CharLiteral(Token, std::shared_ptr<ExpressionType> = nullptr);
 };
 
 NODE_CLASS(FloatLiteral, Literal)
 public:
-    explicit FloatLiteral(Token const&);
-    FloatLiteral(Token const&, std::shared_ptr<ExpressionType>);
-    FloatLiteral(Token const&, std::shared_ptr<ObjectType> const&);
+    FloatLiteral(Token, std::shared_ptr<ExpressionType> = nullptr);
     [[nodiscard]] std::shared_ptr<Expression> apply(Token const&) override;
 };
 
 NODE_CLASS(StringLiteral, Literal)
 public:
-    explicit StringLiteral(Token const& t);
-    StringLiteral(Token const&, std::shared_ptr<ExpressionType>);
-    StringLiteral(Token const&, std::shared_ptr<ObjectType> const&);
+    StringLiteral(Token, std::shared_ptr<ExpressionType> = nullptr);
 };
 
 NODE_CLASS(BooleanLiteral, Literal)
 public:
-    explicit BooleanLiteral(Token const&);
-    BooleanLiteral(Token const&, std::shared_ptr<ExpressionType>);
-    BooleanLiteral(Token const&, std::shared_ptr<ObjectType> const&);
+    BooleanLiteral(Token, std::shared_ptr<ExpressionType> = nullptr);
     [[nodiscard]] std::shared_ptr<Expression> apply(Token const&) override;
 };
 

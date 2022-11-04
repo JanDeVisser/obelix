@@ -33,6 +33,7 @@ add_executable(
         boundsyntax/Expression.cpp
         boundsyntax/Function.cpp
         boundsyntax/Literal.cpp
+        boundsyntax/Statement.cpp
         boundsyntax/Typedef.cpp
         boundsyntax/Variable.cpp
         interp/InterpIntrinsics.cpp

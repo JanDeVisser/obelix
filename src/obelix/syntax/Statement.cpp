@@ -53,6 +53,11 @@ Pass::Pass(std::shared_ptr<Statement> elided_statement)
 {
 }
 
+std::shared_ptr<Statement> const& Pass::elided_statement() const
+{
+    return m_elided_statement;
+}
+
 std::string Pass::text_contents() const
 {
     if (!m_elided_statement)
@@ -146,6 +151,23 @@ Nodes Block::children() const
 std::string Block::to_string() const
 {
     return format("[ ... {} statements ... ]", m_statements.size());
+}
+
+bool Block::is_fully_bound() const
+{
+    return std::all_of(m_statements.begin(), m_statements.end(),
+            [](pStatement const& stmt) {
+                return stmt->is_fully_bound();
+            });
+}
+
+int Block::unbound_statements() const
+{
+    int ret = 0;
+    for (auto const& stmt : m_statements) {
+        if (!stmt->is_fully_bound()) ret++;
+    }
+    return ret;
 }
 
 // -- Module ----------------------------------------------------------------
@@ -248,6 +270,23 @@ std::string Compilation::root_to_xml() const
         ret += "\n";
     }
     return ret + format("</{}>", node_type());
+}
+
+bool Compilation::is_fully_bound() const
+{
+    return std::all_of(m_modules.begin(), m_modules.end(),
+            [](pModule const& module) {
+                return module->is_fully_bound();
+            });
+}
+
+int Compilation::unbound_statements() const
+{
+    int ret = 0;
+    for (auto const& module : m_modules) {
+        ret += module->unbound_statements();
+    }
+    return ret;
 }
 
 // -- ExpressionStatement ---------------------------------------------------

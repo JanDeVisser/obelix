@@ -4,52 +4,13 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
+#include <obelix/syntax/Syntax.h>
 #include <obelix/boundsyntax/Expression.h>
+#include <obelix/boundsyntax/ControlFlow.h>
 
 namespace Obelix {
 
 extern_logging_category(parser);
-
-// -- BoundExpression -------------------------------------------------------
-
-BoundExpression::BoundExpression(Token token, std::shared_ptr<ObjectType> type)
-    : SyntaxNode(std::move(token))
-    , m_type(std::move(type))
-{
-}
-
-BoundExpression::BoundExpression(std::shared_ptr<Expression> const& expr, std::shared_ptr<ObjectType> type)
-    : SyntaxNode(expr->token())
-    , m_type(std::move(type))
-{
-}
-
-BoundExpression::BoundExpression(std::shared_ptr<BoundExpression> const& expr)
-    : SyntaxNode(expr->token())
-    , m_type(expr->type())
-{
-}
-
-BoundExpression::BoundExpression(Token token, PrimitiveType type)
-    : SyntaxNode(std::move(token))
-    , m_type(ObjectType::get(type))
-{
-}
-
-std::shared_ptr<ObjectType> const& BoundExpression::type() const
-{
-    return m_type;
-}
-
-std::string const& BoundExpression::type_name() const
-{
-    return m_type->name();
-}
-
-std::string BoundExpression::attributes() const
-{
-    return format(R"(type="{}")", type()->name());
-}
 
 // -- BoundExpressionList ---------------------------------------------------
 
@@ -211,13 +172,13 @@ std::shared_ptr<BoundExpression> const& BoundCastExpression::expression() const
 // -- BoundExpressionStatement ----------------------------------------------
 
 BoundExpressionStatement::BoundExpressionStatement(std::shared_ptr<ExpressionStatement> const& stmt, std::shared_ptr<BoundExpression> expression)
-    : Statement(stmt->token())
+    : BoundStatement(stmt->token())
     , m_expression(std::move(expression))
 {
 }
 
 BoundExpressionStatement::BoundExpressionStatement(Token token, std::shared_ptr<BoundExpression> expression)
-    : Statement(std::move(token))
+    : BoundStatement(std::move(token))
     , m_expression(std::move(expression))
 {
 }

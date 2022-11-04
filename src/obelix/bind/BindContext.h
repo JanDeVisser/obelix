@@ -20,10 +20,10 @@ namespace Obelix {
 class ModuleContext;
 class RootContext;
 
-using FunctionCall = std::pair<std::shared_ptr<BoundFunction>, ObjectTypes>;
-using FunctionCalls = std::vector<FunctionCall>;
+using FunctionCallPair = std::pair<std::shared_ptr<BoundFunction>, ObjectTypes>;
+using FunctionCallPairs = std::vector<FunctionCallPair>;
 
-FunctionCall make_functioncall(std::shared_ptr<BoundFunction>, ObjectTypes);
+FunctionCallPair make_functioncall(std::shared_ptr<BoundFunction>, ObjectTypes);
 
 #define ENUMERATE_BINDCONTEXT_TYPES(S) \
     S(RootContext)                     \
@@ -139,8 +139,8 @@ public:
 
     void add_custom_type(std::shared_ptr<ObjectType>);
     [[nodiscard]] ObjectTypes const& custom_types() const;
-    void add_unresolved_function(FunctionCall);
-    [[nodiscard]] FunctionCalls const& unresolved_functions() const;
+    void add_unresolved_function(FunctionCallPair);
+    [[nodiscard]] FunctionCallPairs const& unresolved_functions() const;
     void clear_unresolved_functions();
     void add_module(std::shared_ptr<BoundModule> const& module);
     [[nodiscard]] std::shared_ptr<BoundModule> module(std::string const& name) const;
@@ -149,7 +149,7 @@ public:
 
 private:
     ObjectTypes m_custom_types;
-    FunctionCalls m_unresolved_functions;
+    FunctionCallPairs m_unresolved_functions;
     std::unordered_map<std::string, std::shared_ptr<BoundModule>> m_modules;
     ModuleContexts m_module_contexts;
 };
@@ -167,8 +167,8 @@ public:
     BindContextType type() const { return m_impl->type(); }
     void add_custom_type(std::shared_ptr<ObjectType>);
     [[nodiscard]] ObjectTypes const& custom_types() const;
-    void add_unresolved_function(FunctionCall);
-    [[nodiscard]] FunctionCalls const& unresolved_functions() const;
+    void add_unresolved_function(FunctionCallPair);
+    [[nodiscard]] FunctionCallPairs const& unresolved_functions() const;
     void clear_unresolved_functions();
     void add_declared_function(std::string const& name, std::shared_ptr<BoundFunctionDecl> const& func);
     [[nodiscard]] FunctionRegistry const& declared_functions() const;

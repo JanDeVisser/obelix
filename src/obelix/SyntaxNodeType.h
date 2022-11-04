@@ -13,7 +13,6 @@ namespace Obelix {
 
 #define ENUMERATE_SYNTAXNODETYPES(S)    \
     S(SyntaxNode)                       \
-    S(NodeList)                         \
     S(Statement)                        \
     S(Block)                            \
     S(FunctionBlock)                    \
@@ -87,6 +86,8 @@ namespace Obelix {
     S(MaterializedNativeFunctionCall)   \
     S(MaterializedIntrinsicCall)        \
     S(StatementExecutionResult)         \
+    S(BoundStatement)                   \
+    S(BoundPass)                        \
     S(BoundExpression)                  \
     S(BoundExpressionList)              \
     S(BoundIdentifier)                  \
@@ -132,14 +133,15 @@ namespace Obelix {
     S(BoundIntrinsicDecl)               \
     S(BoundAssignment)                  \
     S(BoundConditionalValue)            \
-    S(BoundFunctionDef)                 \
-    S(Count)
+    S(BoundFunctionDef)
 
 enum class SyntaxNodeType {
 #undef ENUM_SYNTAXNODETYPE
 #define ENUM_SYNTAXNODETYPE(type) type,
     ENUMERATE_SYNTAXNODETYPES(ENUM_SYNTAXNODETYPE)
 #undef ENUM_SYNTAXNODETYPE
+    NodeList,
+    Count
 };
 
 constexpr char const* SyntaxNodeType_name(SyntaxNodeType type)
@@ -151,6 +153,8 @@ constexpr char const* SyntaxNodeType_name(SyntaxNodeType type)
         return #type;
         ENUMERATE_SYNTAXNODETYPES(ENUM_SYNTAXNODETYPE)
 #undef ENUM_SYNTAXNODETYPE
+    case SyntaxNodeType::NodeList:    \
+        return "NodeList";
     default:
         fatal("Unknown SyntaxNodeType value '{}'", (int)type);
     }

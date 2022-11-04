@@ -6,28 +6,10 @@
 
 #pragma once
 
-#include <obelix/syntax/Expression.h>
-#include <obelix/syntax/Statement.h>
+#include <obelix/syntax/Forward.h>
+#include <obelix/boundsyntax/ControlFlow.h>
 
 namespace Obelix {
-
-NODE_CLASS(BoundExpression, SyntaxNode)
-public:
-    BoundExpression() = default;
-    BoundExpression(Token, std::shared_ptr<ObjectType>);
-    BoundExpression(std::shared_ptr<Expression> const&, std::shared_ptr<ObjectType>);
-    BoundExpression(std::shared_ptr<BoundExpression> const&);
-    BoundExpression(Token, PrimitiveType);
-    [[nodiscard]] std::shared_ptr<ObjectType> const& type() const;
-    [[nodiscard]] std::string const& type_name() const;
-    [[nodiscard]] std::string attributes() const override;
-
-private:
-    std::shared_ptr<ObjectType> m_type { nullptr };
-};
-
-using pBoundExpression = std::shared_ptr<BoundExpression>;
-using BoundExpressions = std::vector<pBoundExpression>;
 
 NODE_CLASS(BoundExpressionList, BoundExpression)
 public:
@@ -86,7 +68,7 @@ private:
     std::shared_ptr<BoundExpression> m_expression;
 };
 
-NODE_CLASS(BoundExpressionStatement, Statement)
+NODE_CLASS(BoundExpressionStatement, BoundStatement)
 public:
     BoundExpressionStatement(std::shared_ptr<ExpressionStatement> const&, std::shared_ptr<BoundExpression>);
     BoundExpressionStatement(Token, std::shared_ptr<BoundExpression>);

@@ -7,12 +7,13 @@
 #pragma once
 
 #include <obelix/syntax/Function.h>
+#include <obelix/boundsyntax/ControlFlow.h>
 #include <obelix/boundsyntax/Expression.h>
 #include <obelix/boundsyntax/Variable.h>
 
 namespace Obelix {
 
-NODE_CLASS(BoundFunctionDecl, Statement)
+NODE_CLASS(BoundFunctionDecl, BoundStatement)
 public:
     BoundFunctionDecl(std::shared_ptr<SyntaxNode> const&, std::shared_ptr<BoundIdentifier>, BoundIdentifiers);
     BoundFunctionDecl(std::shared_ptr<BoundFunctionDecl> const&);
@@ -57,7 +58,7 @@ public:
     [[nodiscard]] std::string to_string() const override;
 };
 
-NODE_CLASS(BoundFunctionDef, Statement)
+NODE_CLASS(BoundFunctionDef, BoundStatement)
 public:
     BoundFunctionDef(std::shared_ptr<FunctionDef> const&, std::shared_ptr<BoundFunctionDecl>, std::shared_ptr<Statement> = nullptr);
     BoundFunctionDef(Token token, std::shared_ptr<BoundFunctionDecl>, std::shared_ptr<Statement> = nullptr);
@@ -70,6 +71,7 @@ public:
     [[nodiscard]] std::shared_ptr<Statement> const& statement() const;
     [[nodiscard]] Nodes children() const override;
     [[nodiscard]] std::string to_string() const override;
+    [[nodiscard]] bool is_fully_bound() const override;
 
 protected:
     std::shared_ptr<BoundFunctionDecl> m_function_decl;

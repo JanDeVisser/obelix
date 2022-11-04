@@ -13,21 +13,21 @@ extern_logging_category(parser);
 // -- BoundFunctionDecl -----------------------------------------------------
 
 BoundFunctionDecl::BoundFunctionDecl(std::shared_ptr<SyntaxNode> const& decl, std::shared_ptr<BoundIdentifier> identifier, BoundIdentifiers parameters)
-    : Statement(decl->token())
+    : BoundStatement(decl->token())
     , m_identifier(std::move(identifier))
     , m_parameters(std::move(parameters))
 {
 }
 
 BoundFunctionDecl::BoundFunctionDecl(std::shared_ptr<BoundFunctionDecl> const& decl)
-    : Statement(decl->token())
+    : BoundStatement(decl->token())
     , m_identifier(decl->identifier())
     , m_parameters(decl->parameters())
 {
 }
 
 BoundFunctionDecl::BoundFunctionDecl(std::shared_ptr<BoundIdentifier> identifier, BoundIdentifiers parameters)
-    : Statement(Token {})
+    : BoundStatement(Token {})
     , m_identifier(std::move(identifier))
     , m_parameters(std::move(parameters))
 {
@@ -153,21 +153,21 @@ std::string BoundIntrinsicDecl::to_string() const
 // -- BoundFunctionDef ------------------------------------------------------
 
 BoundFunctionDef::BoundFunctionDef(std::shared_ptr<FunctionDef> const& orig_def, std::shared_ptr<BoundFunctionDecl> func_decl, std::shared_ptr<Statement> statement)
-    : Statement(orig_def->token())
+    : BoundStatement(orig_def->token())
     , m_function_decl(std::move(func_decl))
     , m_statement(std::move(statement))
 {
 }
 
 BoundFunctionDef::BoundFunctionDef(Token token, std::shared_ptr<BoundFunctionDecl> func_decl, std::shared_ptr<Statement> statement)
-    : Statement(std::move(token))
+    : BoundStatement(std::move(token))
     , m_function_decl(std::move(func_decl))
     , m_statement(std::move(statement))
 {
 }
 
 BoundFunctionDef::BoundFunctionDef(std::shared_ptr<BoundFunctionDef> const& orig_def, std::shared_ptr<Statement> statement)
-    : Statement(orig_def->token())
+    : BoundStatement(orig_def->token())
     , m_function_decl(orig_def->declaration())
     , m_statement(std::move(statement))
 {
@@ -221,6 +221,11 @@ std::string BoundFunctionDef::to_string() const
         ret += m_statement->to_string();
     }
     return ret;
+}
+
+bool BoundFunctionDef::is_fully_bound() const
+{
+    return (m_statement == nullptr) || m_statement->is_fully_bound();
 }
 
 // -- BoundFunctionCall -----------------------------------------------------
