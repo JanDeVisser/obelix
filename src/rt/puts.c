@@ -6,7 +6,7 @@
 
 #include <rt/obelix.h>
 
-int fputs(int fd, string s)
+int obl_fputs(int fd, string s)
 {
     char *ptr = (char *) s.data;
     size_t len = s.length;
@@ -20,19 +20,19 @@ int fputs(int fd, string s)
     return ret;
 }
 
-int puts(string s)
+int obl_puts(string s)
 {
-    return fputs(1, s);
+    return obl_fputs(1, s);
 }
 
-int eputs(string s)
+int obl_eputs(string s)
 {
-    return fputs(2, s);
+    return obl_fputs(2, s);
 }
 
 int putln(string s)
 {
-    int ret = puts(s);
+    int ret = obl_puts(s);
     if (ret < 0)
         return ret;
     ret = write(1, "\n", 1);
@@ -65,12 +65,12 @@ int putln_s(int64_t i)
 
 int putint(int64_t num)
 {
-    return puts(to_string_s(num, 10));
+    return obl_puts(to_string_s(num, 10));
 }
 
 int puthex(int64_t num)
 {
-    return puts(to_string_s(num, 16));
+    return obl_puts(to_string_s(num, 16));
 }
 
 int cputs(char *s)
@@ -83,7 +83,7 @@ int cputs(char *s)
 
 int cputln(int8_t *s)
 {
-    int ret = cputs(s);
+    int ret = cputs((char *) s);
     if (ret < 0)
         return ret;
     ret = write(1, "\n", 1);

@@ -4,9 +4,17 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
+#include <stdio.h>
+
 #include <rt/obelix.h>
 
 extern int obelix_main(int32_t, int8_t**);
+
+void obelix_fatal(token token, char const* msg)
+{
+    fprintf(stderr, "%s:%d:%d: Runtime error: %s\n", token.file_name, token.line_start, token.column_start, msg);
+    exit(-1);
+}
 
 int main(int argc, char** argv)
 {

@@ -20,6 +20,16 @@ typedef struct _string {
   uint8_t* data;
 } string;
 
+typedef struct _token {
+    char const* file_name;
+    int line_start;
+    int column_start;
+    int line_end;
+    int column_end;
+} token;
+
+extern void obelix_fatal(token, char const*);
+
 extern void exit(int status);
 extern void * malloc(size_t size);
 
@@ -29,9 +39,9 @@ extern ssize_t write(int fildes, const void *buf, size_t nbyte);
 extern ssize_t read(int fildes, void *buf, size_t nbyte);
 extern int64_t fsize(int fd);
 
-extern int fputs(int, string);
-extern int puts(string);
-extern int eputs(string);
+extern int obl_fputs(int, string);
+extern int obl_puts(string);
+extern int obl_eputs(string);
 extern int putln(string);
 extern int putln_s(int64_t);
 extern int putln_u(uint64_t);
