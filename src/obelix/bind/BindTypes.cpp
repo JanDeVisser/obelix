@@ -15,7 +15,7 @@
 
 namespace Obelix {
 
-extern_logging_category(parser);
+logging_category(bind);
 
 ErrorOr<std::shared_ptr<BoundExpression>, SyntaxError> make_function_call(BindContext& ctx, std::shared_ptr<BoundFunction> function, std::shared_ptr<BoundExpressionList> arguments)
 {
