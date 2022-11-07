@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include <obelix/syntax/Syntax.h>
+#include <obelix/syntax/Forward.h>
 #include <obelix/syntax/Type.h>
 #include <obelix/syntax/Expression.h>
 #include <obelix/syntax/Statement.h>
