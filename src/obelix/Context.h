@@ -9,7 +9,7 @@
 #include <functional>
 #include <iostream>
 #include <memory>
-#include <unordered_map>
+#include <map>
 #include <vector>
 
 #include <core/Error.h>
@@ -118,9 +118,23 @@ public:
             return m_parent->unset(name);
     }
 
-    [[nodiscard]] std::unordered_map<std::string, T> const& names() const
+    [[nodiscard]] std::map<std::string, T> const& names() const
     {
         return m_names;
+    }
+
+    [[nodiscard]] std::map<std::string, T> const& global_names() const
+    {
+        if (m_parent)
+            return m_parent->global_names();
+        return m_names;
+    }
+
+    void clear_global_names()
+    {
+        if (m_parent)
+            return m_parent->clear_global_names();
+        m_names.clear();
     }
 
     void dump(int level) const
@@ -161,7 +175,7 @@ protected:
     [[nodiscard]] std::vector<Context<T>*> const& children() const { return m_children; }
 
 private:
-    std::unordered_map<std::string, T> m_names {};
+    std::map<std::string, T> m_names {};
     Context<T>* m_parent { nullptr };
     std::vector<Context<T>*> m_children {};
     std::vector<SyntaxError> m_errors {};
