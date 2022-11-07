@@ -218,6 +218,12 @@ Compilation::Compilation(Modules modules, std::string main_module)
     }
 }
 
+Compilation::Compilation(std::string main_module)
+    : SyntaxNode(Token {})
+    , m_main_module(std::move(main_module))
+{
+}
+
 Modules const& Compilation::modules() const
 {
     return m_modules;

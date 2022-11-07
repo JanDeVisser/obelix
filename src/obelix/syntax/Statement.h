@@ -106,6 +106,7 @@ using Modules = std::vector<pModule>;
 NODE_CLASS(Compilation, SyntaxNode)
 public:
     Compilation(Modules, std::string);
+    explicit Compilation(std::string);
     [[nodiscard]] Modules const& modules() const;
     [[nodiscard]] std::shared_ptr<Module> const& root() const;
     [[nodiscard]] std::string const& main_module() const;
