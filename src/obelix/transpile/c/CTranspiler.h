@@ -6,11 +6,11 @@
 
 #pragma once
 
-#include <obelix/Parser.h>
+#include <obelix/Config.h>
 #include <obelix/Processor.h>
 
 namespace Obelix {
 
-ErrorOrNode transpile_to_c(std::shared_ptr<SyntaxNode> const&, Config const& config, std::string const& = "");
+ProcessResult transpile_to_c(std::shared_ptr<SyntaxNode> const&, Config const& config, std::string const& = "");
 
 }

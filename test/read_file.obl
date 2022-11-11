@@ -1,34 +1,17 @@
-// O_RDONLY 0x0000
-// O_RDWR 0x0002
-// O_WRONLY 0x0001
-
 func main() : int {
-  var fd : int = open("read_file.obl", O_RDWR);
-  if (fd < 0) {
-     putln("Error opening file!");
-     return fd;
+  var fd: int/int = open("read_file.obl", 0x0000u32)
+  if (error(fd)) {
+     putln("Error opening file!")
+     return fd.error
   }
-  puts("fd: ");  puti(fd); putln("");
-  var sz : int = fsize(fd);
-  if (sz < 0) {
-     puts("Error stat-ing file: ");
-     puti(sz);
-     putln("");
-     return fd;
+  puts("fd: ") puti(fd); putln("")
+  var sz: s64/int = fsize(fd)
+  if (error(sz) < 0) {
+     puts("Error stat-ing file: ")
+     puti(sz.error)
+     putln("")
+     return sz.error
   }
-  puts("sz: ");  puti(sz); putln("");
-/*
-  puts("3\n");
-  var buffer : ptr = allocate(sz+1);
-  puts("4\n");
-  memset(buffer, 0, sz+1);
-  puts("5\n");
-  read(fd, buffer, sz);
-  puts("6\n");
-  close(fd);
-  puts("7\n");
-  write(1, buffer, sz);
-  puts("8\n");
-*/
+  puts("sz: ") puti(sz) putln("")
   return 0;
 }

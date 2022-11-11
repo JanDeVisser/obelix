@@ -4,49 +4,20 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
-#include "lexer/Token.h"
 #include <memory>
-#include <obelix/BoundSyntaxNode.h>
-#include <obelix/Intrinsics.h>
-#include <obelix/Parser.h>
+
 #include <obelix/Syntax.h>
-#include <optional>
-#include <type_traits>
+#include <obelix/parser/Parser.h>
 
 namespace Obelix {
 
-logging_category(parser);
+extern_logging_category(parser);
 
-Parser::Parser(Config const& config, std::string const& file_name)
-    : BasicParser(file_name, new ObelixBufferLocator(config))
-    , m_config(config)
+Parser::Parser(ParserContext& ctx, std::string const& file_name)
+    : BasicParser(file_name, new ObelixBufferLocator(ctx.config))
+    , m_ctx(ctx)
 {
-    initialize();
-    m_current_module = file_name;
-    if (m_current_module.starts_with("./"))
-        m_current_module = m_current_module.substr(2);
-    if (m_current_module.ends_with(".obl"))
-        m_current_module = m_current_module.substr(0, m_current_module.length()-4);
-}
-
-Parser::Parser(Config const& config, StringBuffer& src)
-    : BasicParser(src)
-    , m_config(config)
-{
-    m_current_module = "--stdin";
-    initialize();
-}
-
-Parser::Parser(Config const& config)
-    : BasicParser()
-    , m_config(config)
-{
-    m_current_module = "--stdin";
-    initialize();
-}
-
-void Parser::initialize()
-{
+    m_current_module = sanitize_module_name(file_name);
     lexer().add_scanner<QStringScanner>();
     lexer().add_scanner<IdentifierScanner>();
     lexer().add_scanner<NumberScanner>(Obelix::NumberScanner::Config { true, false, true, false, true });
@@ -98,47 +69,7 @@ void Parser::initialize()
         TokenCode::ShiftRight);
 }
 
-std::shared_ptr<Compilation> Parser::parse(std::string const& text)
-{
-    lexer().assign(text);
-    return parse();
-}
-
-std::shared_ptr<Compilation> Parser::parse()
-{
-    clear_errors();
-    m_modules.clear();
-    Modules modules;
-    auto main_module = parse_module();
-    if (errors().empty() && m_config.import_root) {
-        auto root = parse_module("");
-        modules.push_back(root);
-    }
-    if (errors().empty()) {
-        for (auto& module_name : m_modules) {
-            auto imported_module = parse_module(module_name);
-            if (imported_module)
-                modules.push_back(imported_module);
-        }
-        modules.push_back(main_module);
-        return std::make_shared<Compilation>(modules, main_module->name());
-    }
-    return nullptr;
-}
-
-std::shared_ptr<Module> Parser::parse_module(std::string const& module_name)
-{
-    m_current_module = module_name;
-    if (m_current_module.starts_with("./"))
-        m_current_module = m_current_module.substr(2);
-    if (m_current_module.ends_with(".obl"))
-        m_current_module = m_current_module.substr(0, m_current_module.length()-4);
-    if (auto ret = read_file(module_name, new ObelixBufferLocator(m_config)); ret.is_error())
-        return nullptr;
-    return parse_module();
-}
-
-std::shared_ptr<Module> Parser::parse_module()
+std::shared_ptr<Module> Parser::parse()
 {
     Statements statements;
     parse_statements(statements, true);
@@ -151,7 +82,7 @@ std::shared_ptr<Statement> Parser::parse_top_level_statement()
 {
     debug(parser, "Parser::parse_top_level_statement");
     auto token = peek();
-    std::shared_ptr<Statement> ret = nullptr;
+    std::shared_ptr<Statement> ret;
     switch (token.code()) {
     case TokenCode::SemiColon:
         return std::make_shared<Pass>(lex());
@@ -197,7 +128,7 @@ std::shared_ptr<Statement> Parser::parse_statement()
 {
     debug(parser, "Parser::parse_statement");
     auto token = peek();
-    std::shared_ptr<Statement> ret = nullptr;
+    std::shared_ptr<Statement> ret;
     switch (token.code()) {
     case TokenCode::SemiColon:
         return std::make_shared<Pass>(lex());
@@ -228,7 +159,7 @@ std::shared_ptr<Statement> Parser::parse_statement()
         if (!expr)
             return nullptr;
         return std::make_shared<Return>(token, expr);
-    };
+    }
     case TokenCode::Identifier: {
         if (token.value() == "error") {
             lex();
@@ -577,7 +508,7 @@ std::shared_ptr<Import> Parser::parse_import_statement(Token const& import_token
         lex();
         module_name += '/';
     }
-    m_modules.push_back(module_name);
+    m_ctx.modules.insert(module_name);
     return std::make_shared<Import>(import_token, module_name);
 }
 

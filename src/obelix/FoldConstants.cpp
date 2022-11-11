@@ -6,7 +6,6 @@
 
 #include <memory>
 #include <obelix/BoundSyntaxNode.h>
-#include <obelix/Parser.h>
 #include <obelix/Processor.h>
 #include <obelix/SyntaxNodeType.h>
 #include <obelix/interp/Interp.h>
@@ -15,17 +14,9 @@ namespace Obelix {
 
 extern_logging_category(parser);
 
-class FoldContext : public Context<std::shared_ptr<BoundLiteral>> {
+class FoldContextPayload {
 public:
-    FoldContext()
-        : Context()
-    {
-    }
-
-    explicit FoldContext(FoldContext& parent)
-        : Context(parent)
-    {
-    }
+    FoldContextPayload() = default;
 
     void push_switch_expression(std::shared_ptr<BoundExpression> const& expr)
     {
@@ -44,13 +35,13 @@ public:
             return nullptr;
         return m_switch_expressions.back();
     }
-
 private:
     std::vector<std::shared_ptr<BoundExpression>> m_switch_expressions;
-
 };
 
-INIT_NODE_PROCESSOR(FoldContext);
+using FoldContext = Context<pBoundLiteral, FoldContextPayload>;
+
+INIT_NODE_PROCESSOR(FoldContext)
 
 NODE_PROCESSOR(BoundVariableDeclaration)
 {
@@ -71,7 +62,7 @@ NODE_PROCESSOR(BoundVariableDeclaration)
     }
 }
 
-ALIAS_NODE_PROCESSOR(BoundStaticVariableDeclaration, BoundVariableDeclaration);
+ALIAS_NODE_PROCESSOR(BoundStaticVariableDeclaration, BoundVariableDeclaration)
 
 NODE_PROCESSOR(BoundIntrinsicCall)
 {
@@ -163,12 +154,12 @@ NODE_PROCESSOR(BoundBranch)
 {
     auto branch = std::dynamic_pointer_cast<BoundBranch>(tree);
     auto cond = branch->condition();
-    if (auto switch_expr = ctx.last_switch_expression(); switch_expr != nullptr && cond != nullptr) {
+    if (auto switch_expr = ctx.data().last_switch_expression(); switch_expr != nullptr && cond != nullptr) {
         cond = std::make_shared<BoundBinaryExpression>(branch->token(), switch_expr, BinaryOperator::Equals, branch->condition(), ObjectType::get(PrimitiveType::Boolean));
     }
     auto stmt = TRY_AND_CAST(Statement, branch->statement(), ctx);
     if (cond == nullptr)
-        return std::make_shared<BoundBranch>(branch->token(), nullptr, stmt);;
+        return std::make_shared<BoundBranch>(branch->token(), nullptr, stmt);
     cond = TRY_AND_CAST(BoundExpression, cond, ctx);
 
     auto cond_literal = std::dynamic_pointer_cast<BoundBooleanLiteral>(cond);
@@ -184,7 +175,7 @@ NODE_PROCESSOR(BoundBranch)
     return std::make_shared<BoundBranch>(branch->token(), cond, stmt);
 }
 
-ErrorOr<BoundBranches, SyntaxError> new_branches(BoundBranches current_branches, FoldContext& ctx)
+ErrorOr<BoundBranches, SyntaxError> new_branches(BoundBranches current_branches, FoldContext& ctx, ProcessResult &result)
 {
     Statements branches;
     for (auto const& branch : current_branches) {
@@ -221,9 +212,9 @@ ErrorOr<BoundBranches, SyntaxError> new_branches(BoundBranches current_branches,
 NODE_PROCESSOR(BoundIfStatement)
 {
     auto stmt = std::dynamic_pointer_cast<BoundIfStatement>(tree);
-    ctx.push_switch_expression(nullptr);
-    auto branches = TRY(new_branches(stmt->branches(), ctx));
-    ctx.pop_switch_expression();
+    ctx.data().push_switch_expression(nullptr);
+    auto branches = TRY(new_branches(stmt->branches(), ctx, result));
+    ctx.data().pop_switch_expression();
 
     if (branches.empty())
         // Nothing left. Everything was false and there was no 'else' branch:
@@ -240,9 +231,9 @@ NODE_PROCESSOR(BoundSwitchStatement)
 {
     auto stmt = std::dynamic_pointer_cast<BoundSwitchStatement>(tree);
     auto expr = TRY_AND_CAST(BoundExpression, stmt->expression(), ctx);
-    ctx.push_switch_expression(expr);
-    auto branches = TRY(new_branches(stmt->cases(), ctx));
-    ctx.pop_switch_expression();
+    ctx().push_switch_expression(expr);
+    auto branches = TRY(new_branches(stmt->cases(), ctx, result));
+    ctx().pop_switch_expression();
     auto default_branch = TRY_AND_CAST(BoundBranch, stmt->default_case(), ctx);
 
     // Nothing left. Everything was false:
@@ -260,9 +251,11 @@ NODE_PROCESSOR(BoundSwitchStatement)
     return std::make_shared<BoundSwitchStatement>(stmt->token(), expr, branches, default_branch);
 }
 
-ErrorOrNode fold_constants(std::shared_ptr<SyntaxNode> const& tree)
+ProcessResult fold_constants(std::shared_ptr<SyntaxNode> const& tree)
 {
-    return process<FoldContext>(tree);
+    Config config;
+    FoldContext ctx(config);
+    return process<FoldContext>(tree, ctx);
 }
 
 }

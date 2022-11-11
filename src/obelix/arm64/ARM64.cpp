@@ -12,7 +12,6 @@
 #include <core/Logging.h>
 #include <core/Process.h>
 #include <core/ScopeGuard.h>
-#include <obelix/Parser.h>
 #include <obelix/Processor.h>
 #include <obelix/arm64/ARM64.h>
 #include <obelix/arm64/ARM64Context.h>
@@ -30,7 +29,7 @@ NODE_PROCESSOR(BoundCompilation)
 {
     auto compilation = std::dynamic_pointer_cast<BoundCompilation>(tree);
     ctx.add_module(ARM64Context::ROOT_MODULE_NAME);
-    return process_tree(tree, ctx, ARM64Context_processor);
+    return process_tree(tree, ctx, result, ARM64Context_processor);
 }
 
 NODE_PROCESSOR(BoundModule)
@@ -40,7 +39,7 @@ NODE_PROCESSOR(BoundModule)
     if (name.starts_with("./"))
         name = name.substr(2);
     ctx.add_module(join(split(name, '/'), "-"));
-    TRY_RETURN(process_tree(module->block(), ctx, ARM64Context_processor));
+    TRY_RETURN(process_tree(module->block(), ctx, result, ARM64Context_processor));
     return tree;
 }
 
@@ -303,7 +302,6 @@ NODE_PROCESSOR(MaterializedVariableDecl)
         TRY_RETURN(process(var_decl->expression(), ctx));
         auto error_maybe = ctx.store_variable(var_decl->type(), var_decl->offset(), 0);
         if (error_maybe.is_error()) {
-            ctx.add_error(error_maybe.error());
             return error_maybe.error();
         }
     } else {
@@ -461,7 +459,7 @@ NODE_PROCESSOR(BoundIfStatement)
     return tree;
 }
 
-ErrorOrNode output_arm64(std::shared_ptr<SyntaxNode> const& tree, Config const& config, std::string const& file_name)
+ProcessResult output_arm64(std::shared_ptr<SyntaxNode> const& tree, Config const& config, std::string const& file_name)
 {
     auto processed = TRY(materialize_arm64(tree));
     if (config.cmdline_flag<bool>("show-tree"))
@@ -473,7 +471,7 @@ ErrorOrNode output_arm64(std::shared_ptr<SyntaxNode> const& tree, Config const& 
     if (!config.compile)
         return processed;
 
-    ARM64Context root;
+    ARM64Context root(config);
     auto ret = process(processed, root);
 
     if (ret.is_error()) {

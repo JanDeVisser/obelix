@@ -9,15 +9,15 @@
 #include <obelix/BoundSyntaxNode.h>
 #include <obelix/Context.h>
 #include <obelix/Intrinsics.h>
-#include <obelix/Parser.h>
 #include <obelix/Processor.h>
 #include <obelix/bind/BindContext.h>
+#include <obelix/parser/Parser.h>
 
 namespace Obelix {
 
 logging_category(bind);
 
-ErrorOr<std::shared_ptr<BoundExpression>, SyntaxError> make_function_call(BindContext& ctx, std::shared_ptr<BoundFunction> function, std::shared_ptr<BoundExpressionList> arguments)
+ErrorOr<std::shared_ptr<BoundExpression>, SyntaxError> make_function_call(BindContext& ctx, std::shared_ptr<SyntaxNode> function, std::shared_ptr<BoundExpressionList> arguments)
 {
     BoundExpressions args;
     ObjectTypes arg_types;
@@ -28,25 +28,34 @@ ErrorOr<std::shared_ptr<BoundExpression>, SyntaxError> make_function_call(BindCo
             return SyntaxError { ErrorCode::TypeMismatch, function->token() };
         arg_types.push_back(type_maybe.value());
     }
-    std::shared_ptr<BoundFunctionDecl> func_decl;
-    switch (function->node_type()) {
-    case SyntaxNodeType::BoundLocalFunction: {
-        func_decl = ctx.match(function->name(), arg_types, true);
-        break;
-    }
-    case SyntaxNodeType::BoundImportedFunction: {
-        auto imported_func = std::dynamic_pointer_cast<BoundImportedFunction>(function);
-        func_decl = imported_func->module()->resolve(function->name(), arg_types);
-        break;
-    }
-    default:
-        fatal("Unreachable: {}", function->node_type());
-    }
-    if (func_decl == nullptr) {
-        ctx.add_unresolved_function(make_functioncall(function, arg_types));
-        return std::make_shared<BoundBinaryExpression>(function->token(), function, BinaryOperator::Call, arguments, ObjectType::get("s64")); // FIXME
+
+    pBoundFunction bound_function;
+    if (auto variable = std::dynamic_pointer_cast<Variable>(function); variable != nullptr) {
+        if (auto declaration = ctx.match(variable->name(), arg_types, true); declaration != nullptr) {
+            bound_function = std::make_shared<BoundLocalFunction>(variable->token(), declaration);
+        } else {
+            ctx.add_unresolved_function(make_functioncall(variable, arg_types));
+            return nullptr;
+        }
     }
 
+    if (auto member_access = std::dynamic_pointer_cast<BoundMemberAccess>(function); member_access != nullptr) {
+        auto module = std::dynamic_pointer_cast<BoundModule>(member_access->structure());
+        if (module == nullptr) {
+            return SyntaxError { ErrorCode::ObjectNotCallable, member_access };
+        }
+        if (auto declaration = ctx.match(member_access->structure()->qualified_name(), member_access->member()->name(), arg_types); declaration != nullptr) {
+            bound_function = std::make_shared<BoundImportedFunction>(member_access->token(), module, declaration);
+        } else {
+            ctx.add_unresolved_function(make_functioncall(member_access, arg_types));
+            return nullptr;
+        }
+    }
+    if (bound_function == nullptr) {
+        return SyntaxError { ErrorCode::ObjectNotCallable, function->to_string() };
+    }
+
+    auto func_decl = bound_function->declaration();
     switch (func_decl->node_type()) {
     case SyntaxNodeType::BoundIntrinsicDecl: {
         auto intrinsic = IntrinsicType_by_name(func_decl->name());
@@ -125,10 +134,10 @@ ErrorOr<pBoundExpression, SyntaxError> make_expression_for_assignment(pBoundExpr
 }
 
 template<class Ctx>
-ErrorOrTypedNode<Statement> process_branch(std::shared_ptr<Branch> const& branch, Ctx& ctx)
+ErrorOrTypedNode<Statement> process_branch(std::shared_ptr<Branch> const& branch, Ctx& ctx, ProcessResult& result)
 {
     auto bound_condition = TRY_AND_TRY_CAST_RETURN(BoundExpression, branch->condition(), ctx, branch);
-    auto statement_processed_maybe = try_and_cast<Statement>(branch->statement(), ctx);
+    auto statement_processed_maybe = try_and_cast<Statement>(branch->statement(), ctx, result);
     if (statement_processed_maybe.is_error())
         return statement_processed_maybe.error();
     auto statement_processed = statement_processed_maybe.value();
@@ -141,7 +150,7 @@ ErrorOrTypedNode<Statement> process_branch(std::shared_ptr<Branch> const& branch
 
 #define PROCESS_BRANCH(tree, branch, ctx)                                                    \
     ({                                                                                       \
-        auto __processed_branch = process_branch(branch, ctx);                               \
+        auto __processed_branch = process_branch(branch, ctx, result);                       \
         if (__processed_branch.is_error())                                                   \
             return __processed_branch.error();                                               \
         auto __bound_branch = __processed_branch.value();                                    \
@@ -157,7 +166,7 @@ ErrorOrTypedNode<Statement> process_branch(std::shared_ptr<Branch> const& branch
     ({                                                                                           \
         BoundBranches __bound_branches;                                                          \
         for (auto const& __branch : branches) {                                                  \
-            auto __processed_branch = process_branch(__branch, ctx);                             \
+            auto __processed_branch = process_branch(__branch, ctx, result);                     \
             if (__processed_branch.is_error())                                                   \
                 return __processed_branch.error();                                               \
             auto __bound_branch = __processed_branch.value();                                    \
@@ -278,7 +287,8 @@ NODE_PROCESSOR(Module)
 {
     auto module = std::dynamic_pointer_cast<Module>(tree);
     assert(ctx.type() == BindContextType::RootContext);
-    BindContext module_ctx(ctx, module->name());
+    std::cout << "Pass " << ctx.stage << ": " << module->name() << "\n"; // "...\015";
+    auto& module_ctx = ctx.make_modulecontext(module->name());
     Statements statements;
     for (auto& stmt : module->statements()) {
         statements.push_back(TRY_AND_CAST(Statement, stmt, module_ctx));
@@ -295,7 +305,7 @@ NODE_PROCESSOR(BoundModule)
     if (module->is_fully_bound())
         return tree;
     assert(ctx.type() == BindContextType::RootContext);
-    BindContext module_ctx(ctx, module->name());
+    auto& module_ctx = ctx.make_modulecontext(module->name());
     Statements statements;
     for (auto& stmt : module->block()->statements()) {
         statements.push_back(TRY_AND_CAST(Statement, stmt, module_ctx));
@@ -394,7 +404,7 @@ NODE_PROCESSOR(FunctionDef)
 
     std::shared_ptr<Statement> func_block { nullptr };
     if (func_def->statement()) {
-        BindContext func_ctx(ctx, BindContextType::SubContext);
+        auto& func_ctx = ctx.make_subcontext();
         for (auto& param : decl->parameters()) {
             auto dummy_decl = std::make_shared<VariableDeclaration>(param->token(), std::make_shared<Identifier>(param->token(), param->name()));
             func_ctx.declare(param->name(), std::make_shared<BoundVariableDeclaration>(dummy_decl, param, nullptr));
@@ -412,7 +422,7 @@ NODE_PROCESSOR(BoundFunctionDef)
         return tree;
 
     std::shared_ptr<Statement> func_block { nullptr };
-    BindContext func_ctx(ctx, BindContextType::SubContext);
+    auto& func_ctx = ctx.make_subcontext();
     for (auto& param : func_def->declaration()->parameters()) {
         auto dummy_decl = std::make_shared<VariableDeclaration>(param->token(), std::make_shared<Identifier>(param->token(), param->name()));
         func_ctx.declare(param->name(), std::make_shared<BoundVariableDeclaration>(dummy_decl, param, nullptr));
@@ -473,7 +483,8 @@ NODE_PROCESSOR(BinaryExpression)
         if (lhs == nullptr)
             return SyntaxError { ErrorCode::SyntaxError, expr->token(), format("Cannot access member {} of {}", expr->rhs(), expr->lhs()) };
         switch (lhs->type()->type()) {
-        case PrimitiveType::Struct: {
+        case PrimitiveType::Struct:
+        case PrimitiveType::Module: {
             auto field_var = std::dynamic_pointer_cast<Variable>(rhs);
             if (field_var == nullptr)
                 return SyntaxError { ErrorCode::NotMember, rhs->token(), rhs, lhs };
@@ -508,18 +519,6 @@ NODE_PROCESSOR(BinaryExpression)
             }
             return SyntaxError { ErrorCode::NotMember, rhs->token(), rhs, lhs };
         }
-        case PrimitiveType::Module: {
-            auto module = std::dynamic_pointer_cast<BoundModule>(lhs);
-            auto module_member = std::dynamic_pointer_cast<Variable>(rhs);
-            if (module_member == nullptr)
-                return SyntaxError { ErrorCode::CannotAccessMember, rhs->token(), rhs->to_string() };
-            auto func = module->exported(module_member->name());
-            if (func != nullptr) {
-                ctx.add_imported_function(func);
-                return std::make_shared<BoundImportedFunction>(rhs->token(), module, func);
-            }
-            return SyntaxError { ErrorCode::CannotAccessMember, rhs->token(), rhs->to_string() };
-        }
         default:
             return SyntaxError { ErrorCode::CannotAccessMember, lhs->token(), lhs->to_string() };
         }
@@ -533,17 +532,9 @@ NODE_PROCESSOR(BinaryExpression)
         if (rhs_bound->type()->type() != PrimitiveType::List)
             return SyntaxError { ErrorCode::SyntaxError, format("Cannot call {} with {}", lhs, expr->rhs()) };
         auto arg_list = std::dynamic_pointer_cast<BoundExpressionList>(rhs_bound);
-        ObjectTypes arg_types = arg_list->expression_types();
-        if (lhs == nullptr) {
-            if (auto variable = std::dynamic_pointer_cast<Variable>(expr->lhs()); variable != nullptr) {
-                if (auto declaration = ctx.match(variable->name(), arg_types, true); declaration != nullptr) {
-                    lhs = std::make_shared<BoundLocalFunction>(variable->token(), declaration);
-                }
-            }
-        }
-        if (lhs == nullptr || lhs->type()->type() != PrimitiveType::Function)
-            return SyntaxError { ErrorCode::ObjectNotCallable, expr->lhs() };
-        auto ret = TRY(make_function_call(ctx, std::dynamic_pointer_cast<BoundFunction>(lhs), std::dynamic_pointer_cast<BoundExpressionList>(rhs_bound)));
+        auto ret = TRY(make_function_call(ctx,
+            (lhs != nullptr) ? std::dynamic_pointer_cast<SyntaxNode>(lhs) : std::dynamic_pointer_cast<SyntaxNode>(expr->lhs()),
+            arg_list));
         if (ret == nullptr)
             return tree;
         return ret;
@@ -709,7 +700,7 @@ NODE_PROCESSOR(Variable)
         auto module = std::dynamic_pointer_cast<BoundModule>(declaration_maybe.value());
         if (module != nullptr)
             return module;
-        return SyntaxError { ErrorCode::SyntaxError, variable->token(), format("Identifier '{}' cannot be referenced as a variable, it's a {}", variable->name(), declaration_maybe.value()) };
+        fatal("Identifier '{}' cannot be referenced as a variable, it's a {}", variable->name(), declaration_maybe.value()->node_type());
     }
     return tree;
 }
@@ -870,12 +861,12 @@ NODE_PROCESSOR(SwitchStatement)
     return std::make_shared<BoundSwitchStatement>(stmt->token(), bound_expression, bound_branches, bound_default_case);
 }
 
-ErrorOrNode bind_types(std::shared_ptr<SyntaxNode> const& tree, Config const& config)
+ProcessResult bind_types(std::shared_ptr<SyntaxNode> const& tree, Config const& config)
 {
     BindContext root;
     auto new_unbound = std::numeric_limits<int>().max();
     int unbound;
-    int passes = 1;
+    root.stage = 1;
     pSyntaxNode t = tree;
     std::cout << "Type checking...\n";
     do {
@@ -889,18 +880,21 @@ ErrorOrNode bind_types(std::shared_ptr<SyntaxNode> const& tree, Config const& co
         auto compilation = std::dynamic_pointer_cast<BoundCompilation>(t);
         assert(compilation != nullptr);
         new_unbound = compilation->unbound_statements();
-        std::cout << "Pass " << passes++ << ": " << new_unbound << " unbound statements" << '\015';
+        std::cout << "Pass " << root.stage++ << ": " << new_unbound << " unbound statements" << '\n';
+        root.dump();
     } while (new_unbound > 0 && new_unbound < unbound);
     std::cout << "\n";
 
     if (new_unbound > 0) {
         if (config.cmdline_flag<bool>("show-tree"))
-            std::cout << "\nNot all types bound:\n" << t->to_xml() << "\n";
+            std::cout << "\nNot all types bound:\n"
+                      << t->to_xml() << "\n";
         return SyntaxError { ErrorCode::SyntaxError, t->token(), "Cyclical dependencies or untyped objects remain" };
     }
 
     if (config.cmdline_flag<bool>("show-tree"))
-        std::cout << "\nTypes bound:\n" << t->to_xml() << "\n";
+        std::cout << "\nTypes bound:\n"
+                  << t->to_xml() << "\n";
 
     return t;
 }

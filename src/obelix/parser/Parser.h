@@ -6,15 +6,22 @@
 
 #pragma once
 
-#include <unordered_map>
-#include <unordered_set>
+#include <memory>
+#include <map>
+#include <set>
 
 #include <lexer/BasicParser.h>
-#include <lexer/Lexer.h>
-#include <obelix/Config.h>
-#include <obelix/Syntax.h>
+#include <obelix/syntax/Forward.h>
+#include <obelix/Context.h>
+#include <obelix/Intrinsics.h>
+#include <obelix/Processor.h>
 
 namespace Obelix {
+
+struct ParserContext {
+    Config const& config;
+    std::set<std::string> modules;
+};
 
 class Parser : public BasicParser {
 public:
@@ -60,15 +67,9 @@ public:
     constexpr static TokenCode KeywordGlobal = TokenCode::Keyword27;
     constexpr static TokenCode KeywordExtend = TokenCode::Keyword28;
 
-    Parser(Config const& parser_config, StringBuffer& src);
-    Parser(Config const& parser_config, std::string const& file_name);
-    explicit Parser(Config const& parser_config);
+    Parser(ParserContext&, std::string const&);
 
-    std::shared_ptr<Compilation> parse();
-    std::shared_ptr<Compilation> parse(std::string const&);
-
-    std::shared_ptr<Module> parse_module(std::string const&);
-    std::shared_ptr<Module> parse_module();
+    std::shared_ptr<Module> parse();
 
     static int binary_precedence(TokenCode);
     static int unary_precedence(TokenCode);
@@ -103,9 +104,13 @@ private:
     std::shared_ptr<Expression> parse_primary_expression();
     std::shared_ptr<ExpressionType> parse_type();
 
-    Config m_config;
+    ParserContext& m_ctx;
     std::vector<std::string> m_modules;
     std::string m_current_module;
 };
+
+[[nodiscard]] std::string sanitize_module_name(std::string const&);
+[[nodiscard]] ProcessResult parse(std::string const&);
+[[nodiscard]] ProcessResult compile_project(Config const&, std::string const&);
 
 }

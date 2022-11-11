@@ -19,6 +19,9 @@
 namespace Obelix {
 
 #define ABSTRACT_NODE_CLASS(name, derives_from) \
+    class name;                                 \
+    using p##name = std::shared_ptr<name>;      \
+    using name##s = std::vector<p##name>;       \
     class name                                  \
         : public derives_from {
 
@@ -76,39 +79,39 @@ using SyntaxNodes = Nodes;
 
 template<class NodeClass>
 NODE_CLASS_TEMPLATE(NodeList, SyntaxNode, public std::vector<std::shared_ptr<NodeClass>>)
-public:
+public :
 
     explicit NodeList(std::string tag)
-        : SyntaxNode()
-        , m_tag(std::move(tag))
-    {
-    }
+    : SyntaxNode()
+    , m_tag(std::move(tag))
+{
+}
 
-    NodeList(std::string tag, std::vector<std::shared_ptr<NodeClass>> nodes)
-        : SyntaxNode()
-        , std::vector<std::shared_ptr<NodeClass>>(std::move(nodes))
-        , m_tag(std::move(tag))
-    {
-    }
+NodeList(std::string tag, std::vector<std::shared_ptr<NodeClass>> nodes)
+    : SyntaxNode()
+    , std::vector<std::shared_ptr<NodeClass>>(std::move(nodes))
+    , m_tag(std::move(tag))
+{
+}
 
-    [[nodiscard]] std::string const& tag() const { return m_tag; }
+[[nodiscard]] std::string const& tag() const { return m_tag; }
 
-    [[nodiscard]] std::string attributes() const override
-    {
-        return format(R"(tag="{}")", tag());
-    }
+[[nodiscard]] std::string attributes() const override
+{
+    return format(R"(tag="{}")", tag());
+}
 
-    [[nodiscard]] Nodes children() const override
-    {
-        Nodes ret;
-        for (auto const& element : *this) {
-            ret.push_back(element);
-        }
-        return ret;
+[[nodiscard]] Nodes children() const override
+{
+    Nodes ret;
+    for (auto const& element : *this) {
+        ret.push_back(element);
     }
+    return ret;
+}
 
 private:
-    std::string m_tag;
+std::string m_tag;
 };
 
 template<class T, class... Args>

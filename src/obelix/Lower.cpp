@@ -6,16 +6,18 @@
 
 #include <obelix/Syntax.h>
 #include <obelix/BoundSyntaxNode.h>
-#include <obelix/Parser.h>
 #include <obelix/Processor.h>
 
 namespace Obelix {
 
 extern_logging_category(parser);
 
-using LowerContext = Context<int>;
+class LowerContextPayload {
+};
 
-INIT_NODE_PROCESSOR(LowerContext);
+using LowerContext = Context<bool, LowerContextPayload>;
+
+INIT_NODE_PROCESSOR(LowerContext)
 
 NODE_PROCESSOR(BoundFunctionDef)
 {
@@ -43,7 +45,7 @@ NODE_PROCESSOR(BoundSwitchStatement)
     auto switch_stmt = std::dynamic_pointer_cast<BoundSwitchStatement>(tree);
     auto switch_expr = TRY_AND_CAST(BoundExpression, switch_stmt->expression(), ctx);
 
-    if (ctx.config.target == Architecture::C_TRANSPILER) {
+    if (ctx.config().target == Architecture::C_TRANSPILER) {
         switch (switch_expr->type()->type()) {
         case PrimitiveType::IntegerNumber:
         case PrimitiveType::SignedIntegerNumber:
@@ -72,7 +74,7 @@ NODE_PROCESSOR(BoundSwitchStatement)
         auto default_stmt = TRY_AND_CAST(Statement, default_case->statement(), ctx);
         branches.push_back(std::make_shared<BoundBranch>(default_case->token(), nullptr, default_stmt));
     }
-    return process(std::make_shared<BoundIfStatement>(switch_stmt->token(), branches), ctx);
+    return TRY(process(std::make_shared<BoundIfStatement>(switch_stmt->token(), branches), ctx, result));
 }
 
 NODE_PROCESSOR(BoundWhileStatement)
@@ -81,7 +83,7 @@ NODE_PROCESSOR(BoundWhileStatement)
     auto condition = TRY_AND_CAST(BoundExpression, while_stmt->condition(), ctx);
     auto stmt = TRY_AND_CAST(Statement, while_stmt->statement(), ctx);
 
-    if (ctx.config.target == Architecture::C_TRANSPILER) {
+    if (ctx.config().target == Architecture::C_TRANSPILER) {
         return std::make_shared<BoundWhileStatement>(while_stmt, condition, stmt);
     }
 
@@ -116,12 +118,12 @@ NODE_PROCESSOR(BoundWhileStatement)
     while_block.push_back(stmt);
     while_block.push_back(std::make_shared<Goto>(while_stmt->token(), start_of_loop));
     while_block.push_back(std::make_shared<Label>(jump_out_of_loop));
-    return process(std::make_shared<Block>(while_stmt->token(), while_block), ctx);
+    return TRY(process(std::make_shared<Block>(while_stmt->token(), while_block), ctx, result));
 }
 
 NODE_PROCESSOR(BoundForStatement)
 {
-    if (ctx.config.target == Architecture::C_TRANSPILER) {
+    if (ctx.config().target == Architecture::C_TRANSPILER) {
         auto for_stmt = std::dynamic_pointer_cast<BoundForStatement>(tree);
         auto variable = TRY_AND_CAST(BoundVariable, for_stmt->variable(), ctx);
         auto range = std::dynamic_pointer_cast<BoundBinaryExpression>(for_stmt->range());
@@ -197,7 +199,7 @@ NODE_PROCESSOR(BoundForStatement)
                 variable_type)));
     for_block.push_back(std::make_shared<Goto>(for_stmt->token(), jump_back_label));
     for_block.push_back(std::make_shared<Label>(jump_past_loop));
-    return process(std::make_shared<Block>(stmt->token(), for_block), ctx);
+    return TRY(process(std::make_shared<Block>(stmt->token(), for_block), ctx, result));
 }
 
 NODE_PROCESSOR(BoundBinaryExpression)
@@ -257,11 +259,10 @@ NODE_PROCESSOR(BoundUnaryExpression)
     return tree;
 }
 
-ErrorOrNode lower(std::shared_ptr<SyntaxNode> const& tree, Config const& config)
+ProcessResult lower(std::shared_ptr<SyntaxNode> const& tree, Config const& config)
 {
-    LowerContext ctx;
-    ctx.config = config;
-    auto lowered = TRY(process<LowerContext>(tree));
+    LowerContext ctx { config };
+    auto lowered = TRY(process<LowerContext>(tree, ctx));
     return resolve_operators(lowered);
 }
 

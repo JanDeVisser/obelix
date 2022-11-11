@@ -8,7 +8,6 @@
 #include "obelix/Syntax.h"
 #include <memory>
 #include <obelix/BoundSyntaxNode.h>
-#include <obelix/Parser.h>
 #include <obelix/Processor.h>
 #include <obelix/SyntaxNodeType.h>
 #include <obelix/interp/Context.h>
@@ -18,14 +17,15 @@ namespace Obelix {
 
 extern_logging_category(parser);
 
-ErrorOrNode interpret(std::shared_ptr<SyntaxNode> expr, InterpContext &ctx)
+ProcessResult interpret(std::shared_ptr<SyntaxNode> expr, InterpContext &ctx)
 {
     return process<InterpContext>(expr, ctx);
 }
 
-ErrorOrNode interpret(std::shared_ptr<SyntaxNode> expr)
+ProcessResult interpret(std::shared_ptr<SyntaxNode> expr)
 {
-    InterpContext ctx;
+    Config config;
+    InterpContext ctx(config);
     return interpret(expr, ctx);
 }
 

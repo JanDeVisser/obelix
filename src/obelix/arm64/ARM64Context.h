@@ -253,18 +253,34 @@ private:
     std::unordered_map<std::string, int> m_strings {};
 };
 
-class ARM64Context : public Context<int> {
+struct ARM64ContextPayload {
+    ARM64ContextPayload()
+        : m_assembly()
+    {
+    }
+
+    std::shared_ptr<Assembly> m_assembly { nullptr };
+    size_t m_stack_allocated { 0 };
+    std::vector<size_t> m_stack_depth {};
+    static std::vector<std::shared_ptr<MaterializedFunctionDef>> s_function_stack;
+    static std::unordered_map<std::string, std::shared_ptr<Assembly>> s_assemblies;
+    static unsigned long s_counter;
+};
+
+class ARM64Context : public Context<int, ARM64ContextPayload> {
 public:
     constexpr static char const* ROOT_MODULE_NAME = "__obelix__root";
 
-    ARM64Context(ARM64Context& parent);
-    explicit ARM64Context(ARM64Context* parent);
-    ARM64Context();
+    ARM64Context(Config const&);
+    ARM64Context(Context<int, ARM64ContextPayload>* parent)
+        : Context(parent)
+    {
+    }
 
     [[nodiscard]] std::shared_ptr<Assembly> assembly() const
     {
-        assert(m_assembly);
-        return m_assembly;
+        assert(data().m_assembly);
+        return data().m_assembly;
     }
 
     ErrorOr<void, SyntaxError> zero_initialize(std::shared_ptr<ObjectType> const&, int);
@@ -279,14 +295,14 @@ public:
 
     void add_module(std::string const& module)
     {
-        if (!s_assemblies.contains(module))
-            s_assemblies[module] = std::make_shared<Assembly>(module);
-        m_assembly = s_assemblies[module];
+        if (!data().s_assemblies.contains(module))
+            data().s_assemblies[module] = std::make_shared<Assembly>(module);
+        data().m_assembly = data().s_assemblies[module];
     }
 
     [[nodiscard]] static std::unordered_map<std::string, std::shared_ptr<Assembly>> const& assemblies()
     {
-        return s_assemblies;
+        return ARM64ContextPayload::s_assemblies;
     }
 
     void reserve_on_stack(size_t);
@@ -294,13 +310,13 @@ public:
 
     [[nodiscard]] static unsigned long counter()
     {
-        return s_counter++;
+        return ARM64ContextPayload::s_counter++;
     }
 
     [[nodiscard]] size_t stack_depth() const
     {
-        if (!m_stack_depth.empty()) {
-            return m_stack_depth.back();
+        if (!data().m_stack_depth.empty()) {
+            return data().m_stack_depth.back();
         }
         assembly()->add_comment(format("Stack depth empty!"));
         return 0;
@@ -309,29 +325,27 @@ public:
 protected:
     void stack_depth(size_t depth)
     {
-        m_stack_depth.push_back(depth);
+        data().m_stack_depth.push_back(depth);
         assembly()->add_comment(format("Set stack depth to {}", stack_depth()));
     }
 
     void pop_stack_depth()
     {
-        auto current = m_stack_depth.back();
-        m_stack_depth.pop_back();
-        if (m_stack_depth.empty()) {
+        auto current = data().m_stack_depth.back();
+        data().m_stack_depth.pop_back();
+        if (data().m_stack_depth.empty()) {
             assembly()->add_comment(format("Stack depth popped. Was {}, now empty", current));
         } else {
             assembly()->add_comment(format("Stack depth popped. Was {}, now {}", current, stack_depth()));
         }
     }
-
-private:
-    std::shared_ptr<Assembly> m_assembly { nullptr };
-    size_t m_stack_allocated { 0 };
-    std::vector<size_t> m_stack_depth {};
-    static std::vector<std::shared_ptr<MaterializedFunctionDef>> s_function_stack;
-    static std::unordered_map<std::string, std::shared_ptr<Assembly>> s_assemblies;
-    static unsigned long s_counter;
 };
+
+template<>
+inline ARM64Context& make_subcontext(ARM64Context& ctx)
+{
+    return dynamic_cast<ARM64Context&>(ctx.make_subcontext());
+}
 
 template<typename T = long>
 static inline void push(ARM64Context& ctx, std::string const& reg)

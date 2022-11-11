@@ -49,7 +49,7 @@ NODE_PROCESSOR(BoundUnaryExpression)
         break;
     }
     }
-    return process(make_node<BoundIntrinsicCall>(expr->token(), decl, BoundExpressions { operand }, intrinsic), ctx);
+    return TRY(process(make_node<BoundIntrinsicCall>(expr->token(), decl, BoundExpressions { operand }, intrinsic), ctx, result));
 }
 
 NODE_PROCESSOR(BoundBinaryExpression)
@@ -83,7 +83,7 @@ NODE_PROCESSOR(BoundBinaryExpression)
         params.push_back(make_node<BoundIdentifier>(Token {}, "ptr", lhs->type()));
         params.push_back(make_node<BoundIdentifier>(Token {}, "offset", ObjectType::get("s32")));
         auto decl = make_node<BoundIntrinsicDecl>(ident, params);
-        return process(make_node<BoundIntrinsicCall>(expr->token(), decl, BoundExpressions { lhs, offset }, IntrinsicType::ptr_math), ctx);
+        return TRY(process(make_node<BoundIntrinsicCall>(expr->token(), decl, BoundExpressions { lhs, offset }, IntrinsicType::ptr_math), ctx, result));
     }
 
     if ((rhs->node_type() == SyntaxNodeType::BoundIntLiteral) && (rhs->type()->type() == lhs->type()->type()) && (rhs->type()->size() > lhs->type()->size()))
@@ -98,12 +98,14 @@ NODE_PROCESSOR(BoundBinaryExpression)
     if (!impl.is_intrinsic || impl.intrinsic == IntrinsicType::NotIntrinsic)
         return SyntaxError { ErrorCode::InternalError, lhs->token(), format("No intrinsic defined for {}", method_descr.name()) };
     auto intrinsic = impl.intrinsic;
-    return process(make_node<BoundIntrinsicCall>(expr->token(), method_descr.declaration(), BoundExpressions { lhs, rhs }, intrinsic), ctx);
+    return TRY(process(make_node<BoundIntrinsicCall>(expr->token(), method_descr.declaration(), BoundExpressions { lhs, rhs }, intrinsic), ctx));
 }
 
-ErrorOrNode resolve_operators(std::shared_ptr<SyntaxNode> const& tree)
+ProcessResult resolve_operators(std::shared_ptr<SyntaxNode> const& tree)
 {
-    return process<ResolveOperatorContext>(tree);
+    Config config;
+    ResolveOperatorContext ctx(config);
+    return process<ResolveOperatorContext>(tree, ctx);
 }
 
 }

@@ -53,6 +53,11 @@ std::string BoundIdentifier::to_string() const
     return format("{}: {}", name(), type()->to_string());
 }
 
+std::string BoundIdentifier::qualified_name() const
+{
+    return name();
+}
+
 // -- BoundVariable ---------------------------------------------------------
 
 BoundVariable::BoundVariable(std::shared_ptr<Variable> identifier, std::shared_ptr<ObjectType> type)
@@ -82,6 +87,11 @@ std::shared_ptr<BoundExpression> const& BoundMemberAccess::structure() const
 std::shared_ptr<BoundIdentifier> const& BoundMemberAccess::member() const
 {
     return m_member;
+}
+
+std::string BoundMemberAccess::qualified_name() const
+{
+    return format("{}.{}", structure()->qualified_name(), member()->name());
 }
 
 std::string BoundMemberAccess::attributes() const
@@ -138,6 +148,11 @@ Nodes BoundArrayAccess::children() const
 std::string BoundArrayAccess::to_string() const
 {
     return format("{}[{}]: {}", array(), subscript(), type_name());
+}
+
+std::string BoundArrayAccess::qualified_name() const
+{
+    return format("{}[{}]", array()->qualified_name(), subscript());
 }
 
 // -- BoundVariableDeclaration ----------------------------------------------

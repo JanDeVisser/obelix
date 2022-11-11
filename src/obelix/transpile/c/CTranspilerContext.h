@@ -59,7 +59,7 @@ public:
         int trailing_newlines { 0 };
         while (!t.empty() && t.ends_with("\n")) {
             trailing_newlines++;
-            t = t.substr(0, t.length()-1);
+            t = t.substr(0, t.length() - 1);
         }
         t = join(split(t, '\n'), "\n" + m_indent);
         if (m_text.ends_with("\n"))
@@ -75,13 +75,15 @@ public:
         write(text + "\n");
     }
 
-    void indent() {
+    void indent()
+    {
         m_indent += "  ";
     }
 
-    void dedent() {
+    void dedent()
+    {
         if (m_indent.length() > 0)
-            m_indent = m_indent.substr(0, m_indent.length()-2);
+            m_indent = m_indent.substr(0, m_indent.length() - 2);
     }
 
     [[nodiscard]] std::string to_string() const
@@ -99,120 +101,94 @@ private:
     bool m_flushed { false };
 };
 
-class CTranspilerContext : public Context<std::shared_ptr<SyntaxNode>> {
+class CTranspilerContextPayload {
 public:
-    CTranspilerContext(CTranspilerContext *parent = nullptr)
-        : Context(parent)
-    {
-    }
+    CTranspilerContextPayload() = default;
 
     std::string const& header_name() const
     {
-        return m_header->name();
+        return header->name();
     }
 
     ErrorOr<void, SyntaxError> open_header(std::string main_module)
     {
-        if (parent() != nullptr) {
-            return dynamic_cast<CTranspilerContext*>(parent())->open_header(main_module);
-        }
-        if (m_current != nullptr) {
-            if (auto error_maybe = m_current->flush(); error_maybe.is_error())
+        if (current_file != nullptr) {
+            if (auto error_maybe = current_file->flush(); error_maybe.is_error())
                 return error_maybe.error();
         }
-        m_header = std::make_shared<COutputFile>(format("{}.h", main_module));
-        m_current = m_header;
+        header = std::make_shared<COutputFile>(format("{}.h", main_module));
+        current_file = header;
         return {};
     }
 
     ErrorOr<void, SyntaxError> open_output_file(std::string name)
     {
-        if (parent() != nullptr) {
-            return dynamic_cast<CTranspilerContext*>(parent())->open_output_file(name);
-        }
-        if (m_current != nullptr) {
-            if (auto error_maybe = m_current->flush(); error_maybe.is_error())
+        if (current_file != nullptr) {
+            if (auto error_maybe = current_file->flush(); error_maybe.is_error())
                 return error_maybe.error();
         }
-        m_modules.emplace(name, std::make_shared<COutputFile>(name));
-        m_current = m_modules.at(name);
+        modules.emplace(name, std::make_shared<COutputFile>(name));
+        current_file = modules.at(name);
         return {};
     }
 
     std::vector<COutputFile const*> files()
     {
-        std::vector<COutputFile const*> ret { m_header.get() };
-        for (auto const& file : m_modules) {
+        std::vector<COutputFile const*> ret { header.get() };
+        for (auto const& file : modules) {
             ret.push_back(file.second.get());
         }
         return ret;
     }
 
-    [[nodiscard]] std::shared_ptr<COutputFile> const& current() const
-    {
-        if (parent() != nullptr) {
-            return dynamic_cast<CTranspilerContext const*>(parent())->current();
-        }
-        return m_current;
-    }
-
     ErrorOr<void, SyntaxError> flush()
     {
-        if (parent() != nullptr) {
-            return dynamic_cast<CTranspilerContext*>(parent())->flush();
-        }
-        if (m_current != nullptr) {
-            if (auto error_maybe = m_current->flush(); error_maybe.is_error())
+        if (current_file != nullptr) {
+            if (auto error_maybe = current_file->flush(); error_maybe.is_error())
                 return error_maybe.error();
-            m_current = nullptr;
+            current_file = nullptr;
         }
         return {};
     }
 
     void writeln(std::string const& text)
     {
-        if (parent() != nullptr) {
-            dynamic_cast<CTranspilerContext*>(parent())->writeln(text);
-            return;
-        }
-        assert(m_current);
-        m_current->writeln(text);
+        assert(current_file);
+        current_file->writeln(text);
     }
 
     void write(std::string const& text)
     {
-        if (parent() != nullptr) {
-            dynamic_cast<CTranspilerContext*>(parent())->write(text);
-            return;
-        }
-        assert(m_current);
-        m_current->write(text);
+        assert(current_file);
+        current_file->write(text);
     }
 
     void indent()
     {
-        if (parent() != nullptr) {
-            dynamic_cast<CTranspilerContext*>(parent())->indent();
-            return;
-        }
-        assert(m_current);
-        m_current->indent();
+        assert(current_file);
+        current_file->indent();
     }
 
     void dedent()
     {
-        if (parent() != nullptr) {
-            dynamic_cast<CTranspilerContext*>(parent())->dedent();
-            return;
-        }
-        assert(m_current);
-        m_current->dedent();
+        assert(current_file);
+        current_file->dedent();
     }
 
-private:
-    std::shared_ptr<COutputFile> m_header;
-    std::unordered_map<std::string, std::shared_ptr<COutputFile>> m_modules;
-    std::shared_ptr<COutputFile> m_current;
+    std::shared_ptr<COutputFile> header;
+    std::map<std::string, std::shared_ptr<COutputFile>> modules;
+    std::shared_ptr<COutputFile> current_file;
 };
+
+using CTranspilerContext = Context<std::shared_ptr<SyntaxNode>, CTranspilerContextPayload>;
+
+ErrorOr<void, SyntaxError> open_header(CTranspilerContext&, std::string);
+ErrorOr<void, SyntaxError> open_output_file(CTranspilerContext&, std::string);
+std::vector<COutputFile const*> files(CTranspilerContext&);
+ErrorOr<void, SyntaxError> flush(CTranspilerContext&);
+void writeln(CTranspilerContext&, std::string const&);
+void write(CTranspilerContext&, std::string const&);
+void indent(CTranspilerContext&);
+void dedent(CTranspilerContext&);
 
 }

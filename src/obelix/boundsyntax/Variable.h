@@ -27,6 +27,7 @@ public:
     [[nodiscard]] std::string const& name() const;
     [[nodiscard]] std::string attributes() const override;
     [[nodiscard]] std::string to_string() const override;
+    [[nodiscard]] std::string qualified_name() const override;
 
 private:
     std::string m_identifier;
@@ -46,6 +47,7 @@ public:
     [[nodiscard]] std::string attributes() const override;
     [[nodiscard]] Nodes children() const override;
     [[nodiscard]] std::string to_string() const override;
+    [[nodiscard]] std::string qualified_name() const override;
 
 private:
     std::shared_ptr<BoundExpression> m_struct;
@@ -65,6 +67,7 @@ public:
     [[nodiscard]] std::string attributes() const override;
     [[nodiscard]] Nodes children() const override;
     [[nodiscard]] std::string to_string() const override;
+    [[nodiscard]] std::string qualified_name() const override;
 
 private:
     std::shared_ptr<BoundExpression> m_array;

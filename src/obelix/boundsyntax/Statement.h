@@ -28,6 +28,7 @@ public:
     [[nodiscard]] std::shared_ptr<ObjectType> const& type() const;
     [[nodiscard]] std::string const& type_name() const;
     [[nodiscard]] std::string attributes() const override;
+    [[nodiscard]] virtual std::string qualified_name() const;
 
 private:
     std::shared_ptr<ObjectType> m_type { nullptr };
@@ -47,6 +48,7 @@ public:
     [[nodiscard]] std::shared_ptr<BoundFunctionDecl> resolve(std::string const&, ObjectTypes const&) const;
     [[nodiscard]] bool is_fully_bound() const;
     [[nodiscard]] int unbound_statements() const;
+    [[nodiscard]] std::string qualified_name() const override;
 
 private:
     std::string m_name;

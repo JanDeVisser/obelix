@@ -213,7 +213,7 @@ Compilation::Compilation(Modules modules, std::string main_module)
     , m_main_module(std::move(main_module))
 {
     for (auto const& module : m_modules) {
-        if (module->name() == "")
+        if (module->name() == "/")
             m_root = module;
     }
 }

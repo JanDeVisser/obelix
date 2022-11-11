@@ -10,36 +10,14 @@
 
 namespace Obelix {
 
-std::vector<std::shared_ptr<MaterializedFunctionDef>> ARM64Context::s_function_stack {};
-std::unordered_map<std::string, std::shared_ptr<Assembly>> ARM64Context::s_assemblies {};
-unsigned long ARM64Context::s_counter { 0 };
+std::vector<std::shared_ptr<MaterializedFunctionDef>> ARM64ContextPayload::s_function_stack {};
+std::unordered_map<std::string, std::shared_ptr<Assembly>> ARM64ContextPayload::s_assemblies {};
+unsigned long ARM64ContextPayload::s_counter { 0 };
 
-ARM64Context::ARM64Context(ARM64Context& parent)
-    : Context<int>(parent)
-    , m_assembly(parent.m_assembly)
-    , m_stack_depth(parent.m_stack_depth)
-{
-    auto offset_maybe = get("#offset");
-    assert(offset_maybe.has_value());
-    declare("#offset", get("#offset").value());
-}
-
-ARM64Context::ARM64Context(ARM64Context* parent)
-    : Context<int>(parent)
-    , m_assembly(parent->m_assembly)
-    , m_stack_depth(parent->m_stack_depth)
-{
-    auto offset_maybe = get("#offset");
-    assert(offset_maybe.has_value());
-    declare("#offset", get("#offset").value());
-}
-
-ARM64Context::ARM64Context()
-    : Context()
-    , m_assembly()
+ARM64Context::ARM64Context(Config const& config)
+    : Context(config)
 {
     add_module(ROOT_MODULE_NAME);
-    declare("#offset", 0);
 }
 
 ErrorOr<void, SyntaxError> ARM64Context::zero_initialize(std::shared_ptr<ObjectType> const& type, int offset)
@@ -160,7 +138,7 @@ ErrorOr<void, SyntaxError> ARM64Context::load_immediate(std::shared_ptr<ObjectTy
 
 ErrorOr<void, SyntaxError> ARM64Context::enter_function(std::shared_ptr<MaterializedFunctionDef> const& func)
 {
-    s_function_stack.push_back(func);
+    ARM64ContextPayload::s_function_stack.push_back(func);
     auto decl = func->declaration();
     stack_depth(func->stack_depth());
     assembly()->add_comment(format("{} nsaa {} stack depth {}", decl->to_string(), decl->nsaa(), func->stack_depth()));
@@ -219,15 +197,15 @@ ErrorOr<void, SyntaxError> ARM64Context::enter_function(std::shared_ptr<Material
 
 void ARM64Context::function_return() const
 {
-    assert(!s_function_stack.empty());
-    auto func_def = s_function_stack.back();
+    assert(!ARM64ContextPayload::s_function_stack.empty());
+    auto func_def = ARM64ContextPayload::s_function_stack.back();
     assembly()->add_instruction("b", format("__{}__return", func_def->label()));
 }
 
 void ARM64Context::leave_function()
 {
-    assert(!s_function_stack.empty());
-    auto func_def = s_function_stack.back();
+    assert(!ARM64ContextPayload::s_function_stack.empty());
+    auto func_def = ARM64ContextPayload::s_function_stack.back();
     assembly()->add_label(format("__{}__return", func_def->label()));
     assembly()->add_instruction("mov", "sp,fp");
     if (stack_depth())
@@ -235,7 +213,7 @@ void ARM64Context::leave_function()
     assembly()->add_instruction("ldp", "fp,lr,[sp],16");
     assembly()->add_instruction("ret");
     pop_stack_depth();
-    s_function_stack.pop_back();
+    ARM64ContextPayload::s_function_stack.pop_back();
 }
 
 void ARM64Context::reserve_on_stack(size_t bytes)
@@ -243,13 +221,13 @@ void ARM64Context::reserve_on_stack(size_t bytes)
     if (bytes % 16)
         bytes = bytes + (16 - (bytes % 16));
     assembly()->add_instruction("sub", "sp,sp,#{}", bytes);
-    m_stack_allocated += bytes;
+    data().m_stack_allocated += bytes;
 }
 
 void ARM64Context::release_stack()
 {
-    assembly()->add_instruction("add", "sp,sp,#{}", m_stack_allocated);
-    m_stack_allocated = 0;
+    assembly()->add_instruction("add", "sp,sp,#{}", data().m_stack_allocated);
+    data().m_stack_allocated = 0;
 }
 
 }

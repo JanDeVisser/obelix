@@ -13,7 +13,6 @@ add_executable(
         Config.cpp
         FoldConstants.cpp
         Lower.cpp
-        Parser.cpp
         ResolveOperators.cpp
         BoundSyntaxNode.h
         Context.h
@@ -38,6 +37,8 @@ add_executable(
         boundsyntax/Variable.cpp
         interp/InterpIntrinsics.cpp
         interp/Interpret.cpp
+        parser/Parser.cpp
+        parser/Processor.cpp
         syntax/ControlFlow.cpp
         syntax/Expression.cpp
         syntax/Function.cpp
@@ -48,6 +49,7 @@ add_executable(
         syntax/Typedef.cpp
         syntax/Variable.cpp
         transpile/c/CTranspiler.cpp
+        transpile/c/CTranspilerContext.cpp
         transpile/c/CTranspilerIntrinsics.cpp
         type/MethodDescription.cpp
         type/Template.cpp

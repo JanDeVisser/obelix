@@ -59,6 +59,12 @@ std::string BoundExpression::attributes() const
     return format(R"(type="{}")", type()->name());
 }
 
+std::string BoundExpression::qualified_name() const
+{
+    fatal("Cannot call qualified_name() on nodes of type {}", node_type());
+}
+
+
 // -- BoundModule -----------------------------------------------------------
 
 BoundModule::BoundModule(Token token, std::string name, std::shared_ptr<Block> block, BoundFunctionDecls exports, BoundFunctionDecls imports)
@@ -166,6 +172,11 @@ bool BoundModule::is_fully_bound() const
 int BoundModule::unbound_statements() const
 {
     return block()->unbound_statements();
+}
+
+std::string BoundModule::qualified_name() const
+{
+    return name();
 }
 
 // -- BoundCompilation ------------------------------------------------------

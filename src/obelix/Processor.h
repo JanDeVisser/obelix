@@ -26,37 +26,99 @@ using ErrorOrNode = ErrorOr<std::shared_ptr<SyntaxNode>, SyntaxError>;
 template<class NodeClass>
 using ErrorOrTypedNode = ErrorOr<std::shared_ptr<NodeClass>, SyntaxError>;
 
-#define TRY_AND_TRY_CAST(cls, expr, ctx)                  \
-    ({                                                    \
-        auto __casted = try_and_try_cast<cls>(expr, ctx); \
-        if (__casted.is_error())                          \
-            return __casted.error();                      \
-        std::shared_ptr<cls> __ret = __casted.value();    \
-        __ret;                                            \
+using Errors = std::vector<SyntaxError>;
+
+class ProcessResult {
+public:
+    ProcessResult() = default;
+    ProcessResult(ProcessResult const& other) = default;
+
+    ProcessResult(pSyntaxNode const& node)
+        : m_result(node)
+    {
+    }
+
+    ProcessResult(SyntaxError const& error)
+        : m_result(error)
+    {
+        m_errors.push_back(m_result.error());
+    }
+
+    ProcessResult(SyntaxError&& error)
+        : m_result(error)
+    {
+        m_errors.push_back(m_result.error());
+    }
+
+    [[nodiscard]] Errors const& errors() const { return m_errors; }
+    void push_back(SyntaxError const& err) { m_errors.push_back(err); }
+    [[nodiscard]] bool is_error() const { return m_result.is_error(); }
+    [[nodiscard]] bool has_value() const { return m_result.has_value(); }
+    [[nodiscard]] pSyntaxNode value() const { return m_result.value(); }
+    void value(pSyntaxNode const& node) { m_result = node; }
+    [[nodiscard]] SyntaxError error() const { return m_result.error(); }
+    void error(SyntaxError const& error)
+    {
+        m_errors.push_back(error);
+        m_result = error;
+    }
+
+    ProcessResult& operator=(pSyntaxNode const& result)
+    {
+        value(result);
+        return *this;
+    }
+
+    ProcessResult& operator=(SyntaxError const& err)
+    {
+        error(err);
+        return *this;
+    }
+
+    ProcessResult& operator+=(ProcessResult const& other)
+    {
+        m_result = other.m_result;
+        for (auto const& e : other.m_errors)
+            m_errors.push_back(e);
+        return *this;
+    }
+
+private:
+    ErrorOrNode m_result { nullptr };
+    Errors m_errors {};
+};
+
+#define TRY_AND_TRY_CAST(cls, expr, ctx)                          \
+    ({                                                            \
+        auto __casted = try_and_try_cast<cls>(expr, ctx, result); \
+        if (__casted.is_error())                                  \
+            return __casted.error();                              \
+        std::shared_ptr<cls> __ret = __casted.value();            \
+        __ret;                                                    \
     })
 
-#define TRY_AND_CAST(cls, expr, ctx)                   \
-    ({                                                 \
-        auto __casted = try_and_cast<cls>(expr, ctx);  \
-        if (__casted.is_error())                       \
-            return __casted.error();                   \
-        std::shared_ptr<cls> __ret = __casted.value(); \
-        __ret;                                         \
-    })
-
-#define TRY_AND_TRY_CAST_RETURN(cls, expr, ctx, return_value) \
+#define TRY_AND_CAST(cls, expr, ctx)                          \
     ({                                                        \
-        auto __casted = try_and_try_cast<cls>(expr, ctx);     \
+        auto __casted = try_and_cast<cls>(expr, ctx, result); \
         if (__casted.is_error())                              \
             return __casted.error();                          \
-        if (__casted.value() == nullptr)                      \
-            return return_value;                              \
         std::shared_ptr<cls> __ret = __casted.value();        \
         __ret;                                                \
     })
 
+#define TRY_AND_TRY_CAST_RETURN(cls, expr, ctx, return_value)     \
+    ({                                                            \
+        auto __casted = try_and_try_cast<cls>(expr, ctx, result); \
+        if (__casted.is_error())                                  \
+            return __casted.error();                              \
+        if (__casted.value() == nullptr)                          \
+            return return_value;                                  \
+        std::shared_ptr<cls> __ret = __casted.value();            \
+        __ret;                                                    \
+    })
+
 template<typename Context, typename Processor>
-ErrorOrNode process_tree(std::shared_ptr<SyntaxNode> const& tree, Context& ctx, Processor processor)
+ErrorOrNode process_tree(std::shared_ptr<SyntaxNode> const& tree, Context& ctx, ProcessResult& result, Processor processor)
 {
     if (!tree)
         return tree;
@@ -95,17 +157,17 @@ ErrorOrNode process_tree(std::shared_ptr<SyntaxNode> const& tree, Context& ctx, 
 
     case SyntaxNodeType::Module: {
         auto module = std::dynamic_pointer_cast<Module>(tree);
-        ret = TRY(process_block<Module>(tree, ctx, processor, module->name()));
+        ret = TRY(process_block<Module>(tree, ctx, result, processor, module->name()));
         break;
     }
 
     case SyntaxNodeType::Block: {
-        ret = TRY(process_block<Block>(tree, ctx, processor));
+        ret = TRY(process_block<Block>(tree, ctx, result, processor));
         break;
     }
 
     case SyntaxNodeType::FunctionBlock: {
-        ret = TRY(process_block<FunctionBlock>(tree, ctx, processor));
+        ret = TRY(process_block<FunctionBlock>(tree, ctx, result, processor));
         break;
     }
 
@@ -328,21 +390,21 @@ ErrorOrNode process_tree(std::shared_ptr<SyntaxNode> const& tree, Context& ctx, 
 
     case SyntaxNodeType::BoundFunctionCall: {
         auto func_call = std::dynamic_pointer_cast<BoundFunctionCall>(tree);
-        auto arguments = TRY(xform_bound_expressions(func_call->arguments(), ctx, processor));
+        auto arguments = TRY(xform_bound_expressions(func_call->arguments(), ctx, result, processor));
         ret = std::make_shared<BoundFunctionCall>(func_call, arguments);
         break;
     }
 
     case SyntaxNodeType::BoundNativeFunctionCall: {
         auto func_call = std::dynamic_pointer_cast<BoundNativeFunctionCall>(tree);
-        auto arguments = TRY(xform_bound_expressions(func_call->arguments(), ctx, processor));
+        auto arguments = TRY(xform_bound_expressions(func_call->arguments(), ctx, result, processor));
         ret = std::make_shared<BoundNativeFunctionCall>(func_call, arguments);
         break;
     }
 
     case SyntaxNodeType::BoundIntrinsicCall: {
         auto call = std::dynamic_pointer_cast<BoundIntrinsicCall>(tree);
-        auto arguments = TRY(xform_bound_expressions(call->arguments(), ctx, processor));
+        auto arguments = TRY(xform_bound_expressions(call->arguments(), ctx, result, processor));
         ret = std::make_shared<BoundIntrinsicCall>(call, arguments);
         break;
     }
@@ -445,7 +507,7 @@ ErrorOrNode process_tree(std::shared_ptr<SyntaxNode> const& tree, Context& ctx, 
         auto if_stmt = std::dynamic_pointer_cast<IfStatement>(tree);
         Branches branches;
         for (auto& branch : if_stmt->branches()) {
-            auto branch_maybe = processor(branch, ctx);
+            auto branch_maybe = processor(branch, ctx, result);
             if (branch_maybe.has_value())
                 branches.push_back(std::dynamic_pointer_cast<Branch>(branch_maybe.value()));
         }
@@ -552,13 +614,18 @@ ErrorOrNode process_tree(std::shared_ptr<SyntaxNode> const& tree, Context& ctx, 
 }
 
 template<class StmtClass, typename Context, typename Processor, typename... Args>
-ErrorOrNode process_block(std::shared_ptr<SyntaxNode> const& tree, Context& ctx, Processor& processor, Args&&... args)
+ErrorOrNode process_block(std::shared_ptr<SyntaxNode> const& tree, Context& ctx, ProcessResult& result, Processor& processor, Args&&... args)
 {
     auto block = std::dynamic_pointer_cast<Block>(tree);
-    Context child_ctx(ctx);
+    Context& child_ctx = make_subcontext<Context>(ctx);
     Statements statements;
     for (auto& stmt : block->statements()) {
-        auto processed_node = TRY(processor(stmt, child_ctx));
+        auto processed_or_error = processor(stmt, child_ctx, result);
+        if (processed_or_error.is_error()) {
+            result = processed_or_error.error();
+            continue;
+        }
+        auto processed_node = processed_or_error.value();
         if (auto new_statement = std::dynamic_pointer_cast<Statement>(processed_node); new_statement != nullptr) {
             statements.push_back(new_statement);
         } else if (auto node_list = std::dynamic_pointer_cast<NodeList<Statement>>(processed_node); node_list != nullptr) {
@@ -574,22 +641,22 @@ ErrorOrNode process_block(std::shared_ptr<SyntaxNode> const& tree, Context& ctx,
 }
 
 template<typename Context, typename Processor>
-ErrorOr<Expressions, SyntaxError> xform_expressions(Expressions const& expressions, Context& ctx, Processor processor)
+ErrorOr<Expressions, SyntaxError> xform_expressions(Expressions const& expressions, Context& ctx, ProcessResult& result, Processor processor)
 {
     Expressions ret;
     for (auto& expr : expressions) {
-        auto new_expr = TRY(processor(expr, ctx));
+        auto new_expr = TRY(processor(expr, ctx, result));
         ret.push_back(std::dynamic_pointer_cast<Expression>(new_expr));
     }
     return ret;
 }
 
 template<typename Context, typename Processor>
-ErrorOr<BoundExpressions, SyntaxError> xform_bound_expressions(BoundExpressions const& expressions, Context& ctx, Processor processor)
+ErrorOr<BoundExpressions, SyntaxError> xform_bound_expressions(BoundExpressions const& expressions, Context& ctx, ProcessResult& result, Processor processor)
 {
     BoundExpressions ret;
     for (auto& expr : expressions) {
-        auto new_expr = processor(expr, ctx);
+        auto new_expr = processor(expr, ctx, result);
         if (new_expr.is_error())
             return new_expr.error();
         ret.push_back(std::dynamic_pointer_cast<BoundExpression>(new_expr.value()));
@@ -598,55 +665,64 @@ ErrorOr<BoundExpressions, SyntaxError> xform_bound_expressions(BoundExpressions 
 }
 
 template<typename Ctx>
-ErrorOrNode process(std::shared_ptr<SyntaxNode> const& tree, Ctx& ctx)
+ProcessResult& process(std::shared_ptr<SyntaxNode> const& tree, Ctx& ctx, ProcessResult& result)
 {
     if (!tree)
-        return tree;
+        return result;
     std::string log_message;
     debug(parser, "Process <{} {}>", tree->node_type(), tree);
     switch (tree->node_type()) {
 #undef ENUM_SYNTAXNODETYPE
-#define ENUM_SYNTAXNODETYPE(type)                                              \
-    case SyntaxNodeType::type: {                                               \
-        log_message = format("<{} {}> => ", #type, tree);                      \
-        ErrorOrNode ret = process_node<Ctx, SyntaxNodeType::type>(tree, ctx);  \
-        if (ret.is_error()) {                                                  \
-            log_message += format("Error {}", ret.error());                    \
-            ctx.add_error(ret.error());                                        \
-        } else {                                                               \
-            auto new_tree = ret.value();                                       \
-            log_message += format("<{} {}>", new_tree->node_type(), new_tree); \
-        }                                                                      \
-        debug(parser, "{}", log_message);                                      \
-        return ret;                                                            \
+#define ENUM_SYNTAXNODETYPE(type)                                                           \
+    case SyntaxNodeType::type: {                                                            \
+        log_message = format("<{} {}> => ", #type, tree);                                   \
+        ErrorOrNode processed = process_node<Ctx, SyntaxNodeType::type>(tree, ctx, result); \
+        result = nullptr;                                                                   \
+        if (processed.is_error()) {                                                         \
+            log_message += format("Error {}", processed.error());                           \
+            result = processed.error();                                                     \
+        } else {                                                                            \
+            result = processed.value();                                                     \
+            log_message += format("<{} {}>", result.value()->node_type(), result.value());  \
+        }                                                                                   \
+        debug(parser, "{}", log_message);                                                   \
+        return result;                                                                      \
     }
         ENUMERATE_SYNTAXNODETYPES(ENUM_SYNTAXNODETYPE)
 #undef ENUM_SYNTAXNODETYPE
     default:
-        fatal("Unkown SyntaxNodeType '{}'", (int)tree->node_type());
+        fatal("Unknown SyntaxNodeType '{}'", tree->node_type());
     }
 }
 
 template<typename Ctx>
-ErrorOrNode process(std::shared_ptr<SyntaxNode> const& tree)
+ProcessResult process(std::shared_ptr<SyntaxNode> const& tree)
 {
+    ProcessResult result;
     Ctx ctx;
-    return process<Ctx>(tree, ctx);
+    return process<Ctx>(tree, ctx, result);
+}
+
+template<typename Ctx>
+ProcessResult process(std::shared_ptr<SyntaxNode> const& tree, Ctx& ctx)
+{
+    ProcessResult result;
+    return process<Ctx>(tree, ctx, result);
 }
 
 template<typename Ctx, SyntaxNodeType node_type>
-ErrorOrNode process_node(std::shared_ptr<SyntaxNode> const& tree, Ctx& ctx)
+ErrorOrNode process_node(std::shared_ptr<SyntaxNode> const& tree, Ctx& ctx, ProcessResult& result)
 {
     debug(parser, "Falling back to default processor for type {}", tree->node_type());
-    return process_tree(tree, ctx, [](std::shared_ptr<SyntaxNode> const& tree, Ctx& ctx) {
-        return process(tree, ctx);
+    return process_tree(tree, ctx, result, [](std::shared_ptr<SyntaxNode> const& tree, Ctx& ctx, ProcessResult& result) {
+        return process(tree, ctx, result);
     });
 }
 
 template<class Cls, class Ctx>
-ErrorOrTypedNode<Cls> try_and_try_cast(pSyntaxNode const& expr, Ctx& ctx)
+ErrorOrTypedNode<Cls> try_and_try_cast(pSyntaxNode const& expr, Ctx& ctx, ProcessResult& result)
 {
-    auto processed_maybe = process(expr, ctx);
+    auto processed_maybe = process(expr, ctx, result);
     if (processed_maybe.is_error()) {
         debug(parser, "Processing node results in error '{}' instead of node of type '{}'",
             processed_maybe.error(), typeid(Cls).name());
@@ -659,9 +735,9 @@ ErrorOrTypedNode<Cls> try_and_try_cast(pSyntaxNode const& expr, Ctx& ctx)
 }
 
 template<class Cls, class Ctx>
-ErrorOrTypedNode<Cls> try_and_cast(pSyntaxNode const& expr, Ctx& ctx)
+ErrorOrTypedNode<Cls> try_and_cast(pSyntaxNode const& expr, Ctx& ctx, ProcessResult& result)
 {
-    auto processed_maybe = process(expr, ctx);
+    auto processed_maybe = process(expr, ctx, result);
     if (processed_maybe.is_error()) {
         debug(parser, "Processing node results in error '{}' instead of node of type '{}'",
             processed_maybe.error(), typeid(Cls).name());
@@ -681,26 +757,26 @@ ErrorOrTypedNode<Cls> try_and_cast(pSyntaxNode const& expr, Ctx& ctx)
     return casted;
 }
 
-#define INIT_NODE_PROCESSOR(context_type)                                                           \
-    using ContextType = context_type;                                                               \
-    ErrorOrNode context_type##_processor(std::shared_ptr<SyntaxNode> const& tree, ContextType& ctx) \
-    {                                                                                               \
-        return process<context_type>(tree, ctx);                                                    \
+#define INIT_NODE_PROCESSOR(context_type)                                                                                    \
+    using ContextType = context_type;                                                                                        \
+    ProcessResult context_type##_processor(std::shared_ptr<SyntaxNode> const& tree, ContextType& ctx, ProcessResult& result) \
+    {                                                                                                                        \
+        return process<context_type>(tree, ctx, result);                                                                     \
     }
 
 #define NODE_PROCESSOR(node_type) \
     template<>                    \
-    ErrorOrNode process_node<ContextType, SyntaxNodeType::node_type>(std::shared_ptr<SyntaxNode> const& tree, ContextType& ctx)
+    ErrorOrNode process_node<ContextType, SyntaxNodeType::node_type>(std::shared_ptr<SyntaxNode> const& tree, ContextType& ctx, ProcessResult& result)
 
-#define ALIAS_NODE_PROCESSOR(node_type, alias_node_type)                                                                        \
-    template<>                                                                                                                  \
-    ErrorOrNode process_node<ContextType, SyntaxNodeType::node_type>(std::shared_ptr<SyntaxNode> const& tree, ContextType& ctx) \
-    {                                                                                                                           \
-        return process_node<ContextType, SyntaxNodeType::alias_node_type>(tree, ctx);                                           \
+#define ALIAS_NODE_PROCESSOR(node_type, alias_node_type)                                                                                               \
+    template<>                                                                                                                                         \
+    ErrorOrNode process_node<ContextType, SyntaxNodeType::node_type>(std::shared_ptr<SyntaxNode> const& tree, ContextType& ctx, ProcessResult& result) \
+    {                                                                                                                                                  \
+        return process_node<ContextType, SyntaxNodeType::alias_node_type>(tree, ctx, result);                                                          \
     }
 
-ErrorOrNode fold_constants(std::shared_ptr<SyntaxNode> const&);
-ErrorOrNode bind_types(std::shared_ptr<SyntaxNode> const&, Config const&);
-ErrorOrNode lower(std::shared_ptr<SyntaxNode> const&, Config const&);
-ErrorOrNode resolve_operators(std::shared_ptr<SyntaxNode> const&);
+ProcessResult fold_constants(std::shared_ptr<SyntaxNode> const&);
+ProcessResult bind_types(std::shared_ptr<SyntaxNode> const&, Config const&);
+ProcessResult lower(std::shared_ptr<SyntaxNode> const&, Config const&);
+ProcessResult resolve_operators(std::shared_ptr<SyntaxNode> const&);
 }

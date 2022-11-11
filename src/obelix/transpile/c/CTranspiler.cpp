@@ -11,7 +11,6 @@
 #include <core/Error.h>
 #include <core/Logging.h>
 #include <core/Process.h>
-#include <obelix/Parser.h>
 #include <obelix/Processor.h>
 #include <obelix/transpile/c/CTranspiler.h>
 #include <obelix/transpile/c/CTranspilerIntrinsics.h>
@@ -66,7 +65,7 @@ std::string type_to_c_type(std::shared_ptr<ObjectType> const& type)
 
 void type_to_c_type(CTranspilerContext &ctx, std::shared_ptr<ObjectType> const& type)
 {
-    return ctx.write(type_to_c_type(type));
+    write(ctx, type_to_c_type(type));
 }
 
 std::string type_initialize(std::shared_ptr<ObjectType> const& type)
@@ -98,13 +97,13 @@ std::string type_initialize(std::shared_ptr<ObjectType> const& type)
     return initial_value;
 }
 
-ErrorOr<void, SyntaxError> evaluate_arguments(CTranspilerContext& ctx, std::shared_ptr<BoundFunctionDecl> const& decl, BoundExpressions const& arguments)
+ErrorOr<void, SyntaxError> evaluate_arguments(CTranspilerContext& ctx, ProcessResult& result, std::shared_ptr<BoundFunctionDecl> const& decl, BoundExpressions const& arguments)
 {
     auto first { true };
     for (auto const& arg : arguments) {
         if (!first)
-            ctx.write(", ");
-        TRY(process(arg, ctx));
+            write(ctx, ", ");
+        TRY_RETURN(process(arg, ctx, result));
         first = false;
     }
     return {};
@@ -115,8 +114,8 @@ INIT_NODE_PROCESSOR(CTranspilerContext)
 NODE_PROCESSOR(BoundCompilation)
 {
     auto compilation = std::dynamic_pointer_cast<BoundCompilation>(tree);
-    TRY_RETURN(ctx.open_header(compilation->main_module()));
-    ctx.writeln(format(
+    TRY_RETURN(open_header(ctx, compilation->main_module()));
+    writeln(ctx, format(
 R"(/*
  * This is generated code. Modify at your peril.
  */
@@ -129,29 +128,29 @@ R"(/*
         auto type = bound_type->type();
         switch (type->type()) {
         case PrimitiveType::Conditional: {
-            ctx.writeln(format("typedef struct _{} {", type->name()));
-            ctx.writeln("  bool success;");
-            ctx.writeln("  union {");
-            ctx.writeln(format("    {} value;", type_to_c_type(type->template_argument<std::shared_ptr<ObjectType>>("success_type"))));
-            ctx.writeln(format("    {} error;", type_to_c_type(type->template_argument<std::shared_ptr<ObjectType>>("error_type"))));
-            ctx.writeln("  };");
-            ctx.writeln(format("} {};\n", type->name()));
+            writeln(ctx, format("typedef struct _{} {", type->name()));
+            writeln(ctx, "  bool success;");
+            writeln(ctx, "  union {");
+            writeln(ctx, format("    {} value;", type_to_c_type(type->template_argument<std::shared_ptr<ObjectType>>("success_type"))));
+            writeln(ctx, format("    {} error;", type_to_c_type(type->template_argument<std::shared_ptr<ObjectType>>("error_type"))));
+            writeln(ctx, "  };");
+            writeln(ctx, format("} {};\n", type->name()));
             break;
         }
         case PrimitiveType::Struct: {
-            ctx.writeln(format("typedef struct _{} {", type->name()));
+            writeln(ctx, format("typedef struct _{} {", type->name()));
             for (auto const& f : type->fields()) {
-                ctx.writeln(format("  {} {};", type_to_c_type(f.type), f.name));
+                writeln(ctx, format("  {} {};", type_to_c_type(f.type), f.name));
             }
-            ctx.writeln(format("} {};\n", type->name()));
+            writeln(ctx, format("} {};\n", type->name()));
             break;
         }
         case PrimitiveType::Enum: {
-            ctx.writeln(format("typedef enum _{} {", type->name()));
+            writeln(ctx, format("typedef enum _{} {", type->name()));
             for (auto const& v : type->template_argument_values<NVP>("values")) {
-                ctx.writeln(format("  {} = {},", v.first, v.second));
+                writeln(ctx, format("  {} = {},", v.first, v.second));
             }
-            ctx.writeln(format("} {};\n", type->name()));
+            writeln(ctx, format("} {};\n", type->name()));
             break;
         }
         case PrimitiveType::Array: {
@@ -161,19 +160,19 @@ R"(/*
             fatal("Ur mom {}", 12);
         }
     }
-    ctx.writeln(format(
+    writeln(ctx, format(
 R"(
 #endif /* __OBELIX_{}_H__ */
 )", to_upper(compilation->main_module())));
-    TRY_RETURN(ctx.flush());
-    return process_tree(tree, ctx, CTranspilerContext_processor);
+    TRY_RETURN(flush(ctx));
+    return process_tree(tree, ctx, result, CTranspilerContext_processor);
 }
 
 NODE_PROCESSOR(BoundModule)
 {
     auto module = std::dynamic_pointer_cast<BoundModule>(tree);
     auto name = module->name();
-    if (name.empty())
+    if (name == "/")
         return tree;
 
     if (name.starts_with("./"))
@@ -182,8 +181,8 @@ NODE_PROCESSOR(BoundModule)
         name = name.substr(0, name.length() - 4);
 
     fs::path path { join(split(name, '/'), "-") };
-    TRY_RETURN(ctx.open_output_file(path.replace_extension(fs::path("c"))));
-    ctx.writeln(format(
+    TRY_RETURN(open_output_file(ctx, path.replace_extension(fs::path("c"))));
+    writeln(ctx, format(
 R"(/*
  * This is generated code. Modify at your peril.
  */
@@ -191,7 +190,7 @@ R"(/*
 #include <obelix.h>
 #include "{}"
 
-)", ctx.header_name()));
+)", ctx.root_data().header_name()));
     static std::unordered_set<std::string> runtime_symbols;
     if (runtime_symbols.empty()) {
         runtime_symbols.insert("cputln");
@@ -210,23 +209,23 @@ R"(/*
         if (runtime_symbols.contains(import_name))
             continue;
         num_imports++;
-        ctx.write("extern ");
+        write(ctx, "extern ");
         type_to_c_type(ctx, import->type());
-        ctx.write(format(" {}(", import_name));
+        write(ctx, format(" {}(", import_name));
         auto first { true };
         for (auto const& param : import->parameters()) {
             if (!first)
-                ctx.write(", ");
+                write(ctx, ", ");
             type_to_c_type(ctx, param->type());
             first = false;
         }
-        ctx.writeln(");");
+        writeln(ctx, ");");
     }
     if (num_imports > 0)
-        ctx.writeln("");
+        writeln(ctx, "");
 
-    TRY_RETURN(process_tree(module->block(), ctx, CTranspilerContext_processor));
-    TRY_RETURN(ctx.flush());
+    TRY_RETURN(process_tree(module->block(), ctx, result, CTranspilerContext_processor));
+    TRY_RETURN(flush(ctx));
     return tree;
 }
 
@@ -238,15 +237,15 @@ NODE_PROCESSOR(BoundFunctionDecl)
     auto name = func_decl->name();
     if (name == "main")
         name = "obelix_main";
-    ctx.write(format(" {}(", name));
+    write(ctx, format(" {}(", name));
     auto first { true };
     for (auto& param : func_decl->parameters()) {
         if (!first)
-            ctx.write(", ");
-        ctx.write(format("{} {}", type_to_c_type(param->type()), param->name()));
+            write(ctx, ", ");
+        write(ctx, format("{} {}", type_to_c_type(param->type()), param->name()));
         first = false;
     }
-    ctx.writeln(")");
+    writeln(ctx, ")");
     return tree;
 }
 
@@ -254,29 +253,29 @@ NODE_PROCESSOR(BoundFunctionDef)
 {
     auto func_def = std::dynamic_pointer_cast<BoundFunctionDef>(tree);
     TRY_RETURN(process(func_def->declaration(), ctx));
-    ctx.writeln("{");
-    ctx.indent();
+    writeln(ctx, "{");
+    indent(ctx);
     TRY_RETURN(process(func_def->statement(), ctx));
-    ctx.dedent();
-    ctx.writeln("}\n");
+    dedent(ctx);
+    writeln(ctx, "}\n");
     return tree;
 }
 
 NODE_PROCESSOR(BoundFunctionCall)
 {
     auto call = std::dynamic_pointer_cast<BoundFunctionCall>(tree);
-    ctx.write(format("{}(", call->name()));
-    TRY_RETURN(evaluate_arguments(ctx, call->declaration(), call->arguments()));
-    ctx.write(")");
+    write(ctx, format("{}(", call->name()));
+    TRY_RETURN(evaluate_arguments(ctx, result, call->declaration(), call->arguments()));
+    write(ctx, ")");
     return tree;
 }
 
 NODE_PROCESSOR(BoundNativeFunctionCall)
 {
     auto call = std::dynamic_pointer_cast<BoundNativeFunctionCall>(tree);
-    ctx.write(format("{}(", std::dynamic_pointer_cast<BoundNativeFunctionDecl>(call->declaration())->native_function_name()));
-    TRY_RETURN(evaluate_arguments(ctx, call->declaration(), call->arguments()));
-    ctx.write(")");
+    write(ctx, format("{}(", std::dynamic_pointer_cast<BoundNativeFunctionDecl>(call->declaration())->native_function_name()));
+    TRY_RETURN(evaluate_arguments(ctx, result, call->declaration(), call->arguments()));
+    write(ctx, ")");
     return tree;
 }
 
@@ -284,14 +283,14 @@ NODE_PROCESSOR(BoundIntrinsicCall)
 {
     auto call = std::dynamic_pointer_cast<BoundIntrinsicCall>(tree);
 
-    ctx.writeln("({");
-    ctx.indent();
+    writeln(ctx, "({");
+    indent(ctx);
     auto count { 0 };
     for (auto const& arg : call->arguments()) {
         type_to_c_type(ctx, arg->type());
-        ctx.write(format(" arg{} = ", count++));
+        write(ctx, format(" arg{} = ", count++));
         TRY_RETURN(process(arg, ctx));
-        ctx.writeln(";");
+        writeln(ctx, ";");
     }
     CTranspilerFunctionType impl = get_c_transpiler_intrinsic(call->intrinsic());
     if (!impl)
@@ -299,16 +298,16 @@ NODE_PROCESSOR(BoundIntrinsicCall)
     auto ret = impl(ctx);
     if (ret.is_error())
         return ret.error();
-    ctx.writeln(";");
-    ctx.dedent();
-    ctx.write("})");
+    writeln(ctx, ";");
+    dedent(ctx);
+    write(ctx, "})");
     return tree;
 }
 
 NODE_PROCESSOR(BoundCastExpression)
 {
     auto cast = std::dynamic_pointer_cast<BoundCastExpression>(tree);
-    ctx.write(format("({}) ", type_to_c_type(cast->type())));
+    write(ctx, format("({}) ", type_to_c_type(cast->type())));
     TRY_RETURN(process(cast->expression(), ctx));
     return tree;
 }
@@ -316,14 +315,14 @@ NODE_PROCESSOR(BoundCastExpression)
 NODE_PROCESSOR(BoundIntLiteral)
 {
     auto literal = std::dynamic_pointer_cast<BoundIntLiteral>(tree);
-    ctx.write(format("{}", literal->int_value()));
+    write(ctx, format("{}", literal->int_value()));
     return tree;
 }
 
 NODE_PROCESSOR(BoundEnumValue)
 {
     auto enum_value = std::dynamic_pointer_cast<BoundEnumValue>(tree);
-    ctx.write(format("{}", enum_value->label()));
+    write(ctx, format("{}", enum_value->label()));
     return tree;
 }
 
@@ -332,31 +331,31 @@ NODE_PROCESSOR(BoundStringLiteral)
     auto literal = std::dynamic_pointer_cast<BoundStringLiteral>(tree);
     auto s = literal->value();
     replace_all(s, "\n", "\\n");
-    ctx.write(format(R"((string) {{ {}, (uint8_t *) "{}" })", s.length(), s));
+    write(ctx, format(R"((string) {{ {}, (uint8_t *) "{}" })", s.length(), s));
     return tree;
 }
 
 NODE_PROCESSOR(BoundBooleanLiteral)
 {
     auto literal = std::dynamic_pointer_cast<BoundBooleanLiteral>(tree);
-    ctx.write(format("{}", literal->value()));
+    write(ctx, format("{}", literal->value()));
     return tree;
 }
 
 NODE_PROCESSOR(BoundVariable)
 {
     auto variable = std::dynamic_pointer_cast<BoundVariable>(tree);
-    ctx.write(variable->name());
+    write(ctx, variable->name());
     return tree;
 }
 
 NODE_PROCESSOR(BoundConditionalValue)
 {
     auto conditional_value = std::dynamic_pointer_cast<BoundConditionalValue>(tree);
-    ctx.write(format(R"(({}) {{ .success={}, .{}=)", conditional_value->type()->name(), conditional_value->success(),
+    write(ctx, format(R"(({}) {{ .success={}, .{}=)", conditional_value->type()->name(), conditional_value->success(),
         conditional_value->success() ? "value" : "error"));
     TRY_RETURN(process(conditional_value->expression(), ctx));
-    ctx.write(" }");
+    write(ctx, " }");
     return tree;
 }
 
@@ -369,23 +368,23 @@ NODE_PROCESSOR(BoundMemberAccess)
     switch (access->structure()->type()->type()) {
     case PrimitiveType::Struct: {
         TRY_RETURN(process(access->structure(), ctx));
-        ctx.write(format(".{}", access->member()->name()));
+        write(ctx, format(".{}", access->member()->name()));
         break;
     }
     case PrimitiveType::Conditional: {
-        ctx.writeln("({");
-        ctx.indent();
-        ctx.write(format(R"({} cond = )", access->structure()->type()->name()));
+        writeln(ctx, "({");
+        indent(ctx);
+        write(ctx, format(R"({} cond = )", access->structure()->type()->name()));
         TRY_RETURN(process(access->structure(), ctx));
-        ctx.writeln(";");
+        writeln(ctx, ";");
         char const *msg = (access->member()->name() == "value") ? CONDITIONAL_VALUE_ERROR : CONDITIONAL_ERROR_ERROR;
         char const *invert = (access->member()->name() == "value") ? "!" : "";
         auto const& loc = access->token().location;
-        ctx.writeln(format(R"(if ({}cond.success) obelix_fatal((token) {{ .file_name="{}", .line_start={}, .column_start={}, .line_end={}, .column_end={}}, "{}");)",
+        writeln(ctx, format(R"(if ({}cond.success) obelix_fatal((token) {{ .file_name="{}", .line_start={}, .column_start={}, .line_end={}, .column_end={}}, "{}");)",
             invert, loc.file_name, loc.start_line, loc.start_column, loc.end_line, loc.end_column, msg));
-        ctx.writeln(format(R"(cond.{};)", access->member()->name()));
-        ctx.dedent();
-        ctx.write("})");
+        writeln(ctx, format(R"(cond.{};)", access->member()->name()));
+        dedent(ctx);
+        write(ctx, "})");
         break;
     }
     default:
@@ -400,14 +399,14 @@ NODE_PROCESSOR(BoundMemberAssignment)
     switch (access->structure()->type()->type()) {
     case PrimitiveType::Struct: {
         TRY_RETURN(process(access->structure(), ctx));
-        ctx.write(format(".{}", access->member()->name()));
+        write(ctx, format(".{}", access->member()->name()));
         break;
     }
     case PrimitiveType::Conditional: {
         TRY_RETURN(process(access->structure(), ctx));
-        ctx.writeln(format(R"(.success = {};)", access->member()->name() == "value"));
+        writeln(ctx, format(R"(.success = {};)", access->member()->name() == "value"));
         TRY_RETURN(process(access->structure(), ctx));
-        ctx.write(format(".{}", access->member()->name()));
+        write(ctx, format(".{}", access->member()->name()));
         break;
     }
     default:
@@ -420,9 +419,9 @@ NODE_PROCESSOR(BoundArrayAccess)
 {
     auto access = std::dynamic_pointer_cast<BoundArrayAccess>(tree);
     TRY_RETURN(process(access->array(), ctx));
-    ctx.write("[");
+    write(ctx, "[");
     TRY_RETURN(process(access->subscript(), ctx));
-    ctx.write("]");
+    write(ctx, "]");
     return tree;
 }
 
@@ -430,7 +429,7 @@ NODE_PROCESSOR(BoundAssignment)
 {
     auto assignment = std::dynamic_pointer_cast<BoundAssignment>(tree);
     TRY_RETURN(process(assignment->assignee(), ctx));
-    ctx.write(" = ");
+    write(ctx, " = ");
     TRY_RETURN(process(assignment->expression(), ctx));
     return tree;
 }
@@ -440,21 +439,21 @@ NODE_PROCESSOR(BoundVariableDeclaration)
     auto var_decl = std::dynamic_pointer_cast<BoundVariableDeclaration>(tree);
 
     if (std::dynamic_pointer_cast<BoundStaticVariableDeclaration>(var_decl) || std::dynamic_pointer_cast<BoundLocalVariableDeclaration>(var_decl))
-        ctx.write("static ");
+        write(ctx, "static ");
     type_to_c_type(ctx, var_decl->type());
-    ctx.write(format(" {}", var_decl->name()));
+    write(ctx, format(" {}", var_decl->name()));
     if (var_decl->type()->type() == PrimitiveType::Array) {
         assert(var_decl->type()->is_template_specialization());
         auto size = var_decl->type()->template_argument<long>("size");
-        ctx.write(format("[{}]", size));
+        write(ctx, format("[{}]", size));
     }
-    ctx.write(" = ");
+    write(ctx, " = ");
     if (var_decl->expression() != nullptr) {
         TRY_RETURN(process(var_decl->expression(), ctx));
     } else {
-        ctx.write(type_initialize(var_decl->type()));
+        write(ctx, type_initialize(var_decl->type()));
     }
-    ctx.writeln(";");
+    writeln(ctx, ";");
     return tree;
 }
 
@@ -466,18 +465,18 @@ NODE_PROCESSOR(BoundExpressionStatement)
 {
     auto expr_stmt = std::dynamic_pointer_cast<BoundExpressionStatement>(tree);
     TRY_RETURN(process(expr_stmt->expression(), ctx));
-    ctx.writeln(";");
+    writeln(ctx, ";");
     return tree;
 }
 
 NODE_PROCESSOR(BoundReturn)
 {
     auto ret = std::dynamic_pointer_cast<BoundReturn>(tree);
-    ctx.write("return");
+    write(ctx, "return");
     if (ret->expression())
-        ctx.write(" ");
+        write(ctx, " ");
         TRY_RETURN(process(ret->expression(), ctx));
-    ctx.writeln(";");
+    writeln(ctx, ";");
     return tree;
 }
 
@@ -485,13 +484,13 @@ NODE_PROCESSOR(BoundWhileStatement)
 {
     auto while_stmt = std::dynamic_pointer_cast<BoundWhileStatement>(tree);
 
-    ctx.write("while (");
+    write(ctx, "while (");
     TRY_RETURN(process(while_stmt->condition(), ctx));
-    ctx.writeln(") {");
-    ctx.indent();
+    writeln(ctx, ") {");
+    indent(ctx);
     TRY_RETURN(process(while_stmt->statement(), ctx));
-    ctx.dedent();
-    ctx.writeln("}");
+    dedent(ctx);
+    writeln(ctx, "}");
     return tree;
 }
 
@@ -500,15 +499,15 @@ NODE_PROCESSOR(BoundForStatement)
     auto for_stmt = std::dynamic_pointer_cast<BoundForStatement>(tree);
     auto range = std::dynamic_pointer_cast<BoundBinaryExpression>(for_stmt->range());
     assert(range != nullptr && range->op() == BinaryOperator::Range);
-    ctx.write(format("for ({} {} = ", type_to_c_type(for_stmt->variable()->type()), for_stmt->variable()->name()));
+    write(ctx, format("for ({} {} = ", type_to_c_type(for_stmt->variable()->type()), for_stmt->variable()->name()));
     TRY_RETURN(process(range->lhs(), ctx));
-    ctx.write(format("; {} < ", for_stmt->variable()->name()));
+    write(ctx, format("; {} < ", for_stmt->variable()->name()));
     TRY_RETURN(process(range->rhs(), ctx));
-    ctx.writeln(format("; ++{}) {", for_stmt->variable()->name()));
-    ctx.indent();
+    writeln(ctx, format("; ++{}) {", for_stmt->variable()->name()));
+    indent(ctx);
     TRY_RETURN(process(for_stmt->statement(), ctx));
-    ctx.dedent();
-    ctx.writeln("}");
+    dedent(ctx);
+    writeln(ctx, "}");
     return tree;
 }
 
@@ -519,17 +518,17 @@ NODE_PROCESSOR(BoundIfStatement)
     auto first { true };
     for (auto& branch : if_stmt->branches()) {
         if (!first)
-            ctx.write("else ");
+            write(ctx, "else ");
         if (branch->condition() != nullptr) {
-            ctx.write("if (");
+            write(ctx, "if (");
             TRY_RETURN(process(branch->condition(), ctx));
-            ctx.write(") ");
+            write(ctx, ") ");
         }
-        ctx.writeln(" {");
-        ctx.indent();
+        writeln(ctx, " {");
+        indent(ctx);
         TRY_RETURN(process(branch->statement(), ctx));
-        ctx.dedent();
-        ctx.writeln("}");
+        dedent(ctx);
+        writeln(ctx, "}");
         if (branch->condition() == nullptr)
             break;
         first = false;
@@ -542,37 +541,37 @@ NODE_PROCESSOR(BoundSwitchStatement)
     auto switch_stmt = std::dynamic_pointer_cast<BoundSwitchStatement>(tree);
     auto default_case = switch_stmt->default_case();
 
-    ctx.write("switch (");
+    write(ctx, "switch (");
     TRY_RETURN(process(switch_stmt->expression(), ctx));
-    ctx.writeln(") {");
+    writeln(ctx, ") {");
     for (auto const& switch_case : switch_stmt->cases()) {
         if (switch_case->condition() == nullptr) {
             default_case = switch_case;
             break;
         }
-        ctx.write("case ");
+        write(ctx, "case ");
         TRY_RETURN(process(switch_case->condition(), ctx));
-        ctx.writeln(": {");
-        ctx.indent();
+        writeln(ctx, ": {");
+        indent(ctx);
         TRY_RETURN(process(switch_case->statement(), ctx));
-        ctx.writeln("break;");
-        ctx.dedent();
-        ctx.writeln("}");
+        writeln(ctx, "break;");
+        dedent(ctx);
+        writeln(ctx, "}");
     }
-    ctx.writeln("default: {");
-    ctx.indent();
+    writeln(ctx, "default: {");
+    indent(ctx);
     if (default_case != nullptr)
         TRY_RETURN(process(default_case, ctx));
-    ctx.writeln("break;");
-    ctx.dedent();
-    ctx.writeln("}");
-    ctx.writeln("}");
+    writeln(ctx, "break;");
+    dedent(ctx);
+    writeln(ctx, "}");
+    writeln(ctx, "}");
     return tree;
 }
 
-ErrorOrNode transpile_to_c(std::shared_ptr<SyntaxNode> const& tree, Config const& config, std::string const& file_name)
+ProcessResult transpile_to_c(std::shared_ptr<SyntaxNode> const& tree, Config const& config, std::string const& file_name)
 {
-    CTranspilerContext root;
+    CTranspilerContext root(config);
     obl_dir = config.obelix_directory();
     fs::create_directory(".obelix");
 
@@ -608,13 +607,13 @@ ErrorOrNode transpile_to_c(std::shared_ptr<SyntaxNode> const& tree, Config const
 #endif
 
     std::vector<std::string> modules;
-    std::vector<fs::path> files;
+    std::vector<fs::path> output_files;
     auto compiler = config.cmdline_flag<std::string>("with-c-compiler", "cc");
     auto linker = config.cmdline_flag<std::string>("with-c-linker", compiler);
 
-    for (auto& module_file : root.files()) {
+    for (auto& module_file : files(root)) {
         auto p = fs::path(".obelix/" + module_file->name());
-        files.push_back(p);
+        output_files.push_back(p);
 
         if (config.cmdline_flag<bool>("show-c-file")) {
             std::cout << module_file->to_string();
@@ -630,7 +629,7 @@ ErrorOrNode transpile_to_c(std::shared_ptr<SyntaxNode> const& tree, Config const
         modules.push_back(o_file);
     }
     if (!config.cmdline_flag<bool>("keep-c-file")) {
-        for (auto const& file : files)
+        for (auto const& file : output_files)
             unlink(file.c_str());
     }
 

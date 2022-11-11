@@ -16,7 +16,7 @@
 
 namespace Obelix {
 
-class MaterializeContext : public Context<std::shared_ptr<SyntaxNode>>
+class MaterializeContextPayload
 {
 public:
     enum class ContextLevel {
@@ -26,44 +26,26 @@ public:
         Block,
     };
 
-    MaterializeContext()
-        : Context()
-        , m_level(ContextLevel::Global)
+    MaterializeContextPayload() = default;
+
+    MaterializeContextPayload(ContextLevel level)
+        : m_level(level)
     {
     }
 
-    MaterializeContext(ContextLevel level)
-        : Context()
-        , m_level(level)
-    {
-    }
-
-    MaterializeContext(MaterializeContext& parent)
-        : Context(dynamic_cast<Context&>(parent))
-    {
-    }
-
-    MaterializeContext(MaterializeContext& parent, int offset)
-        : Context(dynamic_cast<Context&>(parent))
-        , m_offset(offset)
+    MaterializeContextPayload(int offset)
+        : m_offset(offset)
         , m_level(ContextLevel::Function)
     {
     }
 
     [[nodiscard]] int offset() const
     {
-        if (level() == ContextLevel::Block) {
-            return dynamic_cast<MaterializeContext const*>(parent())->offset();
-        }
         return m_offset;
     };
 
     void increase_offset(int increment)
     {
-        if (level() == ContextLevel::Block) {
-            dynamic_cast<MaterializeContext*>(parent())->increase_offset(increment);
-            return;
-        }
         if (increment % 16)
             increment += 16 - (increment % 16);
         m_offset += increment;
@@ -73,52 +55,31 @@ public:
 
     void add_unresolved_function(std::shared_ptr<BoundFunctionCall> func_call)
     {
-        if (parent() != nullptr) {
-            (static_cast<MaterializeContext*>(parent()))->add_unresolved_function(func_call);
-            return;
-        }
         m_unresolved_functions.push_back(func_call);
     }
 
     [[nodiscard]] std::vector<std::shared_ptr<BoundFunctionCall>> const& unresolved_functions() const
     {
-        if (parent() != nullptr) {
-            return (dynamic_cast<MaterializeContext const*>(parent()))->unresolved_functions();
-        }
         return m_unresolved_functions;
     }
 
     void clear_unresolved_functions()
     {
-        if (parent() != nullptr) {
-            (dynamic_cast<MaterializeContext*>(parent()))->clear_unresolved_functions();
-            return;
-        }
         m_unresolved_functions.clear();
     }
 
     void add_materialized_function(std::shared_ptr<MaterializedFunctionDecl> func)
     {
-        if (parent() != nullptr) {
-            (dynamic_cast<MaterializeContext*>(parent()))->add_materialized_function(func);
-            return;
-        }
         m_materialized_functions.insert({ func->name(), func });
     }
 
     [[nodiscard]] std::multimap<std::string, std::shared_ptr<MaterializedFunctionDecl>> const& materialized_functions() const
     {
-        if (parent() != nullptr) {
-            return (dynamic_cast<MaterializeContext const*>(parent()))->materialized_functions();
-        }
         return m_materialized_functions;
     }
 
-    [[nodiscard]] std::shared_ptr<MaterializedFunctionDecl> match(std::string const& name, ObjectTypes arg_types) const
+    [[nodiscard]] std::shared_ptr<MaterializedFunctionDecl> match(std::string const& name, ObjectTypes const& arg_types) const
     {
-        if (parent() != nullptr) {
-            return (dynamic_cast<MaterializeContext const*>(parent()))->match(name, arg_types);
-        }
         debug(parser, "matching function {}({})", name, arg_types);
         //        debug(parser, "Current materialized functions:");
         //        for (auto const& f : m_materialized_functions) {
@@ -155,19 +116,82 @@ public:
 
     void clear_materialized_functions()
     {
-        if (parent() != nullptr) {
-            (dynamic_cast<MaterializeContext*>(parent()))->clear_materialized_functions();
-            return;
-        }
         m_materialized_functions.clear();
     }
 
 private:
     int m_offset { 0 };
-    ContextLevel m_level { ContextLevel::Block };
+    ContextLevel m_level { ContextLevel::Global };
     std::vector<std::shared_ptr<BoundFunctionCall>> m_unresolved_functions;
     std::multimap<std::string, std::shared_ptr<MaterializedFunctionDecl>> m_materialized_functions;
 };
+
+using MaterializeContext = Context<std::shared_ptr<SyntaxNode>, MaterializeContextPayload>;
+
+template <typename ...Args>
+MaterializeContext& make_subcontext(MaterializeContext& ctx, Args&&... args)
+{
+    MaterializeContextPayload payload(std::forward<Args>(args)...);
+    return ctx.make_subcontext(payload);
+}
+
+[[nodiscard]] int offset(MaterializeContext const& ctx)
+{
+    return ctx.call_on_ancestors<int>(
+        [](MaterializeContext const& ctx) -> std::optional<int> {
+            if (ctx().level() == MaterializeContextPayload::ContextLevel::Block)
+                return {};
+            return ctx().offset();
+        }
+    );
+}
+
+void increase_offset(MaterializeContext& ctx, int increment)
+{
+    ctx.ancestor_data(
+        [](MaterializeContext const& ctx) -> bool {
+               return (ctx().level() != MaterializeContextPayload::ContextLevel::Block);
+        }).increase_offset(increment);
+}
+
+void add_unresolved_function(MaterializeContext& ctx, std::shared_ptr<BoundFunctionCall> func_call)
+{
+    ctx.call_on_root(
+        [&func_call](MaterializeContext& ctx) -> void {
+            ctx().add_unresolved_function(func_call);
+        }
+    );
+}
+
+[[nodiscard]] BoundFunctionCalls const& unresolved_functions(MaterializeContext const& ctx)
+{
+    return ctx.root_data().unresolved_functions();
+}
+
+void clear_unresolved_functions(MaterializeContext& ctx)
+{
+    ctx.root_data().clear_unresolved_functions();
+}
+
+void add_materialized_function(MaterializeContext& ctx, pMaterializedFunctionDecl func)
+{
+    ctx.root_data().add_materialized_function(std::move(func));
+}
+
+[[nodiscard]] std::multimap<std::string, pMaterializedFunctionDecl> const& materialized_functions(MaterializeContext const& ctx)
+{
+    return ctx.root_data().materialized_functions();
+}
+
+[[nodiscard]] pMaterializedFunctionDecl match(MaterializeContext const& ctx, std::string const& name, ObjectTypes const& arg_types)
+{
+    return ctx.root_data().match(name, arg_types);
+}
+
+void clear_materialized_functions(MaterializeContext& ctx)
+{
+    ctx.root_data().clear_materialized_functions();
+}
 
 INIT_NODE_PROCESSOR(MaterializeContext)
 
@@ -236,7 +260,7 @@ NODE_PROCESSOR(BoundFunctionDecl)
     auto ret = make_node<MaterializedFunctionDecl>(func_decl,
         materialized_parameters.function_parameters, materialized_parameters.nsaa, materialized_parameters.offset);
     ctx.declare(func_decl->name(), ret);
-    ctx.add_materialized_function(ret);
+    add_materialized_function(ctx, ret);
     return ret;
 }
 
@@ -247,7 +271,7 @@ NODE_PROCESSOR(BoundNativeFunctionDecl)
     auto ret = make_node<MaterializedNativeFunctionDecl>(func_decl,
         materialized_parameters.function_parameters, materialized_parameters.nsaa);
     ctx.declare(func_decl->name(), ret);
-    ctx.add_materialized_function(ret);
+    add_materialized_function(ctx, ret);
     return ret;
 }
 
@@ -258,7 +282,7 @@ NODE_PROCESSOR(BoundIntrinsicDecl)
     auto ret = make_node<MaterializedIntrinsicDecl>(func_decl,
         materialized_parameters.function_parameters, materialized_parameters.nsaa);
     ctx.declare(func_decl->name(), ret);
-    ctx.add_materialized_function(ret);
+    add_materialized_function(ctx, ret);
     return ret;
 }
 
@@ -267,14 +291,14 @@ NODE_PROCESSOR(BoundFunctionDef)
     auto func_def = std::dynamic_pointer_cast<BoundFunctionDef>(tree);
     auto func_decl = TRY_AND_CAST(MaterializedFunctionDecl, func_def->declaration(), ctx);
 
-    MaterializeContext func_ctx(ctx, func_decl->stack_depth());
+    auto& func_ctx = make_subcontext(ctx, func_decl->stack_depth());
     for (auto const& param : func_decl->parameters()) {
         func_ctx.declare(param->name(), param);
     }
     std::shared_ptr<Block> block;
     assert(func_def->statement()->node_type() == SyntaxNodeType::FunctionBlock);
     block = TRY_AND_CAST(FunctionBlock, func_def->statement(), func_ctx);
-    return make_node<MaterializedFunctionDef>(func_def, func_decl, block, func_ctx.offset());
+    return make_node<MaterializedFunctionDef>(func_def, func_decl, block, offset(func_ctx));
 }
 
 NODE_PROCESSOR(FunctionBlock)
@@ -292,8 +316,8 @@ NODE_PROCESSOR(BoundVariableDeclaration)
 {
     auto var_decl = std::dynamic_pointer_cast<BoundVariableDeclaration>(tree);
     auto expression = TRY_AND_CAST(BoundExpression, var_decl->expression(), ctx);
-    ctx.increase_offset(var_decl->type()->size());
-    auto ret = make_node<MaterializedVariableDecl>(var_decl, ctx.offset(), expression);
+    increase_offset(ctx, var_decl->type()->size());
+    auto ret = make_node<MaterializedVariableDecl>(var_decl, offset(ctx), expression);
     ctx.declare(var_decl->name(), ret);
     return ret;
 }
@@ -338,7 +362,7 @@ NODE_PROCESSOR(BoundFunctionCall)
         arguments.push_back(arg);
         arg_types.push_back(arg->type());
     }
-    std::shared_ptr<MaterializedFunctionDecl> materialized_decl = ctx.match(call->name(), arg_types);
+    std::shared_ptr<MaterializedFunctionDecl> materialized_decl = match(ctx, call->name(), arg_types);
     switch (call->node_type()) {
     case SyntaxNodeType::BoundNativeFunctionCall:
         assert(materialized_decl != nullptr);
@@ -347,7 +371,7 @@ NODE_PROCESSOR(BoundFunctionCall)
         std::shared_ptr<MaterializedIntrinsicDecl> materialized;
         if (materialized_decl == nullptr) {
             materialized = TRY_AND_CAST(MaterializedIntrinsicDecl, call->declaration(), ctx);
-            ctx.add_materialized_function(materialized);
+            add_materialized_function(ctx, materialized);
             ctx.declare(call->name(), materialized);
         } else {
             materialized = std::dynamic_pointer_cast<MaterializedIntrinsicDecl>(materialized_decl);
@@ -425,9 +449,11 @@ NODE_PROCESSOR(BoundArrayAccess)
     return make_node<MaterializedArrayAccess>(array_access, array, subscript, element_size);
 }
 
-ErrorOrNode materialize_arm64(std::shared_ptr<SyntaxNode> const& tree)
+ProcessResult materialize_arm64(std::shared_ptr<SyntaxNode> const& tree)
 {
-    return process<MaterializeContext>(tree);
+    Config config;
+    MaterializeContext ctx(config);
+    return process<MaterializeContext>(tree, ctx);
 }
 
 }

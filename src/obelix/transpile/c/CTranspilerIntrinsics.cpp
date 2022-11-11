@@ -35,31 +35,31 @@ CTranspilerFunctionType const& get_c_transpiler_intrinsic(IntrinsicType type)
 
 INTRINSIC(allocate)
 {
-    ctx.writeln("malloc(arg0);");
+    writeln(ctx, "malloc(arg0);");
     return {};
 }
 
 INTRINSIC(ok)
 {
-    ctx.writeln("arg0.success");
+    writeln(ctx, "arg0.success");
     return {};
 }
 
 INTRINSIC(error)
 {
-    ctx.writeln("!arg0.success");
+    writeln(ctx, "!arg0.success");
     return {};
 }
 
 INTRINSIC(eputs)
 {
-    ctx.writeln("write(2,arg1,arg0);");
+    writeln(ctx, "write(2,arg1,arg0);");
     return {};
 }
 
 INTRINSIC(fputs)
 {
-    ctx.writeln("write(arg0,arg2,arg1);");
+    writeln(ctx, "write(arg0,arg2,arg1);");
     return {};
 }
 
@@ -70,7 +70,7 @@ INTRINSIC(int_to_string)
 
 INTRINSIC(putchar)
 {
-    ctx.writeln(
+    writeln(ctx,
 R"(
 uint8_t ch = (uint8_t) arg0;
 write(1,&ch,1);)");
@@ -79,115 +79,115 @@ write(1,&ch,1);)");
 
 INTRINSIC(ptr_math)
 {
-    ctx.writeln("((void*) arg0) + arg1;");
+    writeln(ctx, "((void*) arg0) + arg1;");
     return {};
 }
 
 INTRINSIC(dereference)
 {
-    ctx.writeln("*arg0;");
+    writeln(ctx, "*arg0;");
     return {};
 }
 
 INTRINSIC(add_int_int)
 {
-    ctx.write("arg0 + arg1");
+    write(ctx, "arg0 + arg1");
     return {};
 }
 
 INTRINSIC(subtract_int_int)
 {
-    ctx.write("arg0 - arg1");
+    write(ctx, "arg0 - arg1");
     return {};
 }
 
 INTRINSIC(multiply_int_int)
 {
-    ctx.write("arg0 * arg1");
+    write(ctx, "arg0 * arg1");
     return {};
 }
 
 INTRINSIC(divide_int_int)
 {
-    ctx.write("arg0 / arg1");
+    write(ctx, "arg0 / arg1");
     return {};
 }
 
 INTRINSIC(equals_int_int)
 {
-    ctx.write("arg0 == arg1");
+    write(ctx, "arg0 == arg1");
     return {};
 }
 
 INTRINSIC(greater_int_int)
 {
-    ctx.write("arg0 > arg1");
+    write(ctx, "arg0 > arg1");
     return {};
 }
 
 INTRINSIC(less_int_int)
 {
-    ctx.write("arg0 < arg1");
+    write(ctx, "arg0 < arg1");
     return {};
 }
 
 INTRINSIC(negate_s64)
 {
-    ctx.write("-arg0");
+    write(ctx, "-arg0");
     return {};
 }
 
 INTRINSIC(negate_s32)
 {
-    ctx.write("-arg0");
+    write(ctx, "-arg0");
     return {};
 }
 
 INTRINSIC(negate_s16)
 {
-    ctx.write("-arg0");
+    write(ctx, "-arg0");
     return {};
 }
 
 INTRINSIC(negate_s8)
 {
-    ctx.write("-arg0");
+    write(ctx, "-arg0");
     return {};
 }
 
 INTRINSIC(invert_int)
 {
-    ctx.write("~arg0");
+    write(ctx, "~arg0");
     return {};
 }
 
 INTRINSIC(invert_bool)
 {
-    ctx.write("!arg0");
+    write(ctx, "!arg0");
     return {};
 }
 
 INTRINSIC(and_bool_bool)
 {
-    ctx.write("arg0 && arg1");
+    write(ctx, "arg0 && arg1");
     return {};
 }
 
 INTRINSIC(or_bool_bool)
 {
-    ctx.write("arg0 || arg1");
+    write(ctx, "arg0 || arg1");
     return {};
 }
 
 INTRINSIC(xor_bool_bool)
 {
-    ctx.write("arg0 ^ arg1");
+    write(ctx, "arg0 ^ arg1");
     return {};
 }
 
 INTRINSIC(equals_bool_bool)
 {
-    ctx.write("arg0 == arg1");
+    write(ctx, "arg0 == arg1");
     return {};
 }
 

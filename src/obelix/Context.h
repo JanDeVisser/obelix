@@ -21,41 +21,45 @@ namespace Obelix {
 
 extern_logging_category(parser);
 
-template <typename T>
-std::string dump_value(T const& value)
-{
-    return format("{}", value);
-}
-
-template<typename T>
+template<typename T, typename Payload = int>
 class Context {
 public:
-    Context() = default;
+    using Ctx = Context<T, Payload>;
 
-    Context(Context<T>&&) = delete;
-
-    explicit Context(Context<T>* parent)
-        : m_parent(parent)
+    Context(Config const& config)
+        : m_config(config)
     {
-        if (parent) {
-            parent->m_children.push_back(this);
-            config = parent->config;
-        }
     }
 
-    explicit Context(Context<T>& parent)
-        : m_parent(&parent)
+    Context(Config const& config, Payload payload)
+        : m_data(std::move(payload))
+        , m_config(config)
     {
-        parent.m_children.push_back(this);
-        config = parent.config;
     }
 
-    virtual ~Context()
+    Context(Ctx* parent)
+        : m_config(parent->config())
+        , m_parent(parent)
     {
-        if (m_parent) {
-            std::remove_if(m_parent->m_children.begin(), m_parent->m_children.end(),
-                [this](auto child) { return (this == child); });
-        }
+    }
+
+    Context(Ctx* parent, Payload payload)
+        : m_data(std::move(payload))
+        , m_config(parent->config())
+        , m_parent(parent)
+    {
+    }
+
+    virtual ~Context() = default;
+
+    [[nodiscard]] Ctx& make_subcontext()
+    {
+        return m_children.emplace_back(this);
+    }
+
+    [[nodiscard]] Ctx& make_subcontext(Payload payload)
+    {
+        return m_children.emplace_back(this, std::move(payload));
     }
 
     [[nodiscard]] bool contains(std::string const& name) const
@@ -137,48 +141,157 @@ public:
         m_names.clear();
     }
 
-    void dump(int level) const
+    [[nodiscard]] Config const& config() const
     {
-        std::string indent;
-        while (indent.length() < 2*level)
-            indent += ' ';
-        for (auto const& p : m_names) {
-            std::cout << indent << p.first << ": " << dump_value(p.second) << "\n";
-        }
-        for (auto const& child : children()) {
-            child->dump(level+1);
-        }
+        return m_config;
     }
 
-    template <typename Payload>
-    ErrorOr<Payload, SyntaxError> add_if_error(ErrorOr<Payload, SyntaxError> maybe_error)
+    [[nodiscard]] Payload& data()
     {
-        if (maybe_error.is_error()) {
-            add_error(maybe_error.error());
+        return m_data;
+    }
+
+    [[nodiscard]] Payload const& data() const
+    {
+        return m_data;
+    }
+
+    [[nodiscard]] Payload& operator()()
+    {
+        return m_data;
+    }
+
+    [[nodiscard]] Payload const& operator()() const
+    {
+        return m_data;
+    }
+
+    Payload& root_data()
+    {
+        if (parent() != nullptr)
+            return parent()->root_data();
+        return data();
+    }
+
+    [[nodiscard]] Payload const& root_data() const
+    {
+        if (parent() != nullptr)
+            return parent()->root_data();
+        return data();
+    }
+
+    Payload& ancestor_data(std::function<bool(Context<T,Payload> const&)> const& predicate)
+    {
+        auto cur = this;
+        while (!predicate(*cur)) {
+            if (cur->parent() == nullptr)
+                break;
+            cur = cur->parent();
         }
-        return maybe_error;
+        return cur->data();
     }
 
-    void add_error(SyntaxError error)
+    [[nodiscard]] Payload const& ancestor_data(std::function<bool(Context<T,Payload> const&)> const& predicate) const
     {
-        if (m_parent)
-            return m_parent->add_error(error);
-        else
-            m_errors.push_back(error);
+        auto cur = this;
+        while (!predicate(*cur)) {
+            if (cur.parent() == nullptr)
+                break;
+            cur = cur->parent();
+        }
+        return cur->data();
     }
 
-    Config config;
+    template <typename Return>
+    Return call_on_ancestors(std::function<std::optional<Return>(Context<T,Payload>&)> const& action)
+    {
+        auto result_maybe = action(*this);
+        if (result_maybe.has_value())
+            return result_maybe.value();
+        assert(parent() != nullptr);
+        return parent()->template call_on_ancestors<Return>(action);
+    }
 
-protected:
-    [[nodiscard]] Context<T>* parent() { return m_parent; }
-    [[nodiscard]] Context<T> const* parent() const { return m_parent; }
-    [[nodiscard]] std::vector<Context<T>*> const& children() const { return m_children; }
+    void call_on_ancestors(std::function<bool(Context<T,Payload>&)> const& action)
+    {
+        if (action(*this) || (parent() == nullptr))
+            return;
+        parent()->call_on_ancestors(action);
+    }
+
+    template <typename Return>
+    [[nodiscard]] Return call_on_ancestors(std::function<std::optional<Return>(Context<T,Payload> const&)> const& action) const
+    {
+        auto result_maybe = action(*this);
+        if (result_maybe.has_value())
+            return result_maybe.value();
+        assert(parent() != nullptr);
+        return parent()->template call_on_ancestors<Return>(action);
+    }
+
+    void call_on_ancestors(std::function<bool(Context<T,Payload> const&)> const& action) const
+    {
+        if (action(*this) || (parent() == nullptr))
+            return;
+        parent()->call_on_ancestors(action);
+    }
+
+    template <typename Return, typename F>
+    Return call_on_root(F f)
+    {
+        if (parent() != nullptr)
+            return parent()->template call_on_root<Return>(f);
+        return f(*this);
+    }
+
+    template <typename F>
+    void call_on_root(F f)
+    {
+        if (parent() != nullptr)
+            parent()->template call_on_root<void>(f);
+        f(*this);
+    }
+
+    template <typename Return, typename F>
+    [[nodiscard]] Return call_on_root(F f) const
+    {
+        if (parent() != nullptr)
+            return parent()->template call_on_root<Return>(f);
+        return f(*this);
+    }
+
+    template <typename F>
+    void call_on_root(F f) const
+    {
+        if (parent() != nullptr)
+            parent()->template call_on_root<void>(f);
+        f(*this);
+    }
+
+    [[nodiscard]] Ctx* parent() { return m_parent; }
+    [[nodiscard]] Ctx const* parent() const { return m_parent; }
 
 private:
+    Payload m_data {};
+    Config const& m_config;
     std::map<std::string, T> m_names {};
-    Context<T>* m_parent { nullptr };
-    std::vector<Context<T>*> m_children {};
-    std::vector<SyntaxError> m_errors {};
+    Ctx* m_parent { nullptr };
+    std::vector<Ctx> m_children;
 };
+
+template<typename Ctx>
+inline Ctx& make_subcontext(Ctx& ctx)
+{
+    return ctx;
+}
+
+template<typename T, typename Payload>
+inline Context<T, Payload>& make_subcontext(Context<T, Payload>& ctx)
+{
+    return ctx.make_subcontext();
+}
+
+
+
 
 }

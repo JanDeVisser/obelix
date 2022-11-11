@@ -4,12 +4,12 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
-#include <config.h>
-
-#include "obelix/Architecture.h"
-#include <obelix/Parser.h>
+#include <core/Logging.h>
+#include <obelix/Config.h>
 
 namespace Obelix {
+
+extern_logging_category(parser);
 
 Config::Config(int argc, char const** argv)
 {
@@ -72,24 +72,24 @@ Config::Config(int argc, char const** argv)
 
 ErrorOr<std::string> ObelixBufferLocator::check_in_dir(std::string const& directory, std::string const& file_path)
 {
-    debug(lexer, "Checking existence of dir {} file {}", directory, file_path);
+    debug(parser, "Checking existence of dir {} file {}", directory, file_path);
     auto exists_in_dir = check_existence(format("{}/{}", directory, file_path));
     if (exists_in_dir.is_error()) {
         auto err = exists_in_dir.error();
         switch (err.code()) {
         case ErrorCode::PathIsDirectory: {
-            debug(lexer, "Path is directory");
+            debug(parser, "Path is directory");
             return check_in_dir(directory, "__init__.obl");
         }
         case ErrorCode::NoSuchFile: {
             if (file_path.ends_with(".obl")) {
-                debug(lexer, "Path does not exist");
+                debug(parser, "Path does not exist");
                 return err;
             }
             return check_in_dir(directory, file_path + ".obl");
         }
         default:
-            debug(lexer, "Unexpected error: {}", err.message());
+            debug(parser, "Unexpected error: {}", err.message());
             return err;
         }
     }
@@ -99,7 +99,7 @@ ErrorOr<std::string> ObelixBufferLocator::check_in_dir(std::string const& direct
 ErrorOr<std::string> ObelixBufferLocator::locate(std::string const& file_path) const
 {
     std::string obl_dir = m_config.obelix_directory();
-    debug(lexer, "Locating file {}. OBL_DIR= {}", file_path, obl_dir);
+    debug(parser, "Locating file {}. OBL_DIR= {}", file_path, obl_dir);
 
     if (auto path_or_err = check_in_dir(".", file_path); !path_or_err.is_error()) {
         return path_or_err.value();
