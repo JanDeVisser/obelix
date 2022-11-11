@@ -20,6 +20,7 @@ namespace Obelix {
     S(WINDOWS_X86_64, "windows")      \
     S(C_TRANSPILER, "c_transpiler")   \
     S(JS_TRANSPILER, "js_transpiler") \
+    S(JV_80, "JV-80 8-bit CPU")       \
     S(INTERPRETER, "interp")
 
 enum class Architecture {
