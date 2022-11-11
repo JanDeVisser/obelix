@@ -156,9 +156,9 @@ public:
     ErrorOr& operator=(ErrorOr const&) = default;
 
     [[nodiscard]] bool has_value() const { return m_value.has_value(); }
-    ReturnType& value() { return m_value.value(); }
+    ReturnType const& value() const { return m_value.value(); }
     [[nodiscard]] bool is_error() const { return m_error.has_value(); }
-    ErrorType& error() { return m_error.value(); }
+    ErrorType const& error() const { return m_error.value(); }
 
 private:
     std::optional<ReturnType> m_value {};
