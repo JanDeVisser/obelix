@@ -39,17 +39,17 @@ ProcessResult parse(ParserContext& ctx, std::string const& module_name)
     ProcessResult ret;
     ret = parser.parse();
     for (auto const& e : parser.errors())
-        ret.push_back(SyntaxError { ErrorCode::SyntaxError, e.token, e.message });
+        ret = SyntaxError { ErrorCode::SyntaxError, e.token, e.message };
     return ret;
 }
 
-#define PROCESS_RESULT(res)         \
-    ({                              \
-        auto __result = res;        \
-        if (!__result.is_error()) { \
-            return __result;        \
-        }                           \
-        __result.value();           \
+#define PROCESS_RESULT(res)        \
+    ({                             \
+        auto __result = res;       \
+        if (__result.is_error()) { \
+            return __result;       \
+        }                          \
+        __result.value();          \
     })
 
 #define TRY_PROCESS_RESULT(tree, ctx)       \
@@ -129,10 +129,10 @@ NODE_PROCESSOR(Compilation)
     });
     if (!main_done) {
         auto res = parse(ctx, compilation->main_module());
-        if (res.has_value()) {
-            modules.push_back(std::dynamic_pointer_cast<Module>(res.value()));
-        }
         result += res;
+        if (result.is_error())
+            return result.error();
+        modules.push_back(std::dynamic_pointer_cast<Module>(res.value()));
         while (!ctx.modules.empty()) {
             Strings module_names;
             for (auto const& m : ctx.modules) {

@@ -71,6 +71,8 @@ Parser::Parser(ParserContext& ctx, std::string const& file_name)
 
 std::shared_ptr<Module> Parser::parse()
 {
+    if (!errors().empty())
+        return nullptr;
     Statements statements;
     parse_statements(statements, true);
     if (has_errors())
