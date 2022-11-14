@@ -187,7 +187,7 @@ BoundCompilation::BoundCompilation(BoundModules modules, ObjectTypes const& cust
     , m_main_module(std::move(main_module))
 {
     for (auto const& module : m_modules) {
-        if (module->name() == "")
+        if (module->name() == "/")
             m_root = module;
         else if (module->name() == m_main_module)
             m_main = module;
@@ -203,7 +203,7 @@ BoundCompilation::BoundCompilation(BoundModules modules, BoundTypes custom_types
     , m_main_module(std::move(main_module))
 {
     for (auto const& module : m_modules) {
-        if (module->name() == "")
+        if (module->name() == "/")
             m_root = module;
         else if (module->name() == m_main_module)
             m_main = module;
@@ -237,7 +237,12 @@ std::string const& BoundCompilation::main_module() const
 
 Nodes BoundCompilation::children() const
 {
-    return Nodes { std::make_shared<NodeList<BoundModule>>("modules", m_modules), std::make_shared<NodeList<BoundType>>("types", m_custom_types) };
+    BoundModules modules;
+    for (auto const& m : m_modules) {
+        if (m->name() != "/")
+            modules.push_back(m);
+    }
+    return Nodes { std::make_shared<NodeList<BoundModule>>("modules", modules), std::make_shared<NodeList<BoundType>>("types", m_custom_types) };
 }
 
 std::string BoundCompilation::to_string() const

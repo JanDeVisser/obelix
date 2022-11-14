@@ -243,7 +243,8 @@ Nodes Compilation::children() const
 {
     Nodes ret;
     for (auto& module : m_modules) {
-        ret.push_back(module);
+        if (module->name() != "/")
+            ret.push_back(module);
     }
     return ret;
 }
