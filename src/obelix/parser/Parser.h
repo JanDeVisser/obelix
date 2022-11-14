@@ -111,6 +111,6 @@ private:
 
 [[nodiscard]] std::string sanitize_module_name(std::string const&);
 [[nodiscard]] ProcessResult parse(std::string const&);
-[[nodiscard]] ProcessResult compile_project(Config const&, std::string const&);
+[[nodiscard]] ProcessResult compile_project(Config const&);
 
 }

@@ -569,7 +569,7 @@ NODE_PROCESSOR(BoundSwitchStatement)
     return tree;
 }
 
-ProcessResult transpile_to_c(std::shared_ptr<SyntaxNode> const& tree, Config const& config, std::string const& file_name)
+ProcessResult transpile_to_c(std::shared_ptr<SyntaxNode> const& tree, Config const& config)
 {
     CTranspilerContext root(config);
     obl_dir = config.obelix_directory();
@@ -612,7 +612,7 @@ ProcessResult transpile_to_c(std::shared_ptr<SyntaxNode> const& tree, Config con
     auto linker = config.cmdline_flag<std::string>("with-c-linker", compiler);
 
     for (auto& module_file : files(root)) {
-        auto p = fs::path(".obelix/" + module_file->name());
+        auto p = fs::path(".obelix") / module_file->name();
         output_files.push_back(p);
 
         if (config.cmdline_flag<bool>("show-c-file")) {
@@ -634,19 +634,14 @@ ProcessResult transpile_to_c(std::shared_ptr<SyntaxNode> const& tree, Config con
     }
 
     if (!modules.empty()) {
-        auto file_parts = split(file_name, '/');
-        auto p = fs::path { ".obelix/" + join(split(file_name, '/'), "-") };
-
-        auto p_here = fs::path { join(split(file_name, '/'), "-") };
-        p_here.replace_extension("");
-        std::vector<std::string> ld_args = { "-o", p_here, "-loblcrt", format("-L{}/lib", obl_dir) };
+        std::vector<std::string> ld_args = { "-o", config.main(), "-loblcrt", format("-L{}/lib", obl_dir) };
         for (auto& m : modules)
             ld_args.push_back(m);
 
         if (auto code = execute(linker, ld_args); code.is_error())
             return SyntaxError { code.error(), Token {} };
         if (config.run) {
-            auto run_cmd = format("./{}", p_here.string());
+            auto run_cmd = format("./{}", config.main());
             auto exit_code = execute(run_cmd);
             if (exit_code.is_error())
                 return SyntaxError { exit_code.error(), Token {} };

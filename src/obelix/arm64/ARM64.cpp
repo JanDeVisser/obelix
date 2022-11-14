@@ -459,7 +459,7 @@ NODE_PROCESSOR(BoundIfStatement)
     return tree;
 }
 
-ProcessResult output_arm64(std::shared_ptr<SyntaxNode> const& tree, Config const& config, std::string const& file_name)
+ProcessResult output_arm64(std::shared_ptr<SyntaxNode> const& tree, Config const& config)
 {
     auto processed = TRY(materialize_arm64(tree));
     if (config.cmdline_flag<bool>("show-tree"))
@@ -529,10 +529,6 @@ ProcessResult output_arm64(std::shared_ptr<SyntaxNode> const& tree, Config const
     if (!modules.empty()) {
         std::string obl_dir = config.obelix_directory();
 
-        auto file_parts = split(file_name, '/');
-        auto file_name_parts = split(file_parts.back(), '.');
-        auto bare_file_name = file_name_parts.front();
-
         static std::string sdk_path; // "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX12.1.sdk";
         if (sdk_path.empty()) {
             Process p("xcrun", "-sdk", "macosx", "--show-sdk-path");
@@ -541,7 +537,7 @@ ProcessResult output_arm64(std::shared_ptr<SyntaxNode> const& tree, Config const
             sdk_path = strip(p.standard_out());
         }
 
-        std::vector<std::string> ld_args = { "-o", bare_file_name, "-loblrt", "-lSystem", "-syslibroot", sdk_path, "-e", "_start", "-arch", "arm64",
+        std::vector<std::string> ld_args = { "-o", config.main(), "-loblrt", "-lSystem", "-syslibroot", sdk_path, "-e", "_start", "-arch", "arm64",
             format("-L{}/lib", obl_dir) };
         for (auto& m : modules)
             ld_args.push_back(m);
@@ -549,7 +545,7 @@ ProcessResult output_arm64(std::shared_ptr<SyntaxNode> const& tree, Config const
         if (auto code = execute("ld", ld_args); code.is_error())
             return SyntaxError { code.error(), Token {} };
         if (config.run) {
-            auto run_cmd = format("./{}", bare_file_name);
+            auto run_cmd = format("./{}", config.main());
             auto exit_code = execute(run_cmd);
             if (exit_code.is_error())
                 return SyntaxError { exit_code.error(), Token {} };

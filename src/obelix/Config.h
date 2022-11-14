@@ -44,13 +44,9 @@ public:
     }
     Architecture target { Architecture::C_TRANSPILER };
 
-    [[nodiscard]] std::string obelix_directory() const
-    {
-        std::string obl_dir = (getenv("OBL_DIR")) ? getenv("OBL_DIR") : OBELIX_DIR;
-        if (!obelix_dir.empty())
-            obl_dir = obelix_dir;
-        return obl_dir;
-    }
+    [[nodiscard]] std::string obelix_directory() const;
+    [[nodiscard]] std::string base_directory() const;
+    [[nodiscard]] std::string main() const;
 
 private:
     std::string obelix_dir {};

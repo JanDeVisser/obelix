@@ -28,13 +28,11 @@ std::string sanitize_module_name(std::string const& unsanitized)
         ret = ret.substr(0, ret.length() - 4);
     if (ret.starts_with("./"))
         ret = ret.substr(2);
-    replace_all(ret, ".", "/");
     return ret;
 }
 
 ProcessResult parse(ParserContext& ctx, std::string const& module_name)
 {
-
     Parser parser(ctx, module_name);
     ProcessResult ret;
     ret = parser.parse();
@@ -61,9 +59,9 @@ ProcessResult parse(ParserContext& ctx, std::string const& module_name)
         __result.value();                   \
     })
 
-ProcessResult compile_project(Config const& config, std::string const& main_file)
+ProcessResult compile_project(Config const& config)
 {
-    auto compilation = std::make_shared<Compilation>(sanitize_module_name(main_file));
+    auto compilation = std::make_shared<Compilation>(config.main());
     ParserContext ctx { config };
 
     auto tree = TRY_PROCESS_RESULT(compilation, ctx);
@@ -91,13 +89,13 @@ ProcessResult compile_project(Config const& config, std::string const& main_file
         return transformed;
     switch (config.target) {
     case Architecture::MACOS_ARM64: {
-        auto ret = PROCESS_RESULT(output_arm64(transformed, config, main_file));
+        auto ret = PROCESS_RESULT(output_arm64(transformed, config));
         if (ret->node_type() != SyntaxNodeType::BoundIntLiteral)
             ret = std::make_shared<BoundIntLiteral>(Token {}, 0);
         return ret;
     }
     case Architecture::C_TRANSPILER: {
-        auto ret = PROCESS_RESULT(transpile_to_c(transformed, config, main_file));
+        auto ret = PROCESS_RESULT(transpile_to_c(transformed, config));
         if (ret->node_type() != SyntaxNodeType::BoundIntLiteral)
             ret = std::make_shared<BoundIntLiteral>(Token {}, 0);
         return ret;

@@ -28,10 +28,11 @@ int main(int argc, char const** argv)
     }
 
 
-    auto ret_or_error = Obelix::compile_project(config, config.filename);
+    auto ret_or_error = Obelix::compile_project(config);
     if (ret_or_error.is_error()) {
-        auto err = ret_or_error.error();
-        std::cerr << "ERROR: " << err.payload().location.to_string() << " " << ret_or_error.error().message() << "\n";
+        for (auto const& e : ret_or_error.errors()) {
+            std::cerr << "ERROR: " << e.payload().location.to_string() << " " << e.message() << "\n";
+        }
         return -1;
     }
     return 0;

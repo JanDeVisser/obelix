@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
+#include <filesystem>
 #include <iostream>
 
 #include <core/Logging.h>
@@ -12,6 +13,8 @@
 namespace Obelix {
 
 logging_category(config);
+
+namespace fs = std::filesystem;
 
 Config::Config(int argc, char const** argv)
 {
@@ -60,16 +63,40 @@ Config::Config(int argc, char const** argv)
             target = target_maybe.value();
         } else if (!strncmp(argv[ix], "--obelix-dir", strlen("--obelix-dir")) && (argv[ix][strlen("--obelix-dir")] == '=')) {
             obelix_dir = argv[ix] + strlen("--obelix-dir=");
-            // } else if (!strncmp(argv[ix], "--", 2) && (strlen(argv[ix]) > 2)) {
-            //     printf("ERROR: Unknown command line argument '%s'", argv[ix]);
-            //     exit(-1);
-        } else if (strncmp(argv[ix], "--", 2) && (filename == "")) {
+        } else if (strncmp(argv[ix], "--", 2) && filename.empty()) {
             filename = argv[ix];
-            // } else {
-            //     printf("ERROR: Unknown command line argument '%s'\n", argv[ix]);
-            //     exit(-1);
         }
     }
+    if (filename.empty())
+        help = true;
+}
+
+std::string Config::obelix_directory() const
+{
+    std::string obl_dir = (getenv("OBL_DIR")) ? getenv("OBL_DIR") : OBELIX_DIR;
+    if (!obelix_dir.empty())
+        obl_dir = obelix_dir;
+    return obl_dir;
+}
+
+std::string Config::base_directory() const
+{
+    assert(!filename.empty());
+    fs::path path = filename;
+    fs::path parent_path = path.parent_path();
+    if (parent_path.empty()) {
+        parent_path = fs::current_path();
+    } else {
+        parent_path = fs::weakly_canonical(parent_path);
+    }
+    return parent_path.string();
+}
+
+std::string Config::main() const
+{
+    assert(!filename.empty());
+    fs::path path = filename;
+    return path.filename().stem().string();
 }
 
 ErrorOr<std::string> ObelixBufferLocator::check_in_dir(std::string const& directory, std::string const& file_path)
@@ -106,28 +133,56 @@ ErrorOr<std::string> ObelixBufferLocator::check_in_dir(std::string const& direct
     return directory + "/" + file_path;
 }
 
-ErrorOr<std::string> ObelixBufferLocator::locate(std::string const& file_path) const
+ErrorOr<std::string> ObelixBufferLocator::locate(std::string const& file) const
 {
     std::string obl_dir = m_config.obelix_directory();
-    debug(config, "Locating file '{}' with OBL_DIR={}", file_path, obl_dir);
+    debug(config, "Locating file '{}' with OBL_DIR={}", file, obl_dir);
 
-    if (auto path_or_err = check_in_dir(".", file_path); !path_or_err.is_error()) {
+    std::string path;
+    if (file == "/") {
+        path = "__init__.obl";
+    } else {
+        path = file;
+    }
+
+    if (auto path_or_err = check_in_dir(m_config.base_directory(), path); !path_or_err.is_error()) {
         return path_or_err.value();
     } else if (path_or_err.error().code() != ErrorCode::NoSuchFile) {
         return path_or_err.error();
     }
 
-    if (auto path_or_err = check_in_dir(obl_dir + "/share", file_path); !path_or_err.is_error()) {
-        return path_or_err.value();
-    } else if (path_or_err.error().code() != ErrorCode::NoSuchFile) {
-        return path_or_err.error();
-    }
+    fs::path dir = fs::canonical(".");
+    do {
+        auto share_path = std::filesystem::weakly_canonical("./share");
+        if (auto share_exists = check_existence(share_path.string()); share_exists.is_error()) {
+            if (share_exists.error().code() == ErrorCode::NoSuchFile) {
+                if (dir != dir.parent_path()) {
+                    dir = dir.parent_path();
+                    continue;
+                }
+                break;
+            }
+            return share_exists.error();
+        }
+        if (auto path_or_err = check_in_dir(share_path.string(), path); !path_or_err.is_error()) {
+            return path_or_err.value();
+        } else {
+            return path_or_err.error();
+        }
+    } while (true);
 
-    if (auto path_or_err = check_in_dir("./share", file_path); !path_or_err.is_error()) {
+    if (obl_dir.empty()) {
+        fatal("No obelix directory specified!");
+    }
+    if (auto share_exists = check_existence(format("{}/share", obl_dir)); share_exists.is_error() && share_exists.error().code() != ErrorCode::PathIsDirectory) {
+        fatal("Obelix directory '{}' has no 'share' subdirectory", obl_dir);
+    }
+    if (auto path_or_err = check_in_dir(obl_dir + "/share", path); !path_or_err.is_error()) {
         return path_or_err.value();
     } else {
         return path_or_err.error();
     }
+
 }
 
 }
