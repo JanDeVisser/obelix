@@ -357,6 +357,17 @@ ALIAS_NODE_PROCESSOR(StaticVariableDeclaration, VariableDeclaration)
 ALIAS_NODE_PROCESSOR(LocalVariableDeclaration, VariableDeclaration)
 ALIAS_NODE_PROCESSOR(GlobalVariableDeclaration, VariableDeclaration)
 
+NODE_PROCESSOR(BoundVariableDeclaration)
+{
+    auto var_decl = std::dynamic_pointer_cast<BoundVariableDeclaration>(tree);
+    ctx.declare(var_decl->name(), var_decl);
+    return tree;
+}
+
+ALIAS_NODE_PROCESSOR(BoundStaticVariableDeclaration, BoundVariableDeclaration)
+ALIAS_NODE_PROCESSOR(BoundLocalVariableDeclaration, BoundVariableDeclaration)
+ALIAS_NODE_PROCESSOR(BoundGlobalVariableDeclaration, BoundVariableDeclaration)
+
 NODE_PROCESSOR(FunctionDecl)
 {
     auto decl = std::dynamic_pointer_cast<FunctionDecl>(tree);
