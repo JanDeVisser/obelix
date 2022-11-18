@@ -667,8 +667,10 @@ ErrorOr<BoundExpressions, SyntaxError> xform_bound_expressions(BoundExpressions 
 template<typename Ctx>
 ProcessResult& process(std::shared_ptr<SyntaxNode> const& tree, Ctx& ctx, ProcessResult& result)
 {
-    if (!tree)
+    if (!tree) {
+        result.value(nullptr);
         return result;
+    }
     std::string log_message;
     debug(parser, "Process <{} {}>", tree->node_type(), tree);
     switch (tree->node_type()) {
