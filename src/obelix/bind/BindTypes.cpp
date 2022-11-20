@@ -136,16 +136,16 @@ ErrorOr<pBoundExpression, SyntaxError> make_expression_for_assignment(pBoundExpr
 template<class Ctx>
 ErrorOrTypedNode<Statement> process_branch(std::shared_ptr<Branch> const& branch, Ctx& ctx, ProcessResult& result)
 {
-    auto bound_condition = TRY_AND_TRY_CAST_RETURN(BoundExpression, branch->condition(), ctx, branch);
+    pBoundExpression bound_condition = nullptr;
+    if (branch->condition() != nullptr)
+        bound_condition = TRY_AND_TRY_CAST_RETURN(BoundExpression, branch->condition(), ctx, branch);
     auto statement_processed_maybe = try_and_cast<Statement>(branch->statement(), ctx, result);
     if (statement_processed_maybe.is_error())
         return statement_processed_maybe.error();
     auto statement_processed = statement_processed_maybe.value();
     if (statement_processed == nullptr || !statement_processed->is_fully_bound())
         return branch;
-    auto bound_branch = std::make_shared<BoundBranch>(branch->token(), bound_condition, statement_processed);
-    assert(bound_branch != nullptr);
-    return bound_branch;
+    return std::make_shared<BoundBranch>(branch->token(), bound_condition, statement_processed);
 }
 
 #define PROCESS_BRANCH(tree, branch, ctx)                                                    \
@@ -538,7 +538,6 @@ NODE_PROCESSOR(BinaryExpression)
     auto rhs_bound = TRY_AND_TRY_CAST(BoundExpression, expr->rhs(), ctx);
     if (rhs_bound == nullptr)
         return tree;
-
     if (op == BinaryOperator::Call) {
         if (rhs_bound->type()->type() != PrimitiveType::List)
             return SyntaxError { ErrorCode::SyntaxError, format("Cannot call {} with {}", lhs, expr->rhs()) };
@@ -892,7 +891,8 @@ ProcessResult bind_types(std::shared_ptr<SyntaxNode> const& tree, Config const& 
         assert(compilation != nullptr);
         new_unbound = compilation->unbound_statements();
         std::cout << "Pass " << root.stage++ << ": " << new_unbound << " unbound statements" << '\n';
-        root.dump();
+        if (config.cmdline_flag<bool>("dump-functions"))
+            root.dump();
     } while (new_unbound > 0 && new_unbound < unbound);
     std::cout << "\n";
 
