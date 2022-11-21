@@ -1,9 +1,0 @@
-{
-  "name": "import",
-  "exit": 0,
-  "stdout": [
-    "foo"
-  ],
-  "stderr": [],
-  "args": []
-}
