@@ -53,7 +53,7 @@ void write(CTranspilerContext& ctx, std::string const& text)
 void indent(CTranspilerContext& ctx)
 {
     ctx.call_on_root([](CTranspilerContext& ctx) -> void {
-        ctx().dedent();
+        ctx().indent();
     });
 }
 
