@@ -160,6 +160,32 @@ R"(/*
             fatal("Ur mom {}", 12);
         }
     }
+    for (auto const& module : compilation->modules()) {
+        if (module->name() == "/")
+            continue;
+        auto num_functions = 0u;
+        for (auto const& function : module->exports()) {
+            if (num_functions == 0)
+                writeln(ctx, format("\n/* Exported by {}: */\n", module->name()));
+            auto function_name = function->name();
+            if (function_name == "main")
+                function_name = "obelix_main";
+            if (auto native = std::dynamic_pointer_cast<BoundNativeFunctionDecl>(function); native != nullptr)
+                function_name = native->native_function_name();
+            num_functions++;
+            write(ctx, "extern ");
+            type_to_c_type(ctx, function->type());
+            write(ctx, format(" {}(", function_name));
+            auto first { true };
+            for (auto const& param : function->parameters()) {
+                if (!first)
+                    write(ctx, ", ");
+                type_to_c_type(ctx, param->type());
+                first = false;
+            }
+            writeln(ctx, ");");
+        }
+    }
     writeln(ctx, format(
 R"(
 #endif /* __OBELIX_{}_H__ */
@@ -191,39 +217,6 @@ R"(/*
 #include "{}"
 
 )", ctx.root_data().header_name()));
-    static std::unordered_set<std::string> runtime_symbols;
-    if (runtime_symbols.empty()) {
-        runtime_symbols.insert("cputln");
-        runtime_symbols.insert("cputs");
-        runtime_symbols.insert("putint");
-        runtime_symbols.insert("putln");
-        runtime_symbols.insert("puts");
-        runtime_symbols.insert("string");
-    }
-
-    auto num_imports = 0;
-    for (auto const& import : module->imports()) {
-        auto import_name = import->name();
-        if (auto native = std::dynamic_pointer_cast<BoundNativeFunctionDecl>(import); native != nullptr)
-            import_name = native->native_function_name();
-        if (runtime_symbols.contains(import_name))
-            continue;
-        num_imports++;
-        write(ctx, "extern ");
-        type_to_c_type(ctx, import->type());
-        write(ctx, format(" {}(", import_name));
-        auto first { true };
-        for (auto const& param : import->parameters()) {
-            if (!first)
-                write(ctx, ", ");
-            type_to_c_type(ctx, param->type());
-            first = false;
-        }
-        writeln(ctx, ");");
-    }
-    if (num_imports > 0)
-        writeln(ctx, "");
-
     TRY_RETURN(process_tree(module->block(), ctx, result, CTranspilerContext_processor));
     TRY_RETURN(flush(ctx));
     return tree;

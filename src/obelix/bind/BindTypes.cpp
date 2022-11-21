@@ -52,7 +52,7 @@ ErrorOr<std::shared_ptr<BoundExpression>, SyntaxError> make_function_call(BindCo
         }
     }
     if (bound_function == nullptr) {
-        return SyntaxError { ErrorCode::ObjectNotCallable, function->to_string() };
+        return nullptr;
     }
 
     auto func_decl = bound_function->declaration();
@@ -491,11 +491,12 @@ NODE_PROCESSOR(BinaryExpression)
 
     auto rhs = expr->rhs();
     if (op == BinaryOperator::MemberAccess) {
-        if (lhs == nullptr)
-            return SyntaxError { ErrorCode::SyntaxError, expr->token(), format("Cannot access member {} of {}", expr->rhs(), expr->lhs()) };
+        if (lhs == nullptr) {
+            debug(bind, "LHS of MemberAccess {} is unresolved", expr);
+            return tree;
+        }
         switch (lhs->type()->type()) {
-        case PrimitiveType::Struct:
-        case PrimitiveType::Module: {
+        case PrimitiveType::Struct: {
             auto field_var = std::dynamic_pointer_cast<Variable>(rhs);
             if (field_var == nullptr)
                 return SyntaxError { ErrorCode::NotMember, rhs->token(), rhs, lhs };
@@ -503,6 +504,12 @@ NODE_PROCESSOR(BinaryExpression)
             if (field.type->type() == PrimitiveType::Unknown)
                 return SyntaxError { ErrorCode::NotMember, rhs->token(), rhs, lhs };
             auto member_identifier = std::make_shared<BoundIdentifier>(rhs->token(), field_var->name(), field.type);
+            return std::make_shared<BoundMemberAccess>(lhs, member_identifier);
+        }
+        case PrimitiveType::Module: {
+            auto field_var = std::dynamic_pointer_cast<Variable>(rhs);
+            auto member_identifier = std::make_shared<BoundIdentifier>(rhs->token(), field_var->name(),
+                ObjectType::get(PrimitiveType::Function)); // FIXME can also be a variable in the referred module
             return std::make_shared<BoundMemberAccess>(lhs, member_identifier);
         }
         case PrimitiveType::Conditional: {
@@ -522,7 +529,7 @@ NODE_PROCESSOR(BinaryExpression)
             auto value_var = std::dynamic_pointer_cast<Variable>(rhs);
             if (value_var == nullptr)
                 return SyntaxError { ErrorCode::NotMember, rhs->token(), rhs, lhs };
-            assert(type_literal->value()->type() == PrimitiveType::Enum);
+            assert(type_literal->value()->type() == PrimitiveType::Enum); // FIXME Return syntax error
             auto values = type_literal->value()->template_argument_values<NVP>("values");
             for (auto const& v : values) {
                 if (v.first == value_var->name())
@@ -700,6 +707,8 @@ NODE_PROCESSOR(Variable)
         auto type = ObjectType::get(variable->name());
         if (type->type() != PrimitiveType::Unknown)
             return std::make_shared<BoundTypeLiteral>(variable->token(), type);
+        if (auto module = ctx.module(variable->name()); module != nullptr)
+            return module;
     } else {
         auto declaration = std::dynamic_pointer_cast<BoundVariableDeclaration>(declaration_maybe.value());
         if (declaration != nullptr)
@@ -707,9 +716,6 @@ NODE_PROCESSOR(Variable)
         auto func_decl = std::dynamic_pointer_cast<BoundFunctionDecl>(declaration_maybe.value());
         if (func_decl != nullptr)
             return std::make_shared<BoundLocalFunction>(variable->token(), func_decl);
-        auto module = std::dynamic_pointer_cast<BoundModule>(declaration_maybe.value());
-        if (module != nullptr)
-            return module;
         fatal("Identifier '{}' cannot be referenced as a variable, it's a {}", variable->name(), declaration_maybe.value()->node_type());
     }
     return tree;
