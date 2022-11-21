@@ -11,7 +11,7 @@
 
 namespace Obelix {
 
-extern_logging_category(parser);
+logging_category(parser);
 
 Parser::Parser(ParserContext& ctx, std::string const& file_name)
     : BasicParser(file_name, new ObelixBufferLocator(ctx.config))

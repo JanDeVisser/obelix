@@ -19,7 +19,7 @@
 
 namespace Obelix {
 
-logging_category(parser);
+logging_category(processor);
 
 std::string sanitize_module_name(std::string const& unsanitized)
 {

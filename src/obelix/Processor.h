@@ -19,7 +19,7 @@
 
 namespace Obelix {
 
-extern_logging_category(parser);
+extern_logging_category(processor);
 
 using ErrorOrNode = ErrorOr<std::shared_ptr<SyntaxNode>, SyntaxError>;
 
@@ -672,7 +672,7 @@ ProcessResult& process(std::shared_ptr<SyntaxNode> const& tree, Ctx& ctx, Proces
         return result;
     }
     std::string log_message;
-    debug(parser, "Process <{} {}>", tree->node_type(), tree);
+    debug(processor, "Process <{} {}>", tree->node_type(), tree);
     switch (tree->node_type()) {
 #undef ENUM_SYNTAXNODETYPE
 #define ENUM_SYNTAXNODETYPE(type)                                                           \
@@ -687,7 +687,7 @@ ProcessResult& process(std::shared_ptr<SyntaxNode> const& tree, Ctx& ctx, Proces
             result = processed.value();                                                     \
             log_message += format("<{} {}>", result.value()->node_type(), result.value());  \
         }                                                                                   \
-        debug(parser, "{}", log_message);                                                   \
+        debug(processor, "{}", log_message);                                                   \
         return result;                                                                      \
     }
         ENUMERATE_SYNTAXNODETYPES(ENUM_SYNTAXNODETYPE)
@@ -715,7 +715,7 @@ ProcessResult process(std::shared_ptr<SyntaxNode> const& tree, Ctx& ctx)
 template<typename Ctx, SyntaxNodeType node_type>
 ErrorOrNode process_node(std::shared_ptr<SyntaxNode> const& tree, Ctx& ctx, ProcessResult& result)
 {
-    debug(parser, "Falling back to default processor for type {}", tree->node_type());
+    debug(processor, "Falling back to default processor for type {}", tree->node_type());
     return process_tree(tree, ctx, result, [](std::shared_ptr<SyntaxNode> const& tree, Ctx& ctx, ProcessResult& result) {
         return process(tree, ctx, result);
     });
@@ -726,7 +726,7 @@ ErrorOrTypedNode<Cls> try_and_try_cast(pSyntaxNode const& expr, Ctx& ctx, Proces
 {
     auto processed_maybe = process(expr, ctx, result);
     if (processed_maybe.is_error()) {
-        debug(parser, "Processing node results in error '{}' instead of node of type '{}'",
+        debug(processor, "Processing node results in error '{}' instead of node of type '{}'",
             processed_maybe.error(), typeid(Cls).name());
         return processed_maybe.error();
     }
@@ -741,7 +741,7 @@ ErrorOrTypedNode<Cls> try_and_cast(pSyntaxNode const& expr, Ctx& ctx, ProcessRes
 {
     auto processed_maybe = process(expr, ctx, result);
     if (processed_maybe.is_error()) {
-        debug(parser, "Processing node results in error '{}' instead of node of type '{}'",
+        debug(processor, "Processing node results in error '{}' instead of node of type '{}'",
             processed_maybe.error(), typeid(Cls).name());
         return processed_maybe.error();
     }
