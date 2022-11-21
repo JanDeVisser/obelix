@@ -1,0 +1,8 @@
+func main(): s32
+{
+  if (0 < 5) {
+    return 0
+  } else {
+    return 5
+  }
+}

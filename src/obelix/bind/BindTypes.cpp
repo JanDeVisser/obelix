@@ -769,7 +769,9 @@ NODE_PROCESSOR(IfStatement)
 {
     auto if_stmt = std::dynamic_pointer_cast<IfStatement>(tree);
     BoundBranches bound_branches = PROCESS_BRANCHES(tree, if_stmt->branches(), ctx);
-    auto bound_else_stmt = TRY_AND_TRY_CAST_RETURN(BoundStatement, if_stmt->else_stmt(), ctx, tree);
+    pStatement bound_else_stmt = nullptr;
+    if (if_stmt->else_stmt() != nullptr)
+        bound_else_stmt = TRY_AND_TRY_CAST_RETURN(Statement, if_stmt->else_stmt(), ctx, tree);
     return std::make_shared<BoundIfStatement>(if_stmt, bound_branches, bound_else_stmt);
 }
 

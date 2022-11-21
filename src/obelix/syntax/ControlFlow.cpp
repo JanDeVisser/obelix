@@ -87,21 +87,22 @@ IfStatement::IfStatement(Token token, Branches branches)
     : Statement(std::move(token))
     , m_branches(std::move(branches))
 {
+    auto const& last_branch = m_branches.back();
+    if (last_branch->condition() == nullptr) {
+        m_branches.pop_back();
+        m_else = last_branch->statement();
+    }
 }
 
 IfStatement::IfStatement(Token token, std::shared_ptr<Expression> condition, std::shared_ptr<Statement> if_stmt, Branches branches, std::shared_ptr<Statement> else_stmt)
     : Statement(std::move(token))
     , m_branches(std::move(branches))
+    , m_else(std::move(else_stmt))
 {
     m_branches.insert(m_branches.begin(), std::make_shared<Branch>(if_stmt->token(), std::move(condition), std::move(if_stmt)));
-    if (else_stmt) {
-        m_branches.push_back(std::make_shared<Branch>(else_stmt->token(), std::move(else_stmt)));
-    }
 }
 
-IfStatement::IfStatement(Token token, std::shared_ptr<Expression> condition,
-    std::shared_ptr<Statement> if_stmt,
-    std::shared_ptr<Statement> else_stmt)
+IfStatement::IfStatement(Token token, std::shared_ptr<Expression> condition, std::shared_ptr<Statement> if_stmt, std::shared_ptr<Statement> else_stmt)
     : IfStatement(std::move(token), std::move(condition), std::move(if_stmt), Branches {}, std::move(else_stmt))
 {
 }

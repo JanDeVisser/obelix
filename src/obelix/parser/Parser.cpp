@@ -306,7 +306,7 @@ std::shared_ptr<IfStatement> Parser::parse_if_statement(Token const& if_token)
             auto else_stmt = parse_statement();
             if (!else_stmt)
                 return nullptr;
-            return std::make_shared<IfStatement>(if_token, condition, if_stmt, branches, std::make_shared<Branch>(else_token, nullptr, else_stmt));
+            return std::make_shared<IfStatement>(if_token, condition, if_stmt, branches, else_stmt);
         }
         default:
             return std::make_shared<IfStatement>(if_token, condition, if_stmt, branches, nullptr);
