@@ -1,20 +1,7 @@
 /*
- * share/__init__.obl - Copyright (c) 2015-2022 Jan de Visser <jan@finiandarcy.com>
+ * Copyright (c) 2021, Jan de Visser <jan@finiandarcy.com>
  *
- * This file is part of obelix.
- *
- * Obelix is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * Obelix is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with obelix.  If not, see <http://www.gnu.org/licenses/>.
+ * SPDX-License-Identifier: MIT
  */
 
 intrinsic allocate(size: int) : ptr<char>
@@ -30,7 +17,6 @@ intrinsic add_int_int(i1: s32, i2: s32) : string
 func fsize(fd: s32) : s64 -> "fsize"
 func memset(buffer: ptr<char>, ch : u32, len: u32) : ptr<char> -> "memset"
 func memcpy(dst: ptr<char>, src: ptr<char>, len: u32) : ptr<char> -> "memcpy"
-func open(path: string, flags: u32) : s32 -> "open"
 func puti(i: s64) : int -> "putint"
 func putu(i: u64) : int -> "putint"
 func puthex(i: u64) : int -> "puthex"
@@ -47,7 +33,3 @@ func cstr_to_string(s: ptr<char>) : string -> "cstr_to_string"
 func cstrlen(s: ptr<char>) : u64 -> "strlen"
 func cputs(s: ptr<char>) : u64 -> "cputs"
 func cputln(s: ptr<char>) : u64 -> "cputln"
-
-global const O_RDONLY: u32 = 0x0000u32
-global const O_RDWR: u32 = 0x0002u32
-global const O_WRONLY: u32 = 0x0001u32

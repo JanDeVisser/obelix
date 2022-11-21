@@ -1,7 +1,7 @@
 /*
  * Copyright (c) 2021, Jan de Visser <jan@finiandarcy.com>
  *
- * SPDX-License-Identifier: GPL-3.0-or-later
+ * SPDX-License-Identifier: MIT
  */
 
 #include "obelix/Operator.h"
@@ -473,7 +473,7 @@ NODE_PROCESSOR(BoundBinaryExpression)
     ctx.reset();
     ctx.add_argument(std::dynamic_pointer_cast<BoundIntLiteral>(lhs));
     ctx.add_argument(std::dynamic_pointer_cast<BoundIntLiteral>(rhs));
-    
+
     auto func = s_intrinsics[impl.intrinsic];
     if (auto err = func(ctx); err.is_error())
         return err.error();
@@ -497,7 +497,7 @@ NODE_PROCESSOR(BoundUnaryExpression)
 
     ctx.reset();
     ctx.add_argument(std::dynamic_pointer_cast<BoundIntLiteral>(operand));
-    
+
     auto func = s_intrinsics[impl.intrinsic];
     if (auto err = func(ctx); err.is_error())
         return err.error();

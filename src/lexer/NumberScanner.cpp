@@ -1,7 +1,7 @@
 /*
  * Copyright (c) 2021, Jan de Visser <jan@finiandarcy.com>
  *
- * SPDX-License-Identifier: GPL-3.0-or-later
+ * SPDX-License-Identifier: MIT
  */
 
 //
@@ -27,7 +27,7 @@ NumberScanner::NumberScanner(Config const& config)
 TokenCode NumberScanner::process(Tokenizer& tokenizer, int ch)
 {
     TokenCode code = TokenCode::Unknown;
-    
+
     switch (m_state) {
     case NumberScannerState::None:
         if (m_config.sign && ((ch == '-') || (ch == '+'))) {

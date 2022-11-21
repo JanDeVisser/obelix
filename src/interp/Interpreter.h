@@ -1,7 +1,7 @@
 /*
  * Copyright (c) ${YEAR}, Jan de Visser <jan@finiandarcy.com>
  *
- * SPDX-License-Identifier: GPL-3.0-or-later
+ * SPDX-License-Identifier: MIT
  */
 
 #pragma once
@@ -24,7 +24,7 @@ public:
         return m_arguments;
     }
 
-    void reset() 
+    void reset()
     {
         m_return_value = nullptr;
         m_arguments.clear();

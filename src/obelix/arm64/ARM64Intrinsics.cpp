@@ -1,7 +1,7 @@
 /*
  * Copyright (c) ${YEAR}, Jan de Visser <jan@finiandarcy.com>
  *
- * SPDX-License-Identifier: GPL-3.0-or-later
+ * SPDX-License-Identifier: MIT
  */
 
 #include <obelix/arm64/ARM64Intrinsics.h>
