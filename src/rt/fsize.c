@@ -13,7 +13,7 @@ int64_t fsize(int fd)
     struct stat sb;
 
     if (fstat(fd, &sb) < 0) {
-        return -errno;
+        return -_stdlib_errno;
     }
     return sb.st_size;
 }

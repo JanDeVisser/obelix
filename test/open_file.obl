@@ -1,0 +1,13 @@
+import io
+
+func main(): s32
+{
+  var fh = io.open("open_file.obl", 0x0002u32);
+  if (error(fh)) {
+    puts("Error opening file: ")
+    puti(fh.error())
+    return 1
+  }
+  putln("File successfully opened")
+  return 0
+}

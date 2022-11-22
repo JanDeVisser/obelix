@@ -7,13 +7,12 @@
 #ifndef __OBELIX_H__
 #define __OBELIX_H__
 
-#include <errno.h>
-#include <fcntl.h>
 #include <stdbool.h>
 #include <stdint.h>
-#include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
+
+extern int* __error(void);
+#define _stdlib_errno (*__error())
 
 typedef struct _string {
   uint32_t length;
@@ -33,10 +32,6 @@ extern void obelix_fatal(token, char const*);
 extern void exit(int status);
 extern void * malloc(size_t size);
 
-extern int open(const char *path, int oflag, ...);
-extern int close(int fildes);
-extern ssize_t write(int fildes, const void *buf, size_t nbyte);
-extern ssize_t read(int fildes, void *buf, size_t nbyte);
 extern int64_t fsize(int fd);
 
 extern int obl_fputs(int, string);

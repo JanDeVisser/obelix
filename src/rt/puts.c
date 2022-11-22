@@ -4,6 +4,9 @@
  * SPDX-License-Identifier: MIT
  */
 
+#include <fcntl.h>
+#include <unistd.h>
+
 #include <rt/obelix.h>
 
 int obl_fputs(int fd, string s)
@@ -16,7 +19,7 @@ int obl_fputs(int fd, string s)
     }
     int ret = write(fd, ptr, len);
     if (ret < 0)
-        return -errno;
+        return -_stdlib_errno;
     return ret;
 }
 
@@ -37,7 +40,7 @@ int putln(string s)
         return ret;
     ret = write(1, "\n", 1);
     if (ret < 0)
-        return -errno;
+        return -_stdlib_errno;
     return ret;
 }
 
@@ -48,7 +51,7 @@ int putln_u(uint64_t i)
         return ret;
     ret = write(1, "\n", 1);
     if (ret < 0)
-        return -errno;
+        return -_stdlib_errno;
     return ret;
 }
 
@@ -59,7 +62,7 @@ int putln_s(int64_t i)
         return ret;
     ret = write(1, "\n", 1);
     if (ret < 0)
-        return -errno;
+        return -_stdlib_errno;
     return ret;
 }
 
@@ -77,7 +80,7 @@ int cputs(char *s)
 {
     int ret = write(1, s, strlen(s));
     if (ret < 0)
-        return -errno;
+        return -_stdlib_errno;
     return ret;
 }
 
@@ -88,6 +91,6 @@ int cputln(int8_t *s)
         return ret;
     ret = write(1, "\n", 1);
     if (ret < 0)
-        return -errno;
+        return -_stdlib_errno;
     return ret;
 }
