@@ -63,7 +63,8 @@ namespace Obelix {
     S(or_bool_bool)            \
     S(xor_bool_bool)           \
     S(invert_bool)             \
-    S(equals_bool_bool)
+    S(equals_bool_bool)        \
+    S(enum_text_value)
 
 enum IntrinsicType {
 #undef INTRINSIC_TYPE

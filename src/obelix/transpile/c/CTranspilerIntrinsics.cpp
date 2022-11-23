@@ -25,10 +25,10 @@ CTranspilerFunctionType const& get_c_transpiler_intrinsic(IntrinsicType type)
     return s_intrinsics[type];
 }
 
-#define INTRINSIC(intrinsic)                                                                            \
-    ErrorOr<void, SyntaxError> c_transpiler_intrinsic_##intrinsic(CTranspilerContext& ctx);                          \
+#define INTRINSIC(intrinsic)                                                                                                 \
+    ErrorOr<void, SyntaxError> c_transpiler_intrinsic_##intrinsic(CTranspilerContext&, ObjectTypes const&);                  \
     auto s_c_transpiler_##intrinsic##_decl = register_c_transpiler_intrinsic(intrinsic, c_transpiler_intrinsic_##intrinsic); \
-    ErrorOr<void, SyntaxError> c_transpiler_intrinsic_##intrinsic(CTranspilerContext& ctx)
+    ErrorOr<void, SyntaxError> c_transpiler_intrinsic_##intrinsic(CTranspilerContext& ctx, ObjectTypes const& types)
 
 #define INTRINSIC_ALIAS(intrinsic, alias) \
     auto s_c_transpiler_##intrinsic##_decl = register_c_transpiler_intrinsic(intrinsic, c_transpiler_intrinsic_##alias);
@@ -214,6 +214,16 @@ INTRINSIC(equals_str_str)
 INTRINSIC(multiply_str_int)
 {
     fatal("Not implemented");
+}
+
+INTRINSIC(enum_text_value)
+{
+    auto enum_type = types[0];
+    writeln(ctx, format(
+R"($enum_value v = $get_enum_value($_{}_values, arg0);
+string ret = { strlen(v.text), (uint8_t *) v.text };
+ret;)", enum_type->name()));
+    return {};
 }
 
 }

@@ -19,6 +19,11 @@ typedef struct _string {
   uint8_t* data;
 } string;
 
+typedef struct _enum_value {
+  int32_t value;
+  char* text;
+} $enum_value;
+
 typedef struct _token {
     char const* file_name;
     int line_start;
@@ -28,6 +33,8 @@ typedef struct _token {
 } token;
 
 extern void obelix_fatal(token, char const*);
+
+extern $enum_value $get_enum_value($enum_value[], int32_t);
 
 extern void exit(int status);
 extern void * malloc(size_t size);

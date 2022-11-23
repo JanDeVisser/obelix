@@ -1,0 +1,12 @@
+enum Hello {
+  Value1 = 1,
+  Value2,
+  Value9 = 9
+}
+
+func main(): s32
+{
+  var x: Hello = Hello.Value9
+  putln(@x)
+  return 0
+}

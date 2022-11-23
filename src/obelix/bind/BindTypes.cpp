@@ -633,7 +633,7 @@ NODE_PROCESSOR(UnaryExpression)
         UnaryOperator op;
     };
 
-    constexpr static UnaryOperatorMap operator_map[8] = {
+    constexpr static UnaryOperatorMap operator_map[9] = {
         { TokenCode::Asterisk, UnaryOperator::Dereference },
         { TokenCode::AtSign, UnaryOperator::AddressOf },
         { TokenCode::Plus, UnaryOperator::Identity },

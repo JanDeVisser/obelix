@@ -147,10 +147,13 @@ R"(/*
         }
         case PrimitiveType::Enum: {
             writeln(ctx, format("typedef enum _{} {", type->name()));
+            indent(ctx);
             for (auto const& v : type->template_argument_values<NVP>("values")) {
-                writeln(ctx, format("  {} = {},", v.first, v.second));
+                writeln(ctx, format("{} = {},", v.first, v.second));
             }
+            dedent(ctx);
             writeln(ctx, format("} {};\n", type->name()));
+            writeln(ctx, format("extern $enum_value $_{}_values[];", type->name()));
             break;
         }
         case PrimitiveType::Array: {
@@ -222,6 +225,20 @@ R"(/*
     return tree;
 }
 
+NODE_PROCESSOR(BoundEnumDef)
+{
+    auto enum_def = std::dynamic_pointer_cast<BoundEnumDef>(tree);
+    writeln(ctx, format("$enum_value $_{}_values[] = {", enum_def->type()->name()));
+    indent(ctx);
+    for (auto const& v : enum_def->type()->template_argument_values<NVP>("values")) {
+        writeln(ctx, format("{{{}, \"{}\"},", v.second, v.first));
+    }
+    writeln(ctx, "{ 0, NULL }");
+    dedent(ctx);
+    writeln(ctx, "};\n");
+    return tree;
+}
+
 NODE_PROCESSOR(BoundFunctionDecl)
 {
     auto func_decl = std::dynamic_pointer_cast<BoundFunctionDecl>(tree);
@@ -288,7 +305,7 @@ NODE_PROCESSOR(BoundIntrinsicCall)
     CTranspilerFunctionType impl = get_c_transpiler_intrinsic(call->intrinsic());
     if (!impl)
         return SyntaxError { ErrorCode::InternalError, call->token(), format("No C Transpiler implementation for intrinsic {}", call->to_string()) };
-    auto ret = impl(ctx);
+    auto ret = impl(ctx, call->argument_types());
     if (ret.is_error())
         return ret.error();
     writeln(ctx, ";");

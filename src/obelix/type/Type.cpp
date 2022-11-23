@@ -295,8 +295,8 @@ static void initialize_types()
             type->has_size(4);
 
             type->has_template_stamp([](std::shared_ptr<ObjectType> const& instantiation) {
-                instantiation->add_method(MethodDescription { Operator::Subscript, s_long,
-                    IntrinsicType::NotIntrinsic, { { "subscript", s_string } } });
+                instantiation->add_method(MethodDescription { Operator::AddressOf, s_string,
+                    IntrinsicType::enum_text_value, { } });
             });
         });
 

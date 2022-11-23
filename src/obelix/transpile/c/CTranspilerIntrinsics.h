@@ -15,7 +15,7 @@
 
 namespace Obelix {
 
-using CTranspilerFunctionType = std::function<ErrorOr<void, SyntaxError>(CTranspilerContext&)>;
+using CTranspilerFunctionType = std::function<ErrorOr<void, SyntaxError>(CTranspilerContext&, ObjectTypes const&)>;
 
 bool register_c_transpiler_intrinsic(IntrinsicType, CTranspilerFunctionType);
 CTranspilerFunctionType const& get_c_transpiler_intrinsic(IntrinsicType);
