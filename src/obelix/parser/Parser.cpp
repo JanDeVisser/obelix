@@ -55,6 +55,7 @@ Parser::Parser(ParserContext& ctx, std::string const& file_name)
         Token(KeywordEnum, "enum"),
         Token(KeywordGlobal, "global"),
         Token(KeywordExtend, "extend"),
+        Token(KeywordAs, "as"),
         TokenCode::BinaryIncrement,
         TokenCode::BinaryDecrement,
         TokenCode::UnaryIncrement,
@@ -587,6 +588,7 @@ int Parser::binary_precedence(TokenCode code)
     case TokenCode::OpenParen:
         return 14;
     case TokenCode::CloseBracket:
+    case KeywordAs:
     default:
         return -1;
     }
@@ -714,10 +716,27 @@ std::shared_ptr<Expression> Parser::parse_expression_1(std::shared_ptr<Expressio
         }
         lhs = std::make_shared<BinaryExpression>(lhs, op, rhs);
     }
-    if (is_postfix_unary_operator(current_code())) {
-        lhs = parse_postfix_unary_operator(lhs);
+
+    // Pull up unary expressions with lower precedence than the binary we just parsed.
+    // This is for cases like @var.error.
+    if (auto binary = std::dynamic_pointer_cast<BinaryExpression>(lhs); binary != nullptr) {
+        if (auto lhs_unary = std::dynamic_pointer_cast<UnaryExpression>(binary->lhs()); lhs_unary != nullptr && unary_precedence(lhs_unary->op().code()) < binary_precedence(binary->op().code())) {
+            auto pushed_down = std::make_shared<BinaryExpression>(lhs_unary->operand(), binary->op(), binary->rhs());
+            lhs = std::make_shared<UnaryExpression>(lhs_unary->op(), pushed_down);
+        }
     }
-    return lhs;
+
+    if (current_code() != KeywordAs) {
+        if (is_postfix_unary_operator(current_code())) {
+            lhs = parse_postfix_unary_operator(lhs);
+        }
+        return lhs;
+    }
+    auto type = parse_type();
+    if (type == nullptr) {
+        return nullptr;
+    }
+    return std::make_shared<CastExpression>(lhs->token(), lhs, type);
 }
 
 std::shared_ptr<Expression> Parser::parse_postfix_unary_operator(std::shared_ptr<Expression> const& expression)
@@ -807,14 +826,7 @@ std::shared_ptr<Expression> Parser::parse_primary_expression()
         add_error(t, format("Syntax Error: Expected literal or variable, got '{}' ({})", t.value(), t.code_name()));
         return nullptr;
     }
-    if (current_code() != TokenCode::Identifier || peek().value() != "as")
-        return expr;
-    lex();
-    auto type = parse_type();
-    if (type == nullptr) {
-        return nullptr;
-    }
-    return std::make_shared<CastExpression>(t, expr, type);
+    return expr;
 }
 
 std::shared_ptr<ExpressionType> Parser::parse_type()

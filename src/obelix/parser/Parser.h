@@ -66,6 +66,7 @@ public:
     constexpr static TokenCode KeywordEnum = TokenCode::Keyword26;
     constexpr static TokenCode KeywordGlobal = TokenCode::Keyword27;
     constexpr static TokenCode KeywordExtend = TokenCode::Keyword28;
+    constexpr static TokenCode KeywordAs = TokenCode::Keyword29;
 
     Parser(ParserContext&, std::string const&);
 

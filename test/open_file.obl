@@ -1,13 +1,24 @@
 import io
 
-func main(): s32
+func open_file(file_name: string): s32
 {
-  var fh = io.open("open_file.obl", 0x0002u32);
+  var fh = io.open(file_name, 0x0002u32);
   if (error(fh)) {
-    puts("Error opening file: ")
-    puti(fh.error())
+    puts("Error opening file '")
+    puts(file_name)
+    puts("': ")
+    putln(@fh.error)
     return 1
   }
-  putln("File successfully opened")
+  puts("File '")
+  puts(file_name)
+  putln("' successfully opened")
   return 0
+}
+
+func main(): s32
+{
+    open_file("open_file.obl")
+    open_file("fake.file")
+    return 0
 }
