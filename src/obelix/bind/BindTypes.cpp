@@ -882,6 +882,7 @@ NODE_PROCESSOR(SwitchStatement)
 ProcessResult bind_types(std::shared_ptr<SyntaxNode> const& tree, Config const& config)
 {
     BindContext root;
+    ProcessResult result;
     auto new_unbound = std::numeric_limits<int>().max();
     int unbound;
     root.stage = 1;
@@ -890,10 +891,10 @@ ProcessResult bind_types(std::shared_ptr<SyntaxNode> const& tree, Config const& 
     do {
         unbound = new_unbound;
         root.clear_unresolved_functions();
-        auto ret = process(t, root);
-        if (ret.is_error())
-            return ret;
-        t = ret.value();
+        process(t, root, result);
+        if (result.is_error())
+            return result;
+        t = result.value();
         assert(t != nullptr);
         auto compilation = std::dynamic_pointer_cast<BoundCompilation>(t);
         assert(compilation != nullptr);
@@ -915,7 +916,7 @@ ProcessResult bind_types(std::shared_ptr<SyntaxNode> const& tree, Config const& 
         std::cout << "\nTypes bound:\n"
                   << t->to_xml() << "\n";
 
-    return t;
+    return result;
 }
 
 }
