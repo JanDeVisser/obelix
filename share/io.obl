@@ -140,10 +140,10 @@ type u32_errno u32/errno;
 type u64_errno u64/errno;
 type bool_errno bool/errno;
 
-func open(path: string, flags: u32) : u32_errno -> "obl_open"
-func close(fh: u32) : bool_errno -> "obl_close"
-func read(fd: u32, buffer: ptr<char>, number_of_bytes: u64) : u64_errno -> "obl_read"
-func write(fd: u32, buffer: ptr<char>, number_of_bytes: u64) : u64_errno -> "obl_write"
+func open(path: string, flags: u32) : u32_errno -> "$open"
+func close(fh: u32) : bool_errno -> "$close"
+func read(fd: u32, buffer: ptr<char>, number_of_bytes: u64) : u64_errno -> "$read"
+func write(fd: u32, buffer: ptr<char>, number_of_bytes: u64) : u64_errno -> "$write"
 
 global const O_RDONLY: u32 = 0x0000u32
 global const O_RDWR: u32 = 0x0002u32

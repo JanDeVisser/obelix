@@ -51,6 +51,7 @@ namespace Obelix {
     S(Function, "function", 16)              \
     S(Compilation, "compilation", 17)        \
     S(Conditional, "conditional", 18)        \
+    S(String, "string", 19)                  \
     S(Error, "error", 9995)                  \
     S(Self, "self", 9996)                    \
     S(Compatible, "compatible", 9997)        \

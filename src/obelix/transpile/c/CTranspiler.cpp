@@ -52,6 +52,7 @@ std::string type_to_c_type(std::shared_ptr<ObjectType> const& type)
         c_type = type_to_c_type(base_type);
         break;
     }
+    case PrimitiveType::String:
     case PrimitiveType::Struct:
     case PrimitiveType::Enum:
     case PrimitiveType::Conditional:
@@ -86,6 +87,9 @@ std::string type_initialize(std::shared_ptr<ObjectType> const& type)
         initial_value = "NULL";
         break;
     }
+    case PrimitiveType::String:
+        initial_value = "str_view_for(\"\")";
+        break;
     case PrimitiveType::Struct:
     case PrimitiveType::Array:
     case PrimitiveType::Conditional:
@@ -106,6 +110,46 @@ ErrorOr<void, SyntaxError> evaluate_arguments(CTranspilerContext& ctx, ProcessRe
         TRY_RETURN(process(arg, ctx, result));
         first = false;
     }
+    return {};
+}
+
+template <typename EmitFunction>
+ErrorOr<void, SyntaxError> function_call(CTranspilerContext& ctx, ProcessResult& result, pBoundFunctionCall const& call, EmitFunction const& emitter)
+{
+    writeln(ctx, "({");
+    indent(ctx);
+    auto count { 0 };
+    for (auto const& arg : call->arguments()) {
+        type_to_c_type(ctx, arg->type());
+        write(ctx, format(" $arg{} = ", count++));
+        TRY_RETURN(process(arg, ctx));
+        writeln(ctx, ";");
+    }
+    if (call->type()->type() != PrimitiveType::Void)
+        write(ctx, format("{} $eval_result = ", type_to_c_type(call->type())));
+    TRY_RETURN(emitter());
+    writeln(ctx, ";");
+    count = 0;
+    for (auto const& arg : call->arguments()) {
+        auto method_descr_maybe = arg->type()->get_method(Operator::Destructor, {});
+        if (method_descr_maybe.has_value()) {
+            auto method_descr = method_descr_maybe.value();
+            writeln(ctx, "({");
+            indent(ctx);
+            writeln(ctx, format("{} $self = $arg{};", type_to_c_type(arg->type()), count));
+            CTranspilerFunctionType impl = get_c_transpiler_intrinsic(method_descr.implementation().intrinsic);
+            if (!impl)
+                return SyntaxError { ErrorCode::InternalError, call->token(), format("No C Transpiler implementation for destructor of {}", arg->type()) };
+            TRY_RETURN(impl(ctx, {}));
+            dedent(ctx);
+            writeln(ctx, "});");
+        }
+        count++;
+    }
+    if (call->type()->type() != PrimitiveType::Void)
+        writeln(ctx, "$eval_result;");
+    dedent(ctx);
+    write(ctx, "})");
     return {};
 }
 
@@ -172,7 +216,7 @@ R"(/*
                 writeln(ctx, format("\n/* Exported by {}: */\n", module->name()));
             auto function_name = function->name();
             if (function_name == "main")
-                function_name = "obelix_main";
+                function_name = "$main";
             if (auto native = std::dynamic_pointer_cast<BoundNativeFunctionDecl>(function); native != nullptr)
                 function_name = native->native_function_name();
             num_functions++;
@@ -246,7 +290,7 @@ NODE_PROCESSOR(BoundFunctionDecl)
     type_to_c_type(ctx, func_decl->type());
     auto name = func_decl->name();
     if (name == "main")
-        name = "obelix_main";
+        name = "$main";
     write(ctx, format(" {}(", name));
     auto first { true };
     for (auto& param : func_decl->parameters()) {
@@ -274,43 +318,47 @@ NODE_PROCESSOR(BoundFunctionDef)
 NODE_PROCESSOR(BoundFunctionCall)
 {
     auto call = std::dynamic_pointer_cast<BoundFunctionCall>(tree);
-    write(ctx, format("{}(", call->name()));
-    TRY_RETURN(evaluate_arguments(ctx, result, call->declaration(), call->arguments()));
-    write(ctx, ")");
+    TRY_RETURN(function_call(ctx, result, call, [&call, &ctx]() -> ErrorOr<void, SyntaxError> {
+        write(ctx, call->name());
+        write(ctx, "(");
+        for (auto ix = 0; ix < call->arguments().size(); ++ix) {
+            if (ix > 0)
+                write(ctx, ", ");
+            write(ctx, format("$arg{}", ix));
+        }
+        write(ctx, ")");
+        return {};
+    }));
     return tree;
 }
 
 NODE_PROCESSOR(BoundNativeFunctionCall)
 {
     auto call = std::dynamic_pointer_cast<BoundNativeFunctionCall>(tree);
-    write(ctx, format("{}(", std::dynamic_pointer_cast<BoundNativeFunctionDecl>(call->declaration())->native_function_name()));
-    TRY_RETURN(evaluate_arguments(ctx, result, call->declaration(), call->arguments()));
-    write(ctx, ")");
+    TRY_RETURN(function_call(ctx, result, call, [&call, &ctx]() -> ErrorOr<void, SyntaxError> {
+        write(ctx, std::dynamic_pointer_cast<BoundNativeFunctionDecl>(call->declaration())->native_function_name());
+        write(ctx, "(");
+        for (auto ix = 0; ix < call->arguments().size(); ++ix) {
+            if (ix > 0)
+                write(ctx, ", ");
+            write(ctx, format("$arg{}", ix));
+        }
+        write(ctx, ")");
+        return {};
+    }));
     return tree;
 }
 
 NODE_PROCESSOR(BoundIntrinsicCall)
 {
     auto call = std::dynamic_pointer_cast<BoundIntrinsicCall>(tree);
-
-    writeln(ctx, "({");
-    indent(ctx);
-    auto count { 0 };
-    for (auto const& arg : call->arguments()) {
-        type_to_c_type(ctx, arg->type());
-        write(ctx, format(" arg{} = ", count++));
-        TRY_RETURN(process(arg, ctx));
-        writeln(ctx, ";");
-    }
-    CTranspilerFunctionType impl = get_c_transpiler_intrinsic(call->intrinsic());
-    if (!impl)
-        return SyntaxError { ErrorCode::InternalError, call->token(), format("No C Transpiler implementation for intrinsic {}", call->to_string()) };
-    auto ret = impl(ctx, call->argument_types());
-    if (ret.is_error())
-        return ret.error();
-    writeln(ctx, ";");
-    dedent(ctx);
-    write(ctx, "})");
+    TRY_RETURN(function_call(ctx, result, call, [&call, &ctx]() -> ErrorOr<void, SyntaxError> {
+        CTranspilerFunctionType impl = get_c_transpiler_intrinsic(call->intrinsic());
+        if (!impl)
+            return SyntaxError { ErrorCode::InternalError, call->token(), format("No C Transpiler implementation for intrinsic {}", call->to_string()) };
+        TRY_RETURN(impl(ctx, call->argument_types()));
+        return {};
+    }));
     return tree;
 }
 
@@ -341,7 +389,7 @@ NODE_PROCESSOR(BoundStringLiteral)
     auto literal = std::dynamic_pointer_cast<BoundStringLiteral>(tree);
     auto s = literal->value();
     replace_all(s, "\n", "\\n");
-    write(ctx, format(R"((string) {{ {}, (uint8_t *) "{}" })", s.length(), s));
+    write(ctx, format(R"(str_view_for("{}"))", s));
     return tree;
 }
 
@@ -355,7 +403,10 @@ NODE_PROCESSOR(BoundBooleanLiteral)
 NODE_PROCESSOR(BoundVariable)
 {
     auto variable = std::dynamic_pointer_cast<BoundVariable>(tree);
-    write(ctx, variable->name());
+    if (variable->type()->type() != PrimitiveType::String)
+        write(ctx, variable->name());
+    else
+        write(ctx, format("str_copy({})", variable->name()));
     return tree;
 }
 
@@ -390,7 +441,7 @@ NODE_PROCESSOR(BoundMemberAccess)
         char const *msg = (access->member()->name() == "value") ? CONDITIONAL_VALUE_ERROR : CONDITIONAL_ERROR_ERROR;
         char const *invert = (access->member()->name() == "value") ? "!" : "";
         auto const& loc = access->token().location;
-        writeln(ctx, format(R"(if ({}cond.success) obelix_fatal((token) {{ .file_name="{}", .line_start={}, .column_start={}, .line_end={}, .column_end={}}, "{}");)",
+        writeln(ctx, format(R"(if ({}cond.success) $fatal(($token) {{ .file_name="{}", .line_start={}, .column_start={}, .line_end={}, .column_end={}}, "{}");)",
             invert, loc.file_name, loc.start_line, loc.start_column, loc.end_line, loc.end_column, msg));
         writeln(ctx, format(R"(cond.{};)", access->member()->name()));
         dedent(ctx);

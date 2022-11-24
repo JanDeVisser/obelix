@@ -35,31 +35,31 @@ CTranspilerFunctionType const& get_c_transpiler_intrinsic(IntrinsicType type)
 
 INTRINSIC(allocate)
 {
-    writeln(ctx, "malloc(arg0);");
+    writeln(ctx, "malloc($arg0);");
     return {};
 }
 
 INTRINSIC(ok)
 {
-    writeln(ctx, "arg0.success");
+    writeln(ctx, "$arg0.success");
     return {};
 }
 
 INTRINSIC(error)
 {
-    writeln(ctx, "!arg0.success");
+    writeln(ctx, "!$arg0.success");
     return {};
 }
 
 INTRINSIC(eputs)
 {
-    writeln(ctx, "write(2,arg1,arg0);");
+    writeln(ctx, "write(2,$arg1,$arg0);");
     return {};
 }
 
 INTRINSIC(fputs)
 {
-    writeln(ctx, "write(arg0,arg2,arg1);");
+    writeln(ctx, "write($arg0,$arg2,$arg1);");
     return {};
 }
 
@@ -72,157 +72,167 @@ INTRINSIC(putchar)
 {
     writeln(ctx,
 R"(
-uint8_t ch = (uint8_t) arg0;
+uint8_t ch = (uint8_t) $arg0;
 write(1,&ch,1);)");
     return {};
 }
 
 INTRINSIC(ptr_math)
 {
-    writeln(ctx, "((void*) arg0) + arg1;");
+    writeln(ctx, "((void*) $arg0) + $arg1;");
     return {};
 }
 
 INTRINSIC(dereference)
 {
-    writeln(ctx, "*arg0;");
+    writeln(ctx, "*$arg0;");
     return {};
 }
 
 INTRINSIC(add_int_int)
 {
-    write(ctx, "arg0 + arg1");
+    write(ctx, "$arg0 + $arg1");
     return {};
 }
 
 INTRINSIC(subtract_int_int)
 {
-    write(ctx, "arg0 - arg1");
+    write(ctx, "$arg0 - $arg1");
     return {};
 }
 
 INTRINSIC(multiply_int_int)
 {
-    write(ctx, "arg0 * arg1");
+    write(ctx, "$arg0 * $arg1");
     return {};
 }
 
 INTRINSIC(divide_int_int)
 {
-    write(ctx, "arg0 / arg1");
+    write(ctx, "$arg0 / $arg1");
     return {};
 }
 
 INTRINSIC(equals_int_int)
 {
-    write(ctx, "arg0 == arg1");
+    write(ctx, "$arg0 == $arg1");
     return {};
 }
 
 INTRINSIC(greater_int_int)
 {
-    write(ctx, "arg0 > arg1");
+    write(ctx, "$arg0 > $arg1");
     return {};
 }
 
 INTRINSIC(less_int_int)
 {
-    write(ctx, "arg0 < arg1");
+    write(ctx, "$arg0 < $arg1");
     return {};
 }
 
 INTRINSIC(negate_s64)
 {
-    write(ctx, "-arg0");
+    write(ctx, "-$arg0");
     return {};
 }
 
 INTRINSIC(negate_s32)
 {
-    write(ctx, "-arg0");
+    write(ctx, "-$arg0");
     return {};
 }
 
 INTRINSIC(negate_s16)
 {
-    write(ctx, "-arg0");
+    write(ctx, "-$arg0");
     return {};
 }
 
 INTRINSIC(negate_s8)
 {
-    write(ctx, "-arg0");
+    write(ctx, "-$arg0");
     return {};
 }
 
 INTRINSIC(invert_int)
 {
-    write(ctx, "~arg0");
+    write(ctx, "~$arg0");
     return {};
 }
 
 INTRINSIC(invert_bool)
 {
-    write(ctx, "!arg0");
+    write(ctx, "!$arg0");
     return {};
 }
 
 INTRINSIC(and_bool_bool)
 {
-    write(ctx, "arg0 && arg1");
+    write(ctx, "$arg0 && $arg1");
     return {};
 }
 
 INTRINSIC(or_bool_bool)
 {
-    write(ctx, "arg0 || arg1");
+    write(ctx, "$arg0 || $arg1");
     return {};
 }
 
 INTRINSIC(xor_bool_bool)
 {
-    write(ctx, "arg0 ^ arg1");
+    write(ctx, "$arg0 ^ $arg1");
     return {};
 }
 
 INTRINSIC(equals_bool_bool)
 {
-    write(ctx, "arg0 == arg1");
+    write(ctx, "$arg0 == $arg1");
     return {};
 }
 
 INTRINSIC(add_str_str)
 {
-    fatal("Not implemented");
+    write(ctx, "str_concat($arg0, $arg1)");
+    return {};
 }
 
 INTRINSIC(greater_str_str)
 {
-    fatal("Not implemented");
+    write(ctx, "str_compare($arg0, $arg1) > 0");
+    return {};
 }
 
 INTRINSIC(less_str_str)
 {
-    fatal("Not implemented");
+    write(ctx, "str_compare($arg0, $arg1) < 0");
+    return {};
 }
 
 INTRINSIC(equals_str_str)
 {
-    fatal("Not implemented");
+    write(ctx, "str_compare($arg0, $arg1) == 0");
+    return {};
 }
 
 INTRINSIC(multiply_str_int)
 {
-    fatal("Not implemented");
+    write(ctx, "str_multiply($arg0, $arg1)");
+    return {};
 }
 
 INTRINSIC(enum_text_value)
 {
     auto enum_type = types[0];
     writeln(ctx, format(
-R"($enum_value v = $get_enum_value($_{}_values, arg0);
-string ret = { strlen(v.text), (uint8_t *) v.text };
-ret;)", enum_type->name()));
+R"($enum_value v = $get_enum_value($_{}_values, $arg0);
+str_view_for(v.text);)", enum_type->name()));
+    return {};
+}
+
+INTRINSIC(free_str)
+{
+    writeln(ctx, "str_free($self);");
     return {};
 }
 

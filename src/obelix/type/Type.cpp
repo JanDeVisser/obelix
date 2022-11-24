@@ -276,14 +276,11 @@ static void initialize_types()
 
     s_char_ptr = ObjectType::specialize(s_pointer, { { "target", s_char } }).value();
 
-    s_string = ObjectType::register_struct_type("string",
-        FieldDefs {
-            FieldDef { std::string("length"), s_unsigned },
-            FieldDef { std::string("data"), s_char_ptr },
-        },
+    s_string = ObjectType::register_type(PrimitiveType::String,
         [](std::shared_ptr<ObjectType> const& type) {
             type->add_method(MethodDescription { Operator::Add, PrimitiveType::Self, IntrinsicType::add_str_str, { { "other", PrimitiveType::Self } }, true });
             type->add_method(MethodDescription { Operator::Multiply, PrimitiveType::Self, IntrinsicType::multiply_str_int, { { "other", s_unsigned } }, true });
+            type->add_method(MethodDescription { Operator::Destructor, PrimitiveType::Any, IntrinsicType::free_str, { {  } }, false });
             type->will_be_a(s_comparable);
             type->will_be_custom(false);
         });

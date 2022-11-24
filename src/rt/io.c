@@ -38,9 +38,9 @@ typedef struct u64_errno {
   };
 } u64_errno;
 
-u32_errno obl_open(string path, uint32_t flags)
+u32_errno $open(string path, uint32_t flags)
 {
-    int fh = open((const char*) path.data, flags);
+    int fh = open(str_data(path), flags);
     u32_errno ret;
 
     if ((ret.success = (fh >= 0))) {
@@ -51,7 +51,7 @@ u32_errno obl_open(string path, uint32_t flags)
     return ret;
 }
 
-bool_errno obl_close(uint32_t fh)
+bool_errno $close(uint32_t fh)
 {
     bool_errno ret;
     if ((ret.success = (close(fh) >= 0))) {
@@ -62,7 +62,7 @@ bool_errno obl_close(uint32_t fh)
     return ret;
 }
 
-u64_errno obl_read(uint32_t fh, char* buffer, uint64_t bytes)
+u64_errno $read(uint32_t fh, char* buffer, uint64_t bytes)
 {
     u64_errno ret;
     ssize_t bytes_read = read(fh, buffer, bytes);
@@ -74,7 +74,7 @@ u64_errno obl_read(uint32_t fh, char* buffer, uint64_t bytes)
     return ret;
 }
 
-u64_errno obl_write(uint32_t fh, char const* buffer, uint64_t bytes)
+u64_errno $write(uint32_t fh, char const* buffer, uint64_t bytes)
 {
     u64_errno ret;
     ssize_t bytes_written = write(fh, buffer, bytes);

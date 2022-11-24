@@ -58,7 +58,8 @@ namespace Obelix {
     S(LogicalInvert)                 \
     S(BitwiseInvert)                 \
     S(Dereference)                   \
-    S(AddressOf)
+    S(AddressOf)                     \
+    S(Destructor)
 
 enum class Operator {
 #undef ENUM_BINARY_OPERATOR
