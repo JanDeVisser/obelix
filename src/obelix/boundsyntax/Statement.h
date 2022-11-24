@@ -23,7 +23,7 @@ public:
     BoundExpression() = default;
     BoundExpression(Token, std::shared_ptr<ObjectType>);
     BoundExpression(std::shared_ptr<Expression> const&, std::shared_ptr<ObjectType>);
-    BoundExpression(std::shared_ptr<BoundExpression> const&);
+    BoundExpression(std::shared_ptr<BoundExpression> const&, pObjectType = nullptr);
     BoundExpression(Token, PrimitiveType);
     [[nodiscard]] std::shared_ptr<ObjectType> const& type() const;
     [[nodiscard]] std::string const& type_name() const;

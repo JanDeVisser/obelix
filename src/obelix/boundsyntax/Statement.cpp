@@ -32,9 +32,9 @@ BoundExpression::BoundExpression(std::shared_ptr<Expression> const& expr, std::s
 {
 }
 
-BoundExpression::BoundExpression(std::shared_ptr<BoundExpression> const& expr)
+BoundExpression::BoundExpression(std::shared_ptr<BoundExpression> const& expr, pObjectType type)
     : SyntaxNode(expr->token())
-    , m_type(expr->type())
+    , m_type((type != nullptr) ? type : expr->type())
 {
 }
 

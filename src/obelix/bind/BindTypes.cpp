@@ -754,6 +754,30 @@ NODE_PROCESSOR(ExpressionStatement)
 {
     auto expr_stmt = std::dynamic_pointer_cast<ExpressionStatement>(tree);
     auto expr = TRY_AND_TRY_CAST_RETURN(BoundExpression, expr_stmt->expression(), ctx, tree);
+    if (expr->type()->type() != PrimitiveType::Void) {
+        if (auto func_call = std::dynamic_pointer_cast<BoundFunctionCall>(expr); func_call != nullptr) {
+            // FIXME Collect warnings and other diagnostics in the ProcessResult
+            std::cout << expr->token().location.to_string() << " Warning: Discarding return value of function '" << func_call->name() << "'\n";
+            switch (expr->node_type()) {
+            case SyntaxNodeType::BoundFunctionCall: {
+                expr = std::make_shared<BoundFunctionCall>(func_call, ObjectType::get(PrimitiveType::Void));
+                break;
+            }
+            case SyntaxNodeType::BoundNativeFunctionCall: {
+                auto native_call = std::dynamic_pointer_cast<BoundNativeFunctionCall>(expr);
+                expr = std::make_shared<BoundNativeFunctionCall>(native_call, ObjectType::get(PrimitiveType::Void));
+                break;
+            }
+            case SyntaxNodeType::BoundIntrinsicCall: {
+                auto intrinsic_call = std::dynamic_pointer_cast<BoundIntrinsicCall>(expr);
+                expr = std::make_shared<BoundIntrinsicCall>(intrinsic_call, ObjectType::get(PrimitiveType::Void));
+                break;
+            }
+            default:
+                break;
+            }
+        }
+    }
     return std::make_shared<BoundExpressionStatement>(expr_stmt, expr);
 }
 
