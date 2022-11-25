@@ -56,6 +56,7 @@ std::string type_to_c_type(std::shared_ptr<ObjectType> const& type)
     case PrimitiveType::Struct:
     case PrimitiveType::Enum:
     case PrimitiveType::Conditional:
+    case PrimitiveType::Void:
         c_type = type->name();
         break;
     default:

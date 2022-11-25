@@ -74,6 +74,7 @@ std::vector<std::shared_ptr<ObjectType>> ObjectType::s_template_specializations 
 [[maybe_unused]] std::shared_ptr<ObjectType> s_compatible;
 [[maybe_unused]] std::shared_ptr<ObjectType> s_assignable_to;
 [[maybe_unused]] std::shared_ptr<ObjectType> s_unknown;
+[[maybe_unused]] std::shared_ptr<ObjectType> s_void;
 [[maybe_unused]] std::shared_ptr<ObjectType> s_incrementable;
 [[maybe_unused]] std::shared_ptr<ObjectType> s_comparable;
 [[maybe_unused]] std::shared_ptr<ObjectType> s_boolean;
@@ -109,6 +110,7 @@ static void initialize_types()
     s_compatible = ObjectType::register_type(PrimitiveType::Compatible);
     s_assignable_to = ObjectType::register_type(PrimitiveType::AssignableTo);
     s_unknown = ObjectType::register_type(PrimitiveType::Unknown);
+    s_void = ObjectType::register_type(PrimitiveType::Void);
     s_type = ObjectType::register_type(PrimitiveType::Type);
 
     s_incrementable = ObjectType::register_type(PrimitiveType::Incrementable,

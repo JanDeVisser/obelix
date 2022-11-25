@@ -1,0 +1,10 @@
+func foo(): void
+{
+   putln("foo")
+}
+
+func main(): s32
+{
+  foo()
+  return 0
+}
