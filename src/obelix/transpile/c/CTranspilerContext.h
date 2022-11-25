@@ -190,5 +190,13 @@ void writeln(CTranspilerContext&, std::string const&);
 void write(CTranspilerContext&, std::string const&);
 void indent(CTranspilerContext&);
 void dedent(CTranspilerContext&);
+std::string const& exit_label(CTranspilerContext const&);
+
+// FIXME Why doesn't this work????
+template<>
+inline CTranspilerContext& make_subcontext(CTranspilerContext& ctx)
+{
+    return ctx.make_subcontext();
+}
 
 }

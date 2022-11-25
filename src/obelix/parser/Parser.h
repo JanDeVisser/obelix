@@ -23,6 +23,12 @@ struct ParserContext {
     std::set<std::string> modules;
 };
 
+template<>
+inline ParserContext& make_subcontext(ParserContext& ctx)
+{
+    return ctx;
+}
+
 enum class OperandKind {
     None,
     Value,

@@ -284,7 +284,7 @@ private:
 template<typename Ctx>
 inline Ctx& make_subcontext(Ctx& ctx)
 {
-    return ctx;
+    return ctx.make_subcontext();
 }
 
 template<typename T, typename Payload>
