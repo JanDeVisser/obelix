@@ -145,6 +145,7 @@ enum class TokenCode {
 #define __ENUMERATE_TOKEN_CODE(code, c, str) code,
     ENUMERATE_TOKEN_CODES(__ENUMERATE_TOKEN_CODE)
 #undef __ENUMERATE_TOKEN_CODE
+    count
 };
 
 constexpr TokenCode TokenCode_by_char(int ch)
