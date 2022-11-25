@@ -247,8 +247,10 @@ public:
     template <typename F>
     void call_on_root(F f)
     {
-        if (parent() != nullptr)
+        if (parent() != nullptr) {
             parent()->template call_on_root<void>(f);
+            return;
+        }
         f(*this);
     }
 
@@ -290,8 +292,5 @@ inline Context<T, Payload>& make_subcontext(Context<T, Payload>& ctx)
 {
     return ctx.make_subcontext();
 }
-
-
-
 
 }
