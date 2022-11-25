@@ -222,6 +222,24 @@ struct Converter<bool> {
     }
 };
 
+template<>
+struct Converter<void*> {
+    static std::string to_string(void *val)
+    {
+        return std::to_string(reinterpret_cast<uintptr_t>(val));
+    }
+
+    static double to_double(void *val)
+    {
+        return static_cast<double>(reinterpret_cast<uintptr_t>(val));
+    }
+
+    static long to_long(void* val)
+    {
+        return static_cast<long>(reinterpret_cast<uintptr_t>(val));;
+    }
+};
+
 template<typename T>
 struct Converter<std::shared_ptr<T>> {
     static std::string to_string(std::shared_ptr<T> const& val)
