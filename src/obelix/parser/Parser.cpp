@@ -545,137 +545,114 @@ std::shared_ptr<Expression> Parser::parse_expression()
 }
 
 /*
- * Precendeces according to https://en.cppreference.com/w/c/language/operator_precedence:
+ * Precedences according to https://en.cppreference.com/w/c/language/operator_precedence:
  */
-int Parser::binary_precedence(TokenCode code)
-{
-    switch (code) {
-    case TokenCode::Equals:
-    case KeywordIncEquals:
-    case KeywordDecEquals:
-        return 1;
-    case TokenCode::LogicalOr:
-        return 3;
-    case TokenCode::LogicalAnd:
-        return 4;
-    case TokenCode::Pipe:
-        return 5;
-    case TokenCode::Hat:
-        return 6;
-    case TokenCode::Ampersand:
-        return 7;
-    case TokenCode::EqualsTo:
-    case TokenCode::NotEqualTo:
-    case KeywordRange:
-        return 8;
-    case TokenCode::GreaterThan:
-    case TokenCode::LessThan:
-    case TokenCode::GreaterEqualThan:
-    case TokenCode::LessEqualThan:
-        return 9;
-    case TokenCode::ShiftLeft:
-    case TokenCode::ShiftRight:
-        return 10;
-    case TokenCode::Plus:
-    case TokenCode::Minus:
-        return 11;
-    case TokenCode::Asterisk:
-    case TokenCode::Slash:
-    case TokenCode::Percent:
-        return 12;
-    case TokenCode::Period:
-    case TokenCode::OpenBracket:
-    case TokenCode::OpenParen:
-        return 14;
-    case TokenCode::CloseBracket:
-    case KeywordAs:
-    default:
-        return -1;
-    }
-}
 
-Parser::Associativity Parser::associativity(TokenCode code)
-{
-    switch (code) {
-    case TokenCode::Equals:
-    case KeywordIncEquals:
-    case KeywordDecEquals:
-        return Associativity::RightToLeft;
-    default:
-        return Associativity::LeftToRight;
+template<TokenCode Count>
+class OperatorDefs {
+public:
+    OperatorDefs()
+    {
+        for (auto ix = 0u; ix < (int) Count; ++ix) {
+            defs_by_code[ix] = { (TokenCode) ix, OperandKind::None, OperandKind::None, -1, OperandKind::None, -1 };
+        }
+        for (auto const& def : operators) {
+            if (def.op == TokenCode::Unknown)
+                break;
+            defs_by_code[(int)def.op] = { def.op, def.lhs_kind, def.rhs_kind, def.precedence, def.unary_kind, def.unary_precedence };
+        }
     }
-}
 
-int Parser::unary_precedence(TokenCode code)
-{
-    switch (code) {
-    case TokenCode::Plus:
-    case TokenCode::Minus:
-    case TokenCode::Tilde:
-    case TokenCode::ExclamationPoint:
-    case TokenCode::Asterisk:
-    case TokenCode::AtSign:
-        return 13;
-    case TokenCode::OpenParen:
-        //    case TokenCode::OpenBracket:
-        return 14;
-    default:
-        return -1;
+    OperatorDef const& find(TokenCode code) const
+    {
+        int c = static_cast<int>(code);
+        if (code >= TokenCode::count) {
+            return defs_by_code[0];
+        }
+        assert(defs_by_code[c].op == code);
+        return defs_by_code[c];
     }
-}
 
-int Parser::is_postfix_unary_operator(TokenCode code)
-{
-    switch (code) {
-    default:
-        return false;
+    bool is_binary(TokenCode code) const
+    {
+        return find(code).lhs_kind != OperandKind::None;
     }
-}
 
-int Parser::is_prefix_unary_operator(TokenCode code)
-{
-    switch (code) {
-    case TokenCode::Plus:
-    case TokenCode::Minus:
-    case TokenCode::Tilde:
-    case TokenCode::ExclamationPoint:
-    case TokenCode::AtSign:
-    case TokenCode::Asterisk:
-        return true;
-    default:
-        return false;
+    bool is_unary(TokenCode code) const
+    {
+        return find(code).unary_kind != OperandKind::None;
     }
-}
 
-Token Parser::operator_for_assignment_operator(TokenCode code)
-{
-    switch (code) {
-        case KeywordIncEquals:
-            return Token(TokenCode::Plus, "+");
-        case KeywordDecEquals:
-            return Token(TokenCode::Minus, "-");
+    int binary_precedence(TokenCode code) const
+    {
+        return find(code).precedence;
+    }
+
+    int unary_precedence(TokenCode code) const
+    {
+        return find(code).unary_precedence;
+    }
+
+    Associativity associativity(TokenCode code)
+    {
+        switch (code) {
+        case TokenCode::Equals:
+        case Parser::KeywordIncEquals:
+        case Parser::KeywordDecEquals:
+            return Associativity::RightToLeft;
         default:
-            return Token(TokenCode::Unknown, "??");
+            return Associativity::LeftToRight;
+        }
     }
-}
 
-bool Parser::is_assignment_operator(TokenCode code)
-{
-    switch (code) {
-    case KeywordIncEquals:
-    case KeywordDecEquals:
-        return true;
-    default:
-        return false;
-    }
-}
+private:
+    OperatorDef operators[(int)Count] = {
+        { TokenCode::Equals, OperandKind::Value, OperandKind::Value, 1 },
+        { Parser::KeywordIncEquals, OperandKind::Value, OperandKind::Value, 1 },
+        { Parser::KeywordDecEquals, OperandKind::Value, OperandKind::Value, 1 },
+        { TokenCode::LogicalOr, OperandKind::Value, OperandKind::Value, 3 },
+        { TokenCode::LogicalAnd, OperandKind::Value, OperandKind::Value, 4 },
+        { TokenCode::Pipe, OperandKind::Value, OperandKind::Value, 5 },
+        { TokenCode::Hat, OperandKind::Value, OperandKind::Value, 6 },
+        { TokenCode::Ampersand, OperandKind::Value, OperandKind::Value, 7 },
+        { TokenCode::EqualsTo, OperandKind::Value, OperandKind::Value, 8 },
+        { TokenCode::NotEqualTo, OperandKind::Value, OperandKind::Value, 8 },
+        { Parser::KeywordRange, OperandKind::Value, OperandKind::Value, 8 },
+        { TokenCode::GreaterThan, OperandKind::Value, OperandKind::Value, 9 },
+        { TokenCode::LessThan, OperandKind::Value, OperandKind::Value, 9 },
+        { TokenCode::GreaterEqualThan, OperandKind::Value, OperandKind::Value, 9 },
+        { TokenCode::LessEqualThan, OperandKind::Value, OperandKind::Value, 9 },
+        { TokenCode::ShiftLeft, OperandKind::Value, OperandKind::Value, 10 },
+        { TokenCode::ShiftRight, OperandKind::Value, OperandKind::Value, 10 },
+        { TokenCode::Plus, OperandKind::Value, OperandKind::Value, 11, OperandKind::Value, 13 },
+        { TokenCode::Minus, OperandKind::Value, OperandKind::Value, 11, OperandKind::Value, 13 },
+        { TokenCode::Asterisk, OperandKind::Value, OperandKind::Value, 12, OperandKind::Value, 13 },
+        { TokenCode::Slash, OperandKind::Value, OperandKind::Value, 12 },
+        { TokenCode::Percent, OperandKind::Value, OperandKind::Value, 12 },
+        { TokenCode::Tilde, OperandKind::None, OperandKind::None, -1, OperandKind::Value, 13 },
+        { TokenCode::ExclamationPoint, OperandKind::None, OperandKind::None, -1, OperandKind::Value, 13 },
+        { TokenCode::AtSign, OperandKind::None, OperandKind::None, -1, OperandKind::Value, 13 },
+        { TokenCode::Period, OperandKind::Value, OperandKind::Value, 14 },
+        { TokenCode::OpenBracket, OperandKind::Value, OperandKind::Value, 14 },
+        { TokenCode::OpenParen, OperandKind::Value, OperandKind::Value, 14 },
+        { Parser::KeywordAs, OperandKind::Value, OperandKind::Type, 14 },
+        { TokenCode::CloseBracket, OperandKind::Value, OperandKind::Value, -1 },
+        { TokenCode::Unknown, OperandKind::None, OperandKind::None, -1 },
+    };
+
+    OperatorDef defs_by_code[(int)Count] = {
+        { TokenCode::Unknown, OperandKind::None, OperandKind::None, -1, OperandKind::None, -1 }
+    };
+};
+
+static OperatorDefs<TokenCode::count> operator_defs;
 
 std::shared_ptr<Expression> Parser::parse_expression_1(std::shared_ptr<Expression> lhs, int min_precedence)
 {
-    while (binary_precedence(current_code()) >= min_precedence) {
+    while (operator_defs.is_binary(current_code()) && operator_defs.binary_precedence(current_code()) >= min_precedence) {
         auto op = lex();
         std::shared_ptr<Expression> rhs;
-        if (associativity(op.code()) == Associativity::LeftToRight) {
+        if (operator_defs.associativity(op.code()) == Associativity::LeftToRight) {
             auto open_bracket = op.code() == TokenCode::OpenBracket;
             switch (op.code()) {
             case TokenCode::OpenParen: {
@@ -697,11 +674,22 @@ std::shared_ptr<Expression> Parser::parse_expression_1(std::shared_ptr<Expressio
                 break;
             }
             default: {
-                rhs = parse_primary_expression();
-                if (!rhs)
-                    return nullptr;
-                while ((open_bracket && (current_code() != TokenCode::CloseBracket)) || (binary_precedence(current_code()) > binary_precedence(op.code())))
-                    rhs = parse_expression_1(rhs, (open_bracket) ? 0 : (binary_precedence(op.code()) + 1));
+                switch (operator_defs.find(op.code()).rhs_kind) {
+                case OperandKind::Type: {
+                    auto type = parse_type();
+                    if (type == nullptr) {
+                        return nullptr;
+                    }
+                    return std::make_shared<CastExpression>(lhs->token(), lhs, type);
+                }
+                default:
+                    rhs = parse_primary_expression();
+                    if (!rhs)
+                        return nullptr;
+                    while ((open_bracket && (current_code() != TokenCode::CloseBracket)) || (operator_defs.binary_precedence(current_code()) > operator_defs.binary_precedence(op.code())))
+                        rhs = parse_expression_1(rhs, (open_bracket) ? 0 : (operator_defs.binary_precedence(op.code()) + 1));
+                    break;
+                }
                 break;
             }
             }
@@ -709,8 +697,6 @@ std::shared_ptr<Expression> Parser::parse_expression_1(std::shared_ptr<Expressio
                 if (!expect(TokenCode::CloseBracket))
                     return nullptr;
             }
-            if (is_postfix_unary_operator(current_code()) && (unary_precedence(current_code()) > binary_precedence(op.code())))
-                lhs = parse_postfix_unary_operator(lhs);
         } else {
             rhs = parse_expression();
         }
@@ -720,29 +706,12 @@ std::shared_ptr<Expression> Parser::parse_expression_1(std::shared_ptr<Expressio
     // Pull up unary expressions with lower precedence than the binary we just parsed.
     // This is for cases like @var.error.
     if (auto binary = std::dynamic_pointer_cast<BinaryExpression>(lhs); binary != nullptr) {
-        if (auto lhs_unary = std::dynamic_pointer_cast<UnaryExpression>(binary->lhs()); lhs_unary != nullptr && unary_precedence(lhs_unary->op().code()) < binary_precedence(binary->op().code())) {
+        if (auto lhs_unary = std::dynamic_pointer_cast<UnaryExpression>(binary->lhs()); lhs_unary != nullptr && operator_defs.unary_precedence(lhs_unary->op().code()) < operator_defs.binary_precedence(binary->op().code())) {
             auto pushed_down = std::make_shared<BinaryExpression>(lhs_unary->operand(), binary->op(), binary->rhs());
             lhs = std::make_shared<UnaryExpression>(lhs_unary->op(), pushed_down);
         }
     }
-
-    if (current_code() != KeywordAs) {
-        if (is_postfix_unary_operator(current_code())) {
-            lhs = parse_postfix_unary_operator(lhs);
-        }
-        return lhs;
-    }
-    auto type = parse_type();
-    if (type == nullptr) {
-        return nullptr;
-    }
-    return std::make_shared<CastExpression>(lhs->token(), lhs, type);
-}
-
-std::shared_ptr<Expression> Parser::parse_postfix_unary_operator(std::shared_ptr<Expression> const& expression)
-{
-    assert(is_postfix_unary_operator(current_code()));
-    fatal("Postfix operator '{}' not implemented yet", current_code());
+    return lhs;
 }
 
 std::shared_ptr<Expression> Parser::parse_primary_expression()
@@ -755,23 +724,6 @@ std::shared_ptr<Expression> Parser::parse_primary_expression()
         if (!expect(TokenCode::CloseParen)) {
             return nullptr;
         }
-        break;
-    }
-    case TokenCode::Asterisk:
-    case TokenCode::AtSign:
-    case TokenCode::ExclamationPoint:
-    case TokenCode::Minus:
-    case TokenCode::Plus:
-    case TokenCode::UnaryIncrement:
-    case TokenCode::UnaryDecrement:
-    case TokenCode::Tilde: {
-        auto operand = parse_primary_expression();
-        if (!operand)
-            return nullptr;
-        auto literal = std::dynamic_pointer_cast<Literal>(operand);
-        if (literal != nullptr)
-            return literal->apply(t);
-        expr = std::make_shared<UnaryExpression>(t, operand);
         break;
     }
     case TokenCode::Integer:
@@ -818,11 +770,20 @@ std::shared_ptr<Expression> Parser::parse_primary_expression()
     case KeywordFalse:
         expr = std::make_shared<BooleanLiteral>(t);
         break;
-    case TokenCode::Identifier: {
+    case TokenCode::Identifier:
         expr = std::make_shared<Variable>(t, t.value());
         break;
-    }
     default:
+        if (operator_defs.is_unary(t.code())) {
+            auto operand = parse_primary_expression();
+            if (!operand)
+                return nullptr;
+            auto literal = std::dynamic_pointer_cast<Literal>(operand);
+            if (literal != nullptr)
+                return literal->apply(t);
+            expr = std::make_shared<UnaryExpression>(t, operand);
+            break;
+        }
         add_error(t, format("Syntax Error: Expected literal or variable, got '{}' ({})", t.value(), t.code_name()));
         return nullptr;
     }
@@ -939,11 +900,10 @@ std::shared_ptr<TypeDef> Parser::parse_type_definition(Token const& type_token)
         add_error(peek(), "Syntax Error: expecting type alias after the 'type' keyword, got '{}'");
         return nullptr;
     }
-    (void) skip(TokenCode::Equals);
+    (void)skip(TokenCode::Equals);
     auto type = parse_type();
     if (type == nullptr)
         return nullptr;
     return std::make_shared<TypeDef>(type_token, name_maybe.value().value(), type);
 }
-
 }

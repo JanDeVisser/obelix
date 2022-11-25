@@ -23,13 +23,28 @@ struct ParserContext {
     std::set<std::string> modules;
 };
 
+enum class OperandKind {
+    None,
+    Value,
+    Type
+};
+
+struct OperatorDef {
+    TokenCode op;
+    OperandKind lhs_kind;
+    OperandKind rhs_kind;
+    int precedence;
+    OperandKind unary_kind { OperandKind::None };
+    int unary_precedence { -1 };
+};
+
+enum class Associativity {
+    LeftToRight,
+    RightToLeft,
+};
+
 class Parser : public BasicParser {
 public:
-    enum class Associativity {
-        LeftToRight,
-        RightToLeft,
-    };
-
     enum class VariableKind {
         Local,
         Static,
@@ -72,16 +87,7 @@ public:
 
     std::shared_ptr<Module> parse();
 
-    static int binary_precedence(TokenCode);
-    static int unary_precedence(TokenCode);
-    static Associativity associativity(TokenCode);
-    static int is_postfix_unary_operator(TokenCode);
-    static int is_prefix_unary_operator(TokenCode);
-    static Token operator_for_assignment_operator(TokenCode);
-    static bool is_assignment_operator(TokenCode);
-
 private:
-    void initialize();
     std::shared_ptr<Statement> parse_statement();
     std::shared_ptr<Statement> parse_top_level_statement();
     void parse_statements(Statements&, bool = false);
@@ -101,7 +107,6 @@ private:
     std::shared_ptr<TypeDef> parse_type_definition(Token const&);
 
     std::shared_ptr<Expression> parse_expression_1(std::shared_ptr<Expression> lhs, int min_precedence);
-    std::shared_ptr<Expression> parse_postfix_unary_operator(std::shared_ptr<Expression> const& expression);
     std::shared_ptr<Expression> parse_primary_expression();
     std::shared_ptr<ExpressionType> parse_type();
 
