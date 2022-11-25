@@ -500,7 +500,7 @@ NODE_PROCESSOR(BoundVariableDeclaration)
 {
     auto var_decl = std::dynamic_pointer_cast<BoundVariableDeclaration>(tree);
 
-    if (std::dynamic_pointer_cast<BoundStaticVariableDeclaration>(var_decl) || std::dynamic_pointer_cast<BoundLocalVariableDeclaration>(var_decl))
+    if (var_decl->is_static())
         write(ctx, "static ");
     type_to_c_type(ctx, var_decl->type());
     write(ctx, format(" {}", var_decl->name()));

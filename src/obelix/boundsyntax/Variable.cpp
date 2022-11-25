@@ -208,6 +208,11 @@ bool BoundVariableDeclaration::is_const() const
     return m_const;
 }
 
+bool BoundVariableDeclaration::is_static() const
+{
+    return false;
+}
+
 std::shared_ptr<BoundExpression> const& BoundVariableDeclaration::expression() const
 {
     return m_expression;
@@ -235,6 +240,11 @@ std::string BoundStaticVariableDeclaration::to_string() const
     return "static " + BoundVariableDeclaration::to_string();
 }
 
+bool BoundStaticVariableDeclaration::is_static() const
+{
+    return true;
+}
+
 // -- BoundLocalVariableDeclaration -----------------------------------------
 
 BoundLocalVariableDeclaration::BoundLocalVariableDeclaration(std::shared_ptr<VariableDeclaration> const& decl, std::shared_ptr<BoundIdentifier> variable, std::shared_ptr<BoundExpression> expr)
@@ -249,7 +259,7 @@ BoundLocalVariableDeclaration::BoundLocalVariableDeclaration(Token token, std::s
 
 std::string BoundLocalVariableDeclaration::to_string() const
 {
-    return "global " + BoundVariableDeclaration::to_string();
+    return "local " + BoundVariableDeclaration::to_string();
 }
 
 // -- BoundGlobalVariableDeclaration ----------------------------------------
@@ -267,6 +277,11 @@ BoundGlobalVariableDeclaration::BoundGlobalVariableDeclaration(Token token, std:
 std::string BoundGlobalVariableDeclaration::to_string() const
 {
     return "global " + BoundVariableDeclaration::to_string();
+}
+
+bool BoundGlobalVariableDeclaration::is_static() const
+{
+    return true;
 }
 
 // -- BoundAssignment -------------------------------------------------------

@@ -84,6 +84,7 @@ public:
     [[nodiscard]] std::string const& name() const;
     [[nodiscard]] std::shared_ptr<ObjectType> type() const;
     [[nodiscard]] bool is_const() const;
+    [[nodiscard]] virtual bool is_static() const;
     [[nodiscard]] std::shared_ptr<BoundExpression> const& expression() const;
     [[nodiscard]] std::shared_ptr<BoundIdentifier> const& variable() const;
 
@@ -98,6 +99,7 @@ public:
     BoundStaticVariableDeclaration(std::shared_ptr<VariableDeclaration> const&, std::shared_ptr<BoundIdentifier>, std::shared_ptr<BoundExpression>);
     BoundStaticVariableDeclaration(Token, std::shared_ptr<BoundIdentifier>, bool, std::shared_ptr<BoundExpression>);
     [[nodiscard]] std::string to_string() const override;
+    [[nodiscard]] bool is_static() const override;
 };
 
 NODE_CLASS(BoundLocalVariableDeclaration, BoundVariableDeclaration)
@@ -112,6 +114,7 @@ public:
     BoundGlobalVariableDeclaration(std::shared_ptr<VariableDeclaration> const&, std::shared_ptr<BoundIdentifier>, std::shared_ptr<BoundExpression>);
     BoundGlobalVariableDeclaration(Token, std::shared_ptr<BoundIdentifier>, bool, std::shared_ptr<BoundExpression>);
     [[nodiscard]] std::string to_string() const override;
+    [[nodiscard]] bool is_static() const override;
 };
 
 
