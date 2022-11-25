@@ -150,6 +150,26 @@ std::string BoundIntrinsicDecl::to_string() const
     return format("intrinsic {}({}): {}", name(), parameters_to_string(), type());
 }
 
+// -- FunctionBlock ---------------------------------------------------------
+
+FunctionBlock::FunctionBlock(Token token, Statements statements, pBoundFunctionDecl declaration)
+    : Block(std::move(token), std::move(statements))
+    , m_declaration(std::move(declaration))
+{
+}
+
+FunctionBlock::FunctionBlock(Token token, std::shared_ptr<Statement> statement, pBoundFunctionDecl declaration)
+    : Block(std::move(token), Statements { std::move(statement) })
+    , m_declaration(std::move(declaration))
+{
+}
+
+pBoundFunctionDecl const& FunctionBlock::declaration() const
+{
+    return m_declaration;
+}
+
+
 // -- BoundFunctionDef ------------------------------------------------------
 
 BoundFunctionDef::BoundFunctionDef(std::shared_ptr<FunctionDef> const& orig_def, std::shared_ptr<BoundFunctionDecl> func_decl, std::shared_ptr<Statement> statement)

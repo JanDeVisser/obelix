@@ -27,14 +27,14 @@ NODE_PROCESSOR(BoundFunctionDef)
         switch (statement->node_type()) {
         case SyntaxNodeType::Block: {
             auto block = std::dynamic_pointer_cast<Block>(statement);
-            return std::make_shared<BoundFunctionDef>(func_def, std::make_shared<FunctionBlock>(block->token(), block->statements()));
+            return std::make_shared<BoundFunctionDef>(func_def, std::make_shared<FunctionBlock>(block->token(), block->statements(), func_def->declaration()));
         }
         case SyntaxNodeType::FunctionBlock: {
             auto block = std::dynamic_pointer_cast<FunctionBlock>(statement);
             return std::make_shared<BoundFunctionDef>(func_def, block);
         }
         default:
-            return std::make_shared<BoundFunctionDef>(func_def, std::make_shared<FunctionBlock>(statement->token(), statement));
+            return std::make_shared<BoundFunctionDef>(func_def, std::make_shared<FunctionBlock>(statement->token(), statement, func_def->declaration()));
         }
     }
     return tree;

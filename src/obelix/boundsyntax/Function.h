@@ -58,6 +58,16 @@ public:
     [[nodiscard]] std::string to_string() const override;
 };
 
+NODE_CLASS(FunctionBlock, Block)
+public:
+    FunctionBlock(Token, Statements, pBoundFunctionDecl);
+    FunctionBlock(Token, pStatement, pBoundFunctionDecl);
+    [[nodiscard]] pBoundFunctionDecl const& declaration() const;
+
+private:
+    pBoundFunctionDecl m_declaration;
+};
+
 NODE_CLASS(BoundFunctionDef, BoundStatement)
 public:
     BoundFunctionDef(std::shared_ptr<FunctionDef> const&, std::shared_ptr<BoundFunctionDecl>, std::shared_ptr<Statement> = nullptr);

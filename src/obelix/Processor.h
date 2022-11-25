@@ -167,7 +167,7 @@ ErrorOrNode process_tree(std::shared_ptr<SyntaxNode> const& tree, Context& ctx, 
     }
 
     case SyntaxNodeType::FunctionBlock: {
-        ret = TRY(process_block<FunctionBlock>(tree, ctx, result, processor));
+        ret = TRY(process_block<FunctionBlock>(tree, ctx, result, processor, std::dynamic_pointer_cast<FunctionBlock>(tree)->declaration()));
         break;
     }
 

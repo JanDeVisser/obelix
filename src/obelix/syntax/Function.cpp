@@ -120,18 +120,6 @@ std::string IntrinsicDecl::to_string() const
     return format("intrinsic {}({}): {}", name(), parameters_to_string(), type());
 }
 
-// -- FunctionBlock ---------------------------------------------------------
-
-FunctionBlock::FunctionBlock(Token token, Statements statements)
-    : Block(std::move(token), std::move(statements))
-{
-}
-
-FunctionBlock::FunctionBlock(Token token, std::shared_ptr<Statement> statement)
-    : Block(std::move(token), Statements { std::move(statement) })
-{
-}
-
 // -- FunctionDef -----------------------------------------------------------
 
 FunctionDef::FunctionDef(Token token, std::shared_ptr<FunctionDecl> func_decl, std::shared_ptr<Statement> statement)

@@ -51,12 +51,6 @@ public:
     [[nodiscard]] std::string to_string() const override;
 };
 
-NODE_CLASS(FunctionBlock, Block)
-public:
-    FunctionBlock(Token, Statements);
-    FunctionBlock(Token, std::shared_ptr<Statement>);
-};
-
 NODE_CLASS(FunctionDef, Statement)
 public:
     FunctionDef(Token, std::shared_ptr<FunctionDecl>, std::shared_ptr<Statement> = nullptr);

@@ -309,7 +309,7 @@ NODE_PROCESSOR(FunctionBlock)
         auto new_statement = TRY_AND_CAST(Statement, stmt, ctx);
         statements.push_back(new_statement);
     }
-    return std::make_shared<FunctionBlock>(tree->token(), statements);
+    return std::make_shared<FunctionBlock>(tree->token(), statements, block->declaration());
 }
 
 NODE_PROCESSOR(BoundVariableDeclaration)
