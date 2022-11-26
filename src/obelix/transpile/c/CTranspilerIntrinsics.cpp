@@ -39,6 +39,18 @@ INTRINSIC(allocate)
     return {};
 }
 
+INTRINSIC(free)
+{
+    writeln(ctx, "free($arg0);");
+    return {};
+}
+
+INTRINSIC(exit)
+{
+    writeln(ctx, "exit($arg0);");
+    return {};
+}
+
 INTRINSIC(ok)
 {
     writeln(ctx, "$arg0.success");

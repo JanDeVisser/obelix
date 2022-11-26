@@ -64,4 +64,9 @@ void dedent(CTranspilerContext& ctx)
     });
 }
 
+std::string const& exit_label(CTranspilerContext const& ctx)
+{
+    return ctx().exit_label;
+}
+
 }

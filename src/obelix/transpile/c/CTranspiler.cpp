@@ -154,6 +154,37 @@ ErrorOr<void, SyntaxError> function_call(CTranspilerContext& ctx, ProcessResult&
     return {};
 }
 
+ErrorOr<void,SyntaxError> transpile_block(pBlock const& block, CTranspilerContext& ctx, ProcessResult& result)
+{
+    CTranspilerContext& block_ctx = make_subcontext<CTranspilerContext>(ctx);
+    for (auto& stmt : block->statements()) {
+        TRY_RETURN(process(stmt, block_ctx, result));
+        if (auto child_block = std::dynamic_pointer_cast<Block>(stmt); child_block != nullptr) {
+            writeln(ctx, format("if ($return_triggered) goto {};", exit_label(block_ctx)));
+        }
+    }
+    writeln(ctx, format("{}: ;", exit_label(block_ctx)));
+    for (auto const& name_var : block_ctx.names()) {
+        auto variable = std::dynamic_pointer_cast<BoundVariableDeclaration>(name_var.second);
+        if (variable->is_static())
+            continue;
+        auto method_descr_maybe = variable->type()->get_method(Operator::Destructor, {});
+        if (!method_descr_maybe.has_value())
+            continue;
+        auto method_descr = method_descr_maybe.value();
+        writeln(ctx, "({");
+        indent(ctx);
+        writeln(ctx, format("{} $self = {};", type_to_c_type(variable->type()), variable->name()));
+        CTranspilerFunctionType impl = get_c_transpiler_intrinsic(method_descr.implementation().intrinsic);
+        if (!impl)
+            return SyntaxError { ErrorCode::InternalError, variable->token(), format("No C Transpiler implementation for destructor of {}", variable->type()) };
+        TRY_RETURN(impl(ctx, {}));
+        dedent(ctx);
+        writeln(ctx, "});");
+    }
+    return {};
+}
+
 INIT_NODE_PROCESSOR(CTranspilerContext)
 
 NODE_PROCESSOR(BoundCompilation)
@@ -270,6 +301,37 @@ R"(/*
     return tree;
 }
 
+NODE_PROCESSOR(Block)
+{
+    auto block = std::dynamic_pointer_cast<Block>(tree);
+    writeln(ctx, format("{{ // {}", exit_label(ctx)));
+    indent(ctx);
+    TRY_RETURN(transpile_block(block, ctx, result));
+    dedent(ctx);
+    writeln(ctx, format("} // {}\n", exit_label(ctx)));
+    return tree;
+}
+
+NODE_PROCESSOR(FunctionBlock)
+{
+    auto block = std::dynamic_pointer_cast<FunctionBlock>(tree);
+    writeln(ctx, format("{{ // {}", exit_label(ctx)));
+    indent(ctx);
+    if (block->declaration()->type()->type() != PrimitiveType::Void) {
+        writeln(ctx, format("{} $function_return_value;", type_to_c_type(block->declaration()->type())));
+    }
+    writeln(ctx, "int $return_triggered = 0;");
+    TRY_RETURN(transpile_block(block, ctx, result));
+    write(ctx, "return");
+    if (block->declaration()->type()->type() != PrimitiveType::Void) {
+        write(ctx, " $function_return_value");
+    }
+    writeln(ctx, ";");
+    dedent(ctx);
+    writeln(ctx, format("} // {}\n", exit_label(ctx)));
+    return tree;
+}
+
 NODE_PROCESSOR(BoundEnumDef)
 {
     auto enum_def = std::dynamic_pointer_cast<BoundEnumDef>(tree);
@@ -308,11 +370,7 @@ NODE_PROCESSOR(BoundFunctionDef)
 {
     auto func_def = std::dynamic_pointer_cast<BoundFunctionDef>(tree);
     TRY_RETURN(process(func_def->declaration(), ctx));
-    writeln(ctx, "{");
-    indent(ctx);
     TRY_RETURN(process(func_def->statement(), ctx));
-    dedent(ctx);
-    writeln(ctx, "}\n");
     return tree;
 }
 
@@ -516,6 +574,7 @@ NODE_PROCESSOR(BoundVariableDeclaration)
         write(ctx, type_initialize(var_decl->type()));
     }
     writeln(ctx, ";");
+    ctx.declare(var_decl->name(), var_decl);
     return tree;
 }
 
@@ -534,11 +593,13 @@ NODE_PROCESSOR(BoundExpressionStatement)
 NODE_PROCESSOR(BoundReturn)
 {
     auto ret = std::dynamic_pointer_cast<BoundReturn>(tree);
-    write(ctx, "return");
-    if (ret->expression())
-        write(ctx, " ");
+    if (ret->expression()) {
+        write(ctx, "$function_return_value = ");
         TRY_RETURN(process(ret->expression(), ctx));
-    writeln(ctx, ";");
+        writeln(ctx, ";");
+    }
+    writeln(ctx, "$return_triggered = 1;");
+    writeln(ctx, format("goto {};", exit_label(ctx)));
     return tree;
 }
 
@@ -548,11 +609,7 @@ NODE_PROCESSOR(BoundWhileStatement)
 
     write(ctx, "while (");
     TRY_RETURN(process(while_stmt->condition(), ctx));
-    writeln(ctx, ") {");
-    indent(ctx);
     TRY_RETURN(process(while_stmt->statement(), ctx));
-    dedent(ctx);
-    writeln(ctx, "}");
     return tree;
 }
 
@@ -565,11 +622,8 @@ NODE_PROCESSOR(BoundForStatement)
     TRY_RETURN(process(range->lhs(), ctx));
     write(ctx, format("; {} < ", for_stmt->variable()->name()));
     TRY_RETURN(process(range->rhs(), ctx));
-    writeln(ctx, format("; ++{}) {", for_stmt->variable()->name()));
-    indent(ctx);
+    writeln(ctx, format("; ++{})", for_stmt->variable()->name()));
     TRY_RETURN(process(for_stmt->statement(), ctx));
-    dedent(ctx);
-    writeln(ctx, "}");
     return tree;
 }
 
@@ -586,11 +640,7 @@ NODE_PROCESSOR(BoundIfStatement)
             TRY_RETURN(process(branch->condition(), ctx));
             write(ctx, ") ");
         }
-        writeln(ctx, " {");
-        indent(ctx);
         TRY_RETURN(process(branch->statement(), ctx));
-        dedent(ctx);
-        writeln(ctx, "}");
         if (branch->condition() == nullptr)
             break;
         first = false;
@@ -613,20 +663,14 @@ NODE_PROCESSOR(BoundSwitchStatement)
         }
         write(ctx, "case ");
         TRY_RETURN(process(switch_case->condition(), ctx));
-        writeln(ctx, ": {");
-        indent(ctx);
+        write(ctx, ": ");
         TRY_RETURN(process(switch_case->statement(), ctx));
         writeln(ctx, "break;");
-        dedent(ctx);
-        writeln(ctx, "}");
     }
-    writeln(ctx, "default: {");
-    indent(ctx);
+    write(ctx, "default: ");
     if (default_case != nullptr)
         TRY_RETURN(process(default_case, ctx));
     writeln(ctx, "break;");
-    dedent(ctx);
-    writeln(ctx, "}");
     writeln(ctx, "}");
     return tree;
 }

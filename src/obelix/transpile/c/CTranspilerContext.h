@@ -103,7 +103,10 @@ private:
 
 class CTranspilerContextPayload {
 public:
-    CTranspilerContextPayload() = default;
+    CTranspilerContextPayload()
+    {
+        exit_label = format("_{}", (void*) this);
+    }
 
     std::string const& header_name() const
     {
@@ -178,6 +181,7 @@ public:
     std::shared_ptr<COutputFile> header;
     std::map<std::string, std::shared_ptr<COutputFile>> modules;
     std::shared_ptr<COutputFile> current_file;
+    std::string exit_label;
 };
 
 using CTranspilerContext = Context<std::shared_ptr<SyntaxNode>, CTranspilerContextPayload>;
