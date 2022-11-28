@@ -242,27 +242,34 @@ R"(/*
     for (auto const& module : compilation->modules()) {
         if (module->name() == "/")
             continue;
-        auto num_functions = 0u;
-        for (auto const& function : module->exports()) {
-            if (num_functions == 0)
+        auto num_exports = 0u;
+        for (auto const& exprt : module->exports()) {
+            if (num_exports == 0)
                 writeln(ctx, format("\n/* Exported by {}: */\n", module->name()));
-            auto function_name = function->name();
-            if (function_name == "main")
-                function_name = "$main";
-            if (auto native = std::dynamic_pointer_cast<BoundNativeFunctionDecl>(function); native != nullptr)
-                function_name = native->native_function_name();
-            num_functions++;
-            write(ctx, "extern ");
-            type_to_c_type(ctx, function->type());
-            write(ctx, format(" {}(", function_name));
-            auto first { true };
-            for (auto const& param : function->parameters()) {
-                if (!first)
-                    write(ctx, ", ");
-                type_to_c_type(ctx, param->type());
-                first = false;
+            num_exports++;
+            if (auto function = std::dynamic_pointer_cast<BoundFunctionDecl>(exprt); function != nullptr) {
+                auto function_name = function->name();
+                if (function_name == "main")
+                    function_name = "$main";
+                if (auto native = std::dynamic_pointer_cast<BoundNativeFunctionDecl>(function); native != nullptr)
+                    function_name = native->native_function_name();
+                write(ctx, "extern ");
+                type_to_c_type(ctx, function->type());
+                write(ctx, format(" {}(", function_name));
+                auto first { true };
+                for (auto const& param : function->parameters()) {
+                    if (!first)
+                        write(ctx, ", ");
+                    type_to_c_type(ctx, param->type());
+                    first = false;
+                }
+                writeln(ctx, ");");
             }
-            writeln(ctx, ");");
+            if (auto variable = std::dynamic_pointer_cast<BoundGlobalVariableDeclaration>(exprt); variable != nullptr) {
+                write(ctx, "extern ");
+                type_to_c_type(ctx, variable->type());
+                writeln(ctx, format(" {};", variable->name()));
+            }
         }
     }
     writeln(ctx, format(
@@ -486,6 +493,10 @@ NODE_PROCESSOR(BoundMemberAccess)
 {
     auto access = std::dynamic_pointer_cast<BoundMemberAccess>(tree);
     switch (access->structure()->type()->type()) {
+    case PrimitiveType::Module: {
+        TRY_RETURN(process(access->member(), ctx));
+        break;
+    }
     case PrimitiveType::Struct: {
         TRY_RETURN(process(access->structure(), ctx));
         write(ctx, format(".{}", access->member()->name()));

@@ -34,12 +34,23 @@ ErrorOr<std::shared_ptr<BoundExpression>, SyntaxError> make_function_call(BindCo
         if (auto declaration = ctx.match(variable->name(), arg_types, true); declaration != nullptr) {
             bound_function = std::make_shared<BoundLocalFunction>(variable->token(), declaration);
         } else {
-            ctx.add_unresolved_function(make_functioncall(variable, arg_types));
             return nullptr;
         }
     }
 
     if (auto member_access = std::dynamic_pointer_cast<BoundMemberAccess>(function); member_access != nullptr) {
+        return SyntaxError { ErrorCode::ObjectNotCallable, member_access };
+    }
+
+    if (auto bound_identifier = std::dynamic_pointer_cast<BoundIdentifier>(function); bound_identifier != nullptr) {
+        return SyntaxError { ErrorCode::ObjectNotCallable, bound_identifier };
+    }
+
+    if (auto bound_literal = std::dynamic_pointer_cast<BoundLiteral>(function); bound_literal != nullptr) {
+        return SyntaxError { ErrorCode::ObjectNotCallable, bound_literal };
+    }
+
+    if (auto member_access = std::dynamic_pointer_cast<UnboundMemberAccess>(function); member_access != nullptr) {
         auto module = std::dynamic_pointer_cast<BoundModule>(member_access->structure());
         if (module == nullptr) {
             return SyntaxError { ErrorCode::ObjectNotCallable, member_access };
@@ -47,7 +58,6 @@ ErrorOr<std::shared_ptr<BoundExpression>, SyntaxError> make_function_call(BindCo
         if (auto declaration = ctx.match(member_access->structure()->qualified_name(), member_access->member()->name(), arg_types); declaration != nullptr) {
             bound_function = std::make_shared<BoundImportedFunction>(member_access->token(), module, declaration);
         } else {
-            ctx.add_unresolved_function(make_functioncall(member_access, arg_types));
             return nullptr;
         }
     }
@@ -294,7 +304,7 @@ NODE_PROCESSOR(Module)
         statements.push_back(TRY_AND_CAST(Statement, stmt, module_ctx));
     }
     auto block = std::make_shared<Block>(tree->token(), statements);
-    auto ret = std::make_shared<BoundModule>(module->token(), module->name(), block, module_ctx.exported_functions(), module_ctx.imported_functions());
+    auto ret = std::make_shared<BoundModule>(module->token(), module->name(), block, module_ctx.exports(), module_ctx.imports());
     ctx.add_module(ret);
     return ret;
 }
@@ -311,7 +321,7 @@ NODE_PROCESSOR(BoundModule)
         statements.push_back(TRY_AND_CAST(Statement, stmt, module_ctx));
     }
     auto block = std::make_shared<Block>(tree->token(), statements);
-    return std::make_shared<BoundModule>(module->token(), module->name(), block, module_ctx.exported_functions(), module_ctx.imported_functions());
+    return std::make_shared<BoundModule>(module->token(), module->name(), block, module_ctx.exports(), module_ctx.imports());
 }
 
 NODE_PROCESSOR(VariableDeclaration)
@@ -341,15 +351,30 @@ NODE_PROCESSOR(VariableDeclaration)
         ctx.add_custom_type(var_type);
     auto identifier = std::make_shared<BoundIdentifier>(var_decl->identifier(), var_type);
     std::shared_ptr<BoundVariableDeclaration> ret;
-    if (tree->node_type() == SyntaxNodeType::StaticVariableDeclaration)
-        ret = std::make_shared<BoundStaticVariableDeclaration>(var_decl, identifier, expr);
-    else if (tree->node_type() == SyntaxNodeType::LocalVariableDeclaration)
-        ret = std::make_shared<BoundLocalVariableDeclaration>(var_decl, identifier, expr);
-    else if (tree->node_type() == SyntaxNodeType::GlobalVariableDeclaration)
-        ret = std::make_shared<BoundGlobalVariableDeclaration>(var_decl, identifier, expr);
-    else
+    bool is_exported { false };
+    switch (tree->node_type()) {
+    case SyntaxNodeType::VariableDeclaration:
         ret = std::make_shared<BoundVariableDeclaration>(var_decl, identifier, expr);
+        break;
+    case SyntaxNodeType::StaticVariableDeclaration:
+        ret = std::make_shared<BoundStaticVariableDeclaration>(var_decl, identifier, expr);
+        break;
+    case SyntaxNodeType::LocalVariableDeclaration:
+        ret = std::make_shared<BoundLocalVariableDeclaration>(var_decl, identifier, expr);
+        // Even though this variable cannot be accessed from other modules, we declare
+        // it anyway so we can give an error message when an attempt is made to access it:
+        is_exported = true;
+        break;
+    case SyntaxNodeType::GlobalVariableDeclaration:
+        ret = std::make_shared<BoundGlobalVariableDeclaration>(var_decl, identifier, expr);
+        is_exported = true;
+        break;
+    default:
+        fatal("Unreachable");
+    }
     ctx.declare(var_decl->name(), ret);
+    if (is_exported)
+        ctx.add_exported_variable(var_decl->name(), ret);
     return ret;
 }
 
@@ -401,7 +426,6 @@ NODE_PROCESSOR(FunctionDecl)
         break;
     }
     ctx.add_declared_function(bound_decl->name(), bound_decl);
-    ctx.add_exported_function(bound_decl);
     return bound_decl;
 }
 
@@ -446,7 +470,8 @@ NODE_PROCESSOR(BoundFunctionDef)
 NODE_PROCESSOR(BinaryExpression)
 {
     auto expr = std::dynamic_pointer_cast<BinaryExpression>(tree);
-    auto lhs = TRY_AND_TRY_CAST(BoundExpression, expr->lhs(), ctx);
+    auto lhs_processed = TRY(process(expr->lhs(), ctx, result));
+    auto lhs = std::dynamic_pointer_cast<BoundExpression>(lhs_processed);
 
     struct BinaryOperatorMap {
         TokenCode code;
@@ -507,10 +532,19 @@ NODE_PROCESSOR(BinaryExpression)
             return std::make_shared<BoundMemberAccess>(lhs, member_identifier);
         }
         case PrimitiveType::Module: {
+            auto module = std::dynamic_pointer_cast<BoundModule>(lhs);
             auto field_var = std::dynamic_pointer_cast<Variable>(rhs);
-            auto member_identifier = std::make_shared<BoundIdentifier>(rhs->token(), field_var->name(),
-                ObjectType::get(PrimitiveType::Function)); // FIXME can also be a variable in the referred module
-            return std::make_shared<BoundMemberAccess>(lhs, member_identifier);
+            if (field_var == nullptr)
+                return SyntaxError { ErrorCode::NotMember, rhs->token(), rhs, lhs };
+            if (auto var_decl_maybe = ctx.exported_variable(module->name(), field_var->name()); var_decl_maybe.has_value()) {
+                auto var_decl = var_decl_maybe.value();
+                if (std::dynamic_pointer_cast<BoundGlobalVariableDeclaration>(var_decl) == nullptr)
+                    return SyntaxError { ErrorCode::SyntaxError, format("Variable '{}' is local to module '{}' and cannot be accessed from the current module", var_decl->name(), module->name()) };
+                auto member_variable = std::make_shared<BoundVariable>(rhs->token(), field_var->name(), var_decl_maybe.value()->type());
+                return std::make_shared<BoundMemberAccess>(lhs, member_variable);
+            } else {
+                return std::make_shared<UnboundMemberAccess>(lhs, field_var);
+            }
         }
         case PrimitiveType::Conditional: {
             auto field_var = std::dynamic_pointer_cast<Variable>(rhs);
@@ -543,22 +577,26 @@ NODE_PROCESSOR(BinaryExpression)
     }
 
     auto rhs_bound = TRY_AND_TRY_CAST(BoundExpression, expr->rhs(), ctx);
-    if (rhs_bound == nullptr)
+    if (rhs_bound == nullptr) {
+        ctx.add_unresolved(expr);
         return tree;
+    }
     if (op == BinaryOperator::Call) {
         if (rhs_bound->type()->type() != PrimitiveType::List)
             return SyntaxError { ErrorCode::SyntaxError, format("Cannot call {} with {}", lhs, expr->rhs()) };
         auto arg_list = std::dynamic_pointer_cast<BoundExpressionList>(rhs_bound);
-        auto ret = TRY(make_function_call(ctx,
-            (lhs != nullptr) ? std::dynamic_pointer_cast<SyntaxNode>(lhs) : std::dynamic_pointer_cast<SyntaxNode>(expr->lhs()),
-            arg_list));
-        if (ret == nullptr)
+        auto ret = TRY(make_function_call(ctx, lhs_processed, arg_list));
+        if (ret == nullptr) {
+            ctx.add_unresolved(expr);
             return tree;
+        }
         return ret;
     }
 
-    if (lhs == nullptr)
-        return SyntaxError { ErrorCode::UntypedExpression, expr->lhs()->token(), expr->lhs()->to_string() };
+    if (lhs == nullptr) {
+        ctx.add_unresolved(expr);
+        return tree;
+    }
 
     if (op == BinaryOperator::Subscript) {
         if (lhs->type()->type() != PrimitiveType::Array)
@@ -625,9 +663,10 @@ NODE_PROCESSOR(UnaryExpression)
 {
     auto expr = std::dynamic_pointer_cast<UnaryExpression>(tree);
     auto operand = TRY_AND_TRY_CAST(BoundExpression, expr->operand(), ctx);
-    if (operand == nullptr)
+    if (operand == nullptr) {
+        ctx.add_unresolved(expr);
         return tree;
-
+    }
     struct UnaryOperatorMap {
         TokenCode code;
         UnaryOperator op;
@@ -710,14 +749,22 @@ NODE_PROCESSOR(Variable)
         if (auto module = ctx.module(variable->name()); module != nullptr)
             return module;
     } else {
-        auto declaration = std::dynamic_pointer_cast<BoundVariableDeclaration>(declaration_maybe.value());
-        if (declaration != nullptr)
-            return std::make_shared<BoundVariable>(variable, declaration->type());
-        auto func_decl = std::dynamic_pointer_cast<BoundFunctionDecl>(declaration_maybe.value());
-        if (func_decl != nullptr)
-            return std::make_shared<BoundLocalFunction>(variable->token(), func_decl);
-        fatal("Identifier '{}' cannot be referenced as a variable, it's a {}", variable->name(), declaration_maybe.value()->node_type());
+        auto declaration = declaration_maybe.value();
+        return std::make_shared<BoundVariable>(variable, declaration->type());
     }
+    return tree;
+}
+
+NODE_PROCESSOR(UnboundMemberAccess)
+{
+    auto member_access = std::dynamic_pointer_cast<UnboundMemberAccess>(tree);
+    auto module = std::dynamic_pointer_cast<BoundModule>(member_access->structure());
+    assert(module != nullptr); // FIXME Return SyntaxError
+    if (auto var_decl_maybe = ctx.exported_variable(module->name(), member_access->member()->name()); var_decl_maybe.has_value()) {
+        auto member_variable = std::make_shared<BoundVariable>(member_access->member()->token(), member_access->member()->name(), var_decl_maybe.value()->type());
+        return std::make_shared<BoundMemberAccess>(module, member_variable);
+    }
+    ctx.add_unresolved(member_access);
     return tree;
 }
 
@@ -914,7 +961,7 @@ ProcessResult bind_types(std::shared_ptr<SyntaxNode> const& tree, Config const& 
     std::cout << "Type checking...\n";
     do {
         unbound = new_unbound;
-        root.clear_unresolved_functions();
+        root.clear_unresolved();
         process(t, root, result);
         if (result.is_error())
             return result;
@@ -933,6 +980,10 @@ ProcessResult bind_types(std::shared_ptr<SyntaxNode> const& tree, Config const& 
         if (config.cmdline_flag<bool>("show-tree"))
             std::cout << "\nNot all types bound:\n"
                       << t->to_xml() << "\n";
+        std::cout << "\nUnresolved expressions:\n\n";
+        for (auto const& unresolved : root.unresolved()) {
+            std::cout << unresolved->to_string() << "\n";
+        }
         return SyntaxError { ErrorCode::SyntaxError, t->token(), "Cyclical dependencies or untyped objects remain" };
     }
 

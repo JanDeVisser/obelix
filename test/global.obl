@@ -1,0 +1,7 @@
+import export_global
+
+func main(): s32
+{
+  putln(export_global.this_is_a_global)
+  return 0
+}

@@ -10,11 +10,6 @@ namespace Obelix {
 
 extern_logging_category(bind);
 
-FunctionCallPair make_functioncall(pSyntaxNode function, ObjectTypes types)
-{
-    return std::make_pair<pSyntaxNode, ObjectTypes>(std::move(function), std::move(types));
-}
-
 // -- ContextImpl -----------------------------------------------------------
 
 ContextImpl::ContextImpl(BindContextType type, pContextImpl parent_impl)
@@ -132,14 +127,34 @@ FunctionRegistry const& ExportsFunctions::declared_functions() const
     return m_declared_functions;
 }
 
-void ExportsFunctions::add_exported_function(pBoundFunctionDecl const& func)
+void ExportsFunctions::add_declared_variable(std::string const& name, pBoundVariableDeclaration const& variable)
 {
-    m_exported_functions.push_back(func);
+    m_declared_variables[name] = variable;
 }
 
-BoundFunctionDecls const& ExportsFunctions::exported_functions() const
+VariableRegistry const& ExportsFunctions::declared_variables() const
 {
-    return m_exported_functions;
+    return m_declared_variables;
+}
+
+std::optional<pBoundVariableDeclaration> ExportsFunctions::declared_variable(std::string const& name) const
+{
+    if (!m_declared_variables.contains(name))
+        return {};
+    return m_declared_variables.at(name);
+}
+
+BoundStatements ExportsFunctions::exports() const
+{
+    BoundStatements ret;
+    for (auto const& name_decl : m_declared_functions) {
+        ret.push_back(name_decl.second);
+    }
+    for (auto const& name_decl : m_declared_variables) {
+        if (std::dynamic_pointer_cast<BoundGlobalVariableDeclaration>(name_decl.second) != nullptr)
+            ret.push_back(name_decl.second);
+    }
+    return ret;
 }
 
 pBoundFunctionDecl ExportsFunctions::match(std::string const& name, ObjectTypes arg_types) const
@@ -187,14 +202,14 @@ std::string const& ModuleContext::name() const
     return m_name;
 }
 
-void ModuleContext::add_imported_function(pBoundFunctionDecl const& func)
+void ModuleContext::add_import(pBoundStatement const& import)
 {
-    m_imported_functions.push_back(func);
+    m_imports.push_back(import);
 }
 
-BoundFunctionDecls const& ModuleContext::imported_functions() const
+BoundStatements const& ModuleContext::imports() const
 {
-    return m_imported_functions;
+    return m_imports;
 }
 
 void ModuleContext::dump() const
@@ -202,7 +217,7 @@ void ModuleContext::dump() const
     std::cerr << name() << "\n";
     for (int count = 0; count < name().length(); ++count) std::cerr << "=";
     std::cerr << "\n";
-    for (auto const& fnc : exported_functions()) {
+    for (auto const& fnc : exports()) {
         std::cerr << fnc->to_string() << "\n";
     }
     std::cerr << "\n";
@@ -231,19 +246,19 @@ ObjectTypes const& RootContext::custom_types() const
     return m_custom_types;
 }
 
-void RootContext::add_unresolved_function(FunctionCallPair func_call)
+void RootContext::add_unresolved(pExpression expr)
 {
-    m_unresolved_functions.push_back(std::move(func_call));
+    m_unresolved.push_back(std::move(expr));
 }
 
-FunctionCallPairs const& RootContext::unresolved_functions() const
+Expressions const& RootContext::unresolved() const
 {
-    return m_unresolved_functions;
+    return m_unresolved;
 }
 
-void RootContext::clear_unresolved_functions()
+void RootContext::clear_unresolved()
 {
-    m_unresolved_functions.clear();
+    m_unresolved.clear();
 }
 
 void RootContext::add_module(pBoundModule const& module)
@@ -277,10 +292,10 @@ void RootContext::dump() const
     for (auto const& mod : m_module_contexts) {
         mod.second->dump();
     }
-    if (!m_unresolved_functions.empty()) {
+    if (!m_unresolved.empty()) {
         std::cerr << "Unresolved:\n\n";
-        for (auto const& unresolved : m_unresolved_functions) {
-            std::cerr << unresolved.first->to_string() << "\n";
+        for (auto const& unresolved : m_unresolved) {
+            std::cerr << unresolved->to_string() << "\n";
         }
         std::cerr << "\n";
     }
@@ -352,19 +367,19 @@ std::optional<pBoundVariableDeclaration> BindContext::get(std::string const& nam
     return impl()->get(name);
 }
 
-void BindContext::add_unresolved_function(FunctionCallPair func_call)
+void BindContext::add_unresolved(pExpression expr)
 {
-    m_impl->root_impl()->add_unresolved_function(std::move(func_call));
+    m_impl->root_impl()->add_unresolved(std::move(expr));
 }
 
-FunctionCallPairs const& BindContext::unresolved_functions() const
+Expressions const& BindContext::unresolved() const
 {
-    return m_impl->root_impl()->unresolved_functions();
+    return m_impl->root_impl()->unresolved();
 }
 
-void BindContext::clear_unresolved_functions()
+void BindContext::clear_unresolved()
 {
-    m_impl->root_impl()->clear_unresolved_functions();
+    m_impl->root_impl()->clear_unresolved();
 }
 
 void BindContext::add_declared_function(std::string const& name, pBoundFunctionDecl const& func)
@@ -377,24 +392,42 @@ FunctionRegistry const& BindContext::declared_functions() const
     return m_impl->module_impl()->declared_functions();
 }
 
-void BindContext::add_imported_function(pBoundFunctionDecl const& func)
+void BindContext::add_exported_variable(std::string const& name, Obelix::pBoundVariableDeclaration const& variable)
 {
-    m_impl->module_impl()->add_imported_function(func);
+    m_impl->module_impl()->add_declared_variable(name, variable);
 }
 
-BoundFunctionDecls const& BindContext::imported_functions() const
+VariableRegistry const& BindContext::exported_variables() const
 {
-    return m_impl->module_impl()->imported_functions();
+    return m_impl->module_impl()->declared_variables();
 }
 
-void BindContext::add_exported_function(pBoundFunctionDecl const& func)
+std::optional<pBoundVariableDeclaration> BindContext::exported_variable(std::string const& name) const
 {
-    m_impl->module_impl()->add_exported_function(func);
+    return m_impl->module_impl()->declared_variable(name);
 }
 
-BoundFunctionDecls const& BindContext::exported_functions() const
+std::optional<pBoundVariableDeclaration> BindContext::exported_variable(std::string const& module, std::string const& name) const
 {
-    return m_impl->module_impl()->exported_functions();
+    auto mod = m_impl->module_impl(module);
+    if (mod == nullptr)
+        return {};
+    return mod->declared_variable(name);
+}
+
+void BindContext::add_import(pBoundStatement const& import)
+{
+    m_impl->module_impl()->add_import(import);
+}
+
+BoundStatements const& BindContext::imports() const
+{
+    return m_impl->module_impl()->imports();
+}
+
+BoundStatements BindContext::exports() const
+{
+    return m_impl->module_impl()->exports();
 }
 
 void BindContext::add_module(pBoundModule const& module)
@@ -421,7 +454,10 @@ pBoundFunctionDecl BindContext::match(std::string const& name, ObjectTypes arg_t
 
 pBoundFunctionDecl BindContext::match(std::string const& module, std::string const& name, ObjectTypes arg_types) const
 {
-    return m_impl->module_impl(module)->match(name, arg_types);
+    auto mod = m_impl->module_impl(module);
+    if (mod == nullptr)
+        return nullptr;
+    return mod->match(name, arg_types);
 }
 
 void BindContext::dump() const

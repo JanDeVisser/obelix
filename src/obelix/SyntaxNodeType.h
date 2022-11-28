@@ -97,6 +97,7 @@ namespace Obelix {
     S(BoundLocalFunction)               \
     S(BoundImportedFunction)            \
     S(BoundMemberAccess)                \
+    S(UnboundMemberAccess)              \
     S(BoundMemberAssignment)            \
     S(BoundArrayAccess)                 \
     S(BoundIntLiteral)                  \
@@ -153,7 +154,7 @@ constexpr char const* SyntaxNodeType_name(SyntaxNodeType type)
         return #type;
         ENUMERATE_SYNTAXNODETYPES(ENUM_SYNTAXNODETYPE)
 #undef ENUM_SYNTAXNODETYPE
-    case SyntaxNodeType::NodeList:    \
+    case SyntaxNodeType::NodeList:
         return "NodeList";
     default:
         fatal("Unknown SyntaxNodeType value '{}'", (int)type);

@@ -19,11 +19,8 @@ namespace Obelix {
 class ModuleContext;
 class RootContext;
 
-using FunctionCallPair = std::pair<pSyntaxNode, ObjectTypes>;
-using FunctionCallPairs = std::vector<FunctionCallPair>;
 using FunctionRegistry = std::multimap<std::string, pBoundFunctionDecl>;
-
-FunctionCallPair make_functioncall(pSyntaxNode, ObjectTypes);
+using VariableRegistry = std::map<std::string, pBoundVariableDeclaration>;
 
 #define ENUMERATE_BINDCONTEXT_TYPES(S) \
     S(RootContext)                     \
@@ -116,8 +113,10 @@ class ExportsFunctions : public ContextImpl {
 public:
     void add_declared_function(std::string const&, pBoundFunctionDecl const&);
     [[nodiscard]] FunctionRegistry const& declared_functions() const;
-    void add_exported_function(pBoundFunctionDecl const&);
-    [[nodiscard]] BoundFunctionDecls const& exported_functions() const;
+    void add_declared_variable(std::string const&, pBoundVariableDeclaration const&);
+    [[nodiscard]] VariableRegistry const& declared_variables() const;
+    [[nodiscard]] std::optional<pBoundVariableDeclaration> declared_variable(std::string const&) const;
+    [[nodiscard]] BoundStatements exports() const;
     [[nodiscard]] pBoundFunctionDecl match(std::string const& name, ObjectTypes arg_types) const;
 
 protected:
@@ -125,7 +124,7 @@ protected:
 
 private:
     FunctionRegistry m_declared_functions;
-    BoundFunctionDecls m_exported_functions;
+    VariableRegistry m_declared_variables;
 };
 
 class ModuleContext : public ExportsFunctions {
@@ -133,14 +132,14 @@ public:
     explicit ModuleContext(pContextImpl, std::string);
 
     [[nodiscard]] std::string const& name() const;
-    void add_imported_function(pBoundFunctionDecl const&);
-    [[nodiscard]] BoundFunctionDecls const& imported_functions() const;
+    void add_import(pBoundStatement const&);
+    [[nodiscard]] BoundStatements const& imports() const;
 
     void dump() const;
 
 private:
     std::string m_name;
-    BoundFunctionDecls m_imported_functions;
+    BoundStatements m_imports;
 };
 
 class RootContext : public ExportsFunctions {
@@ -149,9 +148,9 @@ public:
 
     void add_custom_type(pObjectType);
     [[nodiscard]] ObjectTypes const& custom_types() const;
-    void add_unresolved_function(FunctionCallPair);
-    [[nodiscard]] FunctionCallPairs const& unresolved_functions() const;
-    void clear_unresolved_functions();
+    void add_unresolved(pExpression);
+    [[nodiscard]] Expressions const& unresolved() const;
+    void clear_unresolved();
     void add_module(pBoundModule const& module);
     [[nodiscard]] pBoundModule module(std::string const& name) const;
     [[nodiscard]] pModuleContext module_context(std::string const& name);
@@ -161,7 +160,7 @@ public:
 
 private:
     ObjectTypes m_custom_types;
-    FunctionCallPairs m_unresolved_functions;
+    Expressions m_unresolved;
     std::unordered_map<std::string, pBoundModule> m_modules;
     ModuleContexts m_module_contexts;
 };
@@ -178,15 +177,18 @@ public:
     [[nodiscard]] ObjectTypes const& custom_types() const;
     std::optional<SyntaxError> declare(std::string const&, pBoundVariableDeclaration const&);
     [[nodiscard]] std::optional<pBoundVariableDeclaration> get(std::string const&) const;
-    void add_unresolved_function(FunctionCallPair);
-    [[nodiscard]] FunctionCallPairs const& unresolved_functions() const;
-    void clear_unresolved_functions();
+    void add_unresolved(pExpression);
+    [[nodiscard]] Expressions const& unresolved() const;
+    void clear_unresolved();
     void add_declared_function(std::string const&, pBoundFunctionDecl const&);
     [[nodiscard]] FunctionRegistry const& declared_functions() const;
-    void add_imported_function(pBoundFunctionDecl const&);
-    [[nodiscard]] BoundFunctionDecls const& imported_functions() const;
-    void add_exported_function(pBoundFunctionDecl const&);
-    [[nodiscard]] BoundFunctionDecls const& exported_functions() const;
+    void add_exported_variable(std::string const&, pBoundVariableDeclaration const&);
+    [[nodiscard]] VariableRegistry const& exported_variables() const;
+    [[nodiscard]] std::optional<pBoundVariableDeclaration> exported_variable(std::string const&) const;
+    [[nodiscard]] std::optional<pBoundVariableDeclaration> exported_variable(std::string const&, std::string const&) const;
+    void add_import(pBoundStatement const&);
+    [[nodiscard]] BoundStatements const& imports() const;
+    [[nodiscard]] BoundStatements exports() const;
     void add_module(pBoundModule const&);
     [[nodiscard]] pBoundModule module(std::string const&) const;
     [[nodiscard]] pBoundFunctionDecl match(std::string const&, ObjectTypes, bool = false) const;

@@ -67,7 +67,7 @@ std::string BoundExpression::qualified_name() const
 
 // -- BoundModule -----------------------------------------------------------
 
-BoundModule::BoundModule(Token token, std::string name, std::shared_ptr<Block> block, BoundFunctionDecls exports, BoundFunctionDecls imports)
+BoundModule::BoundModule(Token token, std::string name, std::shared_ptr<Block> block, BoundStatements exports, BoundStatements imports)
     : BoundExpression(std::move(token), PrimitiveType::Module)
     , m_name(std::move(name))
     , m_block(std::move(block))
@@ -86,31 +86,24 @@ std::shared_ptr<Block> const& BoundModule::block() const
     return m_block;
 }
 
-BoundFunctionDecls const& BoundModule::exports() const
+BoundStatements const& BoundModule::exports() const
 {
     return m_exports;
 }
 
-BoundFunctionDecls const& BoundModule::imports() const
+BoundStatements const& BoundModule::imports() const
 {
     return m_imports;
-}
-
-std::shared_ptr<BoundFunctionDecl> BoundModule::exported(std::string const& name)
-{
-    auto it = std::find_if(exports().begin(), exports().end(), [name](auto const& e) {
-        return e->name() == name;
-    });
-    if (it != exports().end())
-        return *it;
-    return nullptr;
 }
 
 std::shared_ptr<BoundFunctionDecl> BoundModule::resolve(std::string const& name, ObjectTypes const& arg_types) const
 {
     debug(parser, "resolving function {}({})", name, arg_types);
     std::shared_ptr<BoundFunctionDecl> func_decl = nullptr;
-    for (auto const& declaration : exports()) {
+    for (auto const& exprt : exports()) {
+        auto declaration = std::dynamic_pointer_cast<BoundFunctionDecl>(exprt);
+        if (declaration == nullptr)
+            continue;
         debug(parser, "checking {}({})", declaration->name(), declaration->parameters());
         if (declaration->name() != name)
             continue;
@@ -144,16 +137,16 @@ std::string BoundModule::attributes() const
 Nodes BoundModule::children() const
 {
     Nodes ret;
-    BoundFunctionDecls export_list;
+    BoundStatements export_list;
     for (auto const& exported : exports()) {
         export_list.push_back(exported);
     }
-    ret.push_back(std::make_shared<NodeList<BoundFunctionDecl>>("exports", export_list));
-    BoundFunctionDecls import_list;
+    ret.push_back(std::make_shared<NodeList<BoundStatement>>("exports", export_list));
+    BoundStatements import_list;
     for (auto const& imported : imports()) {
         import_list.push_back(imported);
     }
-    ret.push_back(std::make_shared<NodeList<BoundFunctionDecl>>("imports", import_list));
+    ret.push_back(std::make_shared<NodeList<BoundStatement>>("imports", import_list));
     auto statements = block()->children();
     ret.push_back(statements.front());
     return ret;

@@ -54,6 +54,20 @@ private:
     std::shared_ptr<BoundIdentifier> m_member;
 };
 
+NODE_CLASS(UnboundMemberAccess, Expression)
+public:
+    UnboundMemberAccess(std::shared_ptr<BoundExpression>, std::shared_ptr<Variable>);
+    [[nodiscard]] std::shared_ptr<BoundExpression> const& structure() const;
+    [[nodiscard]] std::shared_ptr<Variable> const& member() const;
+    [[nodiscard]] std::string attributes() const override;
+    [[nodiscard]] Nodes children() const override;
+    [[nodiscard]] std::string to_string() const override;
+
+private:
+    std::shared_ptr<BoundExpression> m_struct;
+    std::shared_ptr<Variable> m_member;
+};
+
 NODE_CLASS(BoundMemberAssignment, BoundMemberAccess)
 public:
     BoundMemberAssignment(std::shared_ptr<BoundExpression>, std::shared_ptr<BoundIdentifier>);

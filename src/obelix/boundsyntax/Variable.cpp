@@ -109,6 +109,40 @@ std::string BoundMemberAccess::to_string() const
     return format("{}.{}: {}", structure(), member(), type_name());
 }
 
+// -- UnboundMemberAccess -----------------------------------------------------
+
+UnboundMemberAccess::UnboundMemberAccess(std::shared_ptr<BoundExpression> strukt, std::shared_ptr<Variable> member)
+    : Expression(strukt->token(), member->type())
+    , m_struct(std::move(strukt))
+    , m_member(std::move(member))
+{
+}
+
+std::shared_ptr<BoundExpression> const& UnboundMemberAccess::structure() const
+{
+    return m_struct;
+}
+
+std::shared_ptr<Variable> const& UnboundMemberAccess::member() const
+{
+    return m_member;
+}
+
+std::string UnboundMemberAccess::attributes() const
+{
+    return format(R"(type="{}")", type());
+}
+
+Nodes UnboundMemberAccess::children() const
+{
+    return { m_struct, m_member };
+}
+
+std::string UnboundMemberAccess::to_string() const
+{
+    return format("{}.{}: {}", structure(), member(), type_name());
+}
+
 // -- BoundMemberAssignment -------------------------------------------------
 
 BoundMemberAssignment::BoundMemberAssignment(std::shared_ptr<BoundExpression> strukt, std::shared_ptr<BoundIdentifier> member)
@@ -281,7 +315,7 @@ std::string BoundGlobalVariableDeclaration::to_string() const
 
 bool BoundGlobalVariableDeclaration::is_static() const
 {
-    return true;
+    return false;
 }
 
 // -- BoundAssignment -------------------------------------------------------

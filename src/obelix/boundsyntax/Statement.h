@@ -36,12 +36,11 @@ private:
 
 NODE_CLASS(BoundModule, BoundExpression)
 public:
-    BoundModule(Token, std::string, std::shared_ptr<Block>, BoundFunctionDecls, BoundFunctionDecls);
+    BoundModule(Token, std::string, std::shared_ptr<Block>, BoundStatements, BoundStatements);
     [[nodiscard]] std::string const& name() const;
     [[nodiscard]] std::shared_ptr<Block> const& block() const;
-    [[nodiscard]] BoundFunctionDecls const& exports() const;
-    [[nodiscard]] BoundFunctionDecls const& imports() const;
-    [[nodiscard]] std::shared_ptr<BoundFunctionDecl> exported(std::string const&);
+    [[nodiscard]] BoundStatements const& exports() const;
+    [[nodiscard]] BoundStatements const& imports() const;
     [[nodiscard]] std::string attributes() const override;
     [[nodiscard]] Nodes children() const override;
     [[nodiscard]] std::string to_string() const override;
@@ -53,8 +52,8 @@ public:
 private:
     std::string m_name;
     std::shared_ptr<Block> m_block;
-    BoundFunctionDecls m_exports;
-    BoundFunctionDecls m_imports;
+    BoundStatements m_exports;
+    BoundStatements m_imports;
 };
 
 NODE_CLASS(BoundCompilation, BoundExpression)

@@ -64,6 +64,10 @@ NODE_PROCESSOR(BoundVariableDeclaration)
 
 ALIAS_NODE_PROCESSOR(BoundStaticVariableDeclaration, BoundVariableDeclaration)
 
+// FIXME: Global and local module-scoped variables are not const-folded, because
+// they may be referenced by other modules processed later. In that case the declaration
+// will be gone, resulting in a crash at compile time
+
 NODE_PROCESSOR(BoundIntrinsicCall)
 {
     auto call = std::dynamic_pointer_cast<BoundIntrinsicCall>(tree);
