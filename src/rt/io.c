@@ -14,7 +14,7 @@
 typedef int errno;
 
 // FIXME Find a way to not have to specify these structs here.
-typedef struct u32_errno {
+typedef struct _u32_errno {
   bool success;
   union {
     uint32_t value;

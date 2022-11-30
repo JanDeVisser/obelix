@@ -33,15 +33,20 @@ int $eputs(string s)
     return $fputs(2, s);
 }
 
+int putln_()
+{
+    int ret = write(1, "\n", 1);
+    if (ret < 0)
+        return -_stdlib_errno;
+    return ret;
+}
+
 int putln(string s)
 {
     int ret = $puts(s);
     if (ret < 0)
-        return ret;
-    ret = write(1, "\n", 1);
-    if (ret < 0)
-        return -_stdlib_errno;
-    return ret;
+        return  -_stdlib_errno;
+    putln_();
 }
 
 int putln_u(uint64_t i)

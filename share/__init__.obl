@@ -5,6 +5,8 @@
  */
 
 intrinsic allocate(size: int) : ptr<char>
+intrinsic free(size: int) : void
+intrinsic exit(code: s32) : void
 intrinsic ok(c: conditional<any, any>) : bool
 intrinsic error(c: conditional<any, any>) : bool
 
@@ -20,6 +22,7 @@ func memcpy(dst: ptr<char>, src: ptr<char>, len: u32) : ptr<char> -> "memcpy"
 func puti(i: s64) : int -> "putint"
 func putu(i: u64) : int -> "putint"
 func puthex(i: u64) : int -> "puthex"
+func putln() : u64 -> "putln_"
 func putln(s: string) : u64 -> "putln"
 func putln(i: u64) : u64 -> "putln_u"
 func putln(i: s64) : u64 -> "putln_s"

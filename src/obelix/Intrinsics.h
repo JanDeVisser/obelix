@@ -19,8 +19,10 @@ namespace Obelix {
 #define INTRINSIC_TYPE_ENUM(S) \
     S(NotIntrinsic)            \
     S(allocate)                \
+    S(free)                    \
     S(ok)                      \
     S(error)                   \
+    S(exit)                    \
     S(eputs)                   \
     S(fputs)                   \
     S(fsize)                   \

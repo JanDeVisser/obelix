@@ -6,7 +6,9 @@ add_library(
         puts.c
         string.c
         fsize.c
-        enum.c)
+        enum.c
+        std.c
+)
 
 install(TARGETS oblcrt
         ARCHIVE DESTINATION lib

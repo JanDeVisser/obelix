@@ -10,6 +10,7 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include <string.h>
+#include <stdlib.h>
 
 extern int* __error(void);
 #define _stdlib_errno (*__error())
@@ -35,11 +36,6 @@ extern void $fatal($token, char const*);
 
 extern $enum_value $get_enum_value($enum_value[], int32_t);
 
-extern void exit(int status);
-extern void * malloc(size_t size);
-
-extern int64_t fsize(int fd);
-
 extern string str_view_for(char const*);
 extern string str_allocate(char const*);
 extern string str_adopt(char*);
@@ -53,11 +49,10 @@ extern int str_compare(string, string);
 extern string to_string_s(int64_t, int);
 extern string to_string_u(uint64_t, int);
 
-
-
 extern int $fputs(int, string);
 extern int $puts(string);
 extern int $eputs(string);
+extern int putln_();
 extern int putln(string);
 extern int putln_s(int64_t);
 extern int putln_u(uint64_t);
@@ -67,5 +62,6 @@ extern int putint(int64_t);
 extern string cstr_to_string(char *);
 extern int cputs(char *);
 extern int cputln(int8_t *);
+extern int64_t fsize(int fd);
 
 #endif /* __OBELIX_H__ */
