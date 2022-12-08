@@ -416,13 +416,13 @@ NODE_PROCESSOR(FunctionDecl)
     std::shared_ptr<BoundFunctionDecl> bound_decl;
     switch (decl->node_type()) {
     case SyntaxNodeType::IntrinsicDecl:
-        bound_decl = std::make_shared<BoundIntrinsicDecl>(std::dynamic_pointer_cast<IntrinsicDecl>(decl), identifier, bound_parameters);
+        bound_decl = std::make_shared<BoundIntrinsicDecl>(std::dynamic_pointer_cast<IntrinsicDecl>(decl), decl->module(), identifier, bound_parameters);
         break;
     case SyntaxNodeType::NativeFunctionDecl:
-        bound_decl = std::make_shared<BoundNativeFunctionDecl>(std::dynamic_pointer_cast<NativeFunctionDecl>(decl), identifier, bound_parameters);
+        bound_decl = std::make_shared<BoundNativeFunctionDecl>(std::dynamic_pointer_cast<NativeFunctionDecl>(decl), decl->module(), identifier, bound_parameters);
         break;
     default:
-        bound_decl = std::make_shared<BoundFunctionDecl>(decl, identifier, bound_parameters);
+        bound_decl = std::make_shared<BoundFunctionDecl>(decl, decl->module(), identifier, bound_parameters);
         break;
     }
     ctx.add_declared_function(bound_decl->name(), bound_decl);

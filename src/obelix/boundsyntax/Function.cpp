@@ -12,8 +12,9 @@ extern_logging_category(parser);
 
 // -- BoundFunctionDecl -----------------------------------------------------
 
-BoundFunctionDecl::BoundFunctionDecl(std::shared_ptr<SyntaxNode> const& decl, std::shared_ptr<BoundIdentifier> identifier, BoundIdentifiers parameters)
+BoundFunctionDecl::BoundFunctionDecl(std::shared_ptr<SyntaxNode> const& decl, std::string module, std::shared_ptr<BoundIdentifier> identifier, BoundIdentifiers parameters)
     : BoundStatement(decl->token())
+    , m_module(std::move(module))
     , m_identifier(std::move(identifier))
     , m_parameters(std::move(parameters))
 {
@@ -21,16 +22,23 @@ BoundFunctionDecl::BoundFunctionDecl(std::shared_ptr<SyntaxNode> const& decl, st
 
 BoundFunctionDecl::BoundFunctionDecl(std::shared_ptr<BoundFunctionDecl> const& decl)
     : BoundStatement(decl->token())
+    , m_module(decl->module())
     , m_identifier(decl->identifier())
     , m_parameters(decl->parameters())
 {
 }
 
-BoundFunctionDecl::BoundFunctionDecl(std::shared_ptr<BoundIdentifier> identifier, BoundIdentifiers parameters)
+BoundFunctionDecl::BoundFunctionDecl(std::string module, std::shared_ptr<BoundIdentifier> identifier, BoundIdentifiers parameters)
     : BoundStatement(Token {})
+    , m_module(std::move(module))
     , m_identifier(std::move(identifier))
     , m_parameters(std::move(parameters))
 {
+}
+
+std::string const& BoundFunctionDecl::module() const
+{
+    return m_module;
 }
 
 std::shared_ptr<BoundIdentifier> const& BoundFunctionDecl::identifier() const
@@ -101,14 +109,14 @@ std::string BoundFunctionDecl::parameters_to_string() const
 
 // -- BoundNativeFunctionDecl -----------------------------------------------
 
-BoundNativeFunctionDecl::BoundNativeFunctionDecl(std::shared_ptr<NativeFunctionDecl> const& decl, std::shared_ptr<BoundIdentifier> identifier, BoundIdentifiers parameters)
-    : BoundFunctionDecl(decl, std::move(identifier), std::move(parameters))
+BoundNativeFunctionDecl::BoundNativeFunctionDecl(std::shared_ptr<NativeFunctionDecl> const& decl, std::string module, std::shared_ptr<BoundIdentifier> identifier, BoundIdentifiers parameters)
+    : BoundFunctionDecl(decl, std::move(module), std::move(identifier), std::move(parameters))
     , m_native_function_name(decl->native_function_name())
 {
 }
 
-BoundNativeFunctionDecl::BoundNativeFunctionDecl(std::shared_ptr<BoundNativeFunctionDecl> const& decl, std::shared_ptr<BoundIdentifier> identifier, BoundIdentifiers parameters)
-    : BoundFunctionDecl(decl, std::move(identifier), std::move(parameters))
+BoundNativeFunctionDecl::BoundNativeFunctionDecl(std::shared_ptr<BoundNativeFunctionDecl> const& decl, std::string module, std::shared_ptr<BoundIdentifier> identifier, BoundIdentifiers parameters)
+    : BoundFunctionDecl(decl, std::move(module), std::move(identifier), std::move(parameters))
     , m_native_function_name(decl->native_function_name())
 {
 }
@@ -130,13 +138,13 @@ std::string BoundNativeFunctionDecl::to_string() const
 
 // -- BoundIntrinsicDecl ----------------------------------------------------
 
-BoundIntrinsicDecl::BoundIntrinsicDecl(std::shared_ptr<SyntaxNode> const& decl, std::shared_ptr<BoundIdentifier> identifier, BoundIdentifiers parameters)
-    : BoundFunctionDecl(decl, std::move(identifier), std::move(parameters))
+BoundIntrinsicDecl::BoundIntrinsicDecl(std::shared_ptr<SyntaxNode> const& decl, std::string module, std::shared_ptr<BoundIdentifier> identifier, BoundIdentifiers parameters)
+    : BoundFunctionDecl(decl, std::move(module), std::move(identifier), std::move(parameters))
 {
 }
 
-BoundIntrinsicDecl::BoundIntrinsicDecl(std::shared_ptr<BoundIdentifier> identifier, BoundIdentifiers parameters)
-    : BoundFunctionDecl(std::move(identifier), std::move(parameters))
+BoundIntrinsicDecl::BoundIntrinsicDecl(std::string module, std::shared_ptr<BoundIdentifier> identifier, BoundIdentifiers parameters)
+    : BoundFunctionDecl(std::move(module), std::move(identifier), std::move(parameters))
 {
 }
 

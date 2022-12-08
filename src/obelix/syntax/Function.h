@@ -15,8 +15,9 @@ namespace Obelix {
 
 NODE_CLASS(FunctionDecl, Statement)
 public:
-    FunctionDecl(Token, std::shared_ptr<Identifier>, Identifiers);
+    FunctionDecl(Token, std::string, std::shared_ptr<Identifier>, Identifiers);
     [[nodiscard]] std::shared_ptr<Identifier> const& identifier() const;
+    [[nodiscard]] std::string const& module() const;
     [[nodiscard]] std::string const& name() const;
     [[nodiscard]] std::shared_ptr<ExpressionType> type() const;
     [[nodiscard]] std::string type_name() const;
@@ -30,13 +31,14 @@ protected:
     [[nodiscard]] std::string parameters_to_string() const;
 
 private:
+    std::string m_module;
     std::shared_ptr<Identifier> m_identifier;
     Identifiers m_parameters;
 };
 
 NODE_CLASS(NativeFunctionDecl, FunctionDecl)
 public:
-    NativeFunctionDecl(Token, std::shared_ptr<Identifier>, Identifiers, std::string);
+    NativeFunctionDecl(Token, std::string, std::shared_ptr<Identifier>, Identifiers, std::string);
     [[nodiscard]] std::string const& native_function_name() const;
     [[nodiscard]] std::string attributes() const override;
     [[nodiscard]] std::string to_string() const override;
@@ -47,7 +49,7 @@ private:
 
 NODE_CLASS(IntrinsicDecl, FunctionDecl)
 public:
-    IntrinsicDecl(Token, std::shared_ptr<Identifier>, Identifiers);
+    IntrinsicDecl(Token, std::string, std::shared_ptr<Identifier>, Identifiers);
     [[nodiscard]] std::string to_string() const override;
 };
 

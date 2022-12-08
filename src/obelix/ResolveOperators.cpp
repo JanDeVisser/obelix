@@ -49,7 +49,7 @@ NODE_PROCESSOR(BoundUnaryExpression)
         break;
     }
     }
-    return TRY(process(make_node<BoundIntrinsicCall>(expr->token(), decl, BoundExpressions { operand }, intrinsic), ctx, result));
+    return TRY(process(std::make_shared<BoundIntrinsicCall>(expr->token(), decl, BoundExpressions { operand }, intrinsic), ctx, result));
 }
 
 NODE_PROCESSOR(BoundBinaryExpression)
@@ -70,20 +70,20 @@ NODE_PROCESSOR(BoundBinaryExpression)
             auto offset_val = offset_literal->value();
             if (expr->op() == BinaryOperator::Subtract)
                 offset_val *= -1;
-            offset = make_node<BoundIntLiteral>(rhs->token(), target_type->size() * offset_val);
+            offset = std::make_shared<BoundIntLiteral>(rhs->token(), target_type->size() * offset_val);
         } else {
             offset = rhs;
             if (expr->op() == BinaryOperator::Subtract)
-                offset = make_node<BoundUnaryExpression>(expr->token(), offset, UnaryOperator::Negate, expr->type());
-            auto size = make_node<BoundIntLiteral>(rhs->token(), target_type->size());
-            offset = TRY_AND_CAST(BoundExpression, make_node<BoundBinaryExpression>(expr->token(), size, BinaryOperator::Multiply, offset, ObjectType::get("u64")), ctx);
+                offset = std::make_shared<BoundUnaryExpression>(expr->token(), offset, UnaryOperator::Negate, expr->type());
+            auto size = std::make_shared<BoundIntLiteral>(rhs->token(), target_type->size());
+            offset = TRY_AND_CAST(BoundExpression, std::make_shared<BoundBinaryExpression>(expr->token(), size, BinaryOperator::Multiply, offset, ObjectType::get("u64")), ctx);
         }
-        auto ident = make_node<BoundIdentifier>(Token {}, BinaryOperator_name(expr->op()), lhs->type());
+        auto ident = std::make_shared<BoundIdentifier>(Token {}, BinaryOperator_name(expr->op()), lhs->type());
         BoundIdentifiers params;
-        params.push_back(make_node<BoundIdentifier>(Token {}, "ptr", lhs->type()));
-        params.push_back(make_node<BoundIdentifier>(Token {}, "offset", ObjectType::get("s32")));
-        auto decl = make_node<BoundIntrinsicDecl>(ident, params);
-        return TRY(process(make_node<BoundIntrinsicCall>(expr->token(), decl, BoundExpressions { lhs, offset }, IntrinsicType::ptr_math), ctx, result));
+        params.push_back(std::make_shared<BoundIdentifier>(Token {}, "ptr", lhs->type()));
+        params.push_back(std::make_shared<BoundIdentifier>(Token {}, "offset", ObjectType::get("s32")));
+        auto decl = std::make_shared<BoundIntrinsicDecl>("/", ident, params);
+        return TRY(process(std::make_shared<BoundIntrinsicCall>(expr->token(), decl, BoundExpressions { lhs, offset }, IntrinsicType::ptr_math), ctx, result));
     }
 
     if ((rhs->node_type() == SyntaxNodeType::BoundIntLiteral) && (rhs->type()->type() == lhs->type()->type()) && (rhs->type()->size() > lhs->type()->size()))
@@ -98,7 +98,7 @@ NODE_PROCESSOR(BoundBinaryExpression)
     if (!impl.is_intrinsic || impl.intrinsic == IntrinsicType::NotIntrinsic)
         return SyntaxError { ErrorCode::InternalError, lhs->token(), format("No intrinsic defined for {}", method_descr.name()) };
     auto intrinsic = impl.intrinsic;
-    return TRY(process(make_node<BoundIntrinsicCall>(expr->token(), method_descr.declaration(), BoundExpressions { lhs, rhs }, intrinsic), ctx));
+    return TRY(process(std::make_shared<BoundIntrinsicCall>(expr->token(), method_descr.declaration(), BoundExpressions { lhs, rhs }, intrinsic), ctx));
 }
 
 ProcessResult resolve_operators(std::shared_ptr<SyntaxNode> const& tree)

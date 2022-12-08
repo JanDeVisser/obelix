@@ -255,14 +255,14 @@ ErrorOrNode process_tree(std::shared_ptr<SyntaxNode> const& tree, Context& ctx, 
         }
         switch (func_decl->node_type()) {
         case SyntaxNodeType::FunctionDecl:
-            ret = std::make_shared<FunctionDecl>(func_decl->token(), identifier, parameters);
+            ret = std::make_shared<FunctionDecl>(func_decl->token(), func_decl->module(), identifier, parameters);
             break;
         case SyntaxNodeType::NativeFunctionDecl:
-            ret = std::make_shared<NativeFunctionDecl>(func_decl->token(), identifier, parameters,
+            ret = std::make_shared<NativeFunctionDecl>(func_decl->token(), func_decl->module(), identifier, parameters,
                 std::dynamic_pointer_cast<NativeFunctionDecl>(func_decl)->native_function_name());
             break;
         case SyntaxNodeType::IntrinsicDecl:
-            ret = std::make_shared<IntrinsicDecl>(func_decl->token(), identifier, parameters);
+            ret = std::make_shared<IntrinsicDecl>(func_decl->token(), func_decl->module(), identifier, parameters);
             break;
         default:
             fatal("Unreachable");
@@ -282,13 +282,13 @@ ErrorOrNode process_tree(std::shared_ptr<SyntaxNode> const& tree, Context& ctx, 
         }
         switch (func_decl->node_type()) {
         case SyntaxNodeType::BoundFunctionDecl:
-            ret = std::make_shared<BoundFunctionDecl>(func_decl, identifier, parameters);
+            ret = std::make_shared<BoundFunctionDecl>(func_decl, func_decl->module(), identifier, parameters);
             break;
         case SyntaxNodeType::BoundNativeFunctionDecl:
-            ret = std::make_shared<BoundNativeFunctionDecl>(std::dynamic_pointer_cast<BoundNativeFunctionDecl>(func_decl), identifier, parameters);
+            ret = std::make_shared<BoundNativeFunctionDecl>(std::dynamic_pointer_cast<BoundNativeFunctionDecl>(func_decl), func_decl->module(), identifier, parameters);
             break;
         case SyntaxNodeType::BoundIntrinsicDecl:
-            ret = std::make_shared<BoundIntrinsicDecl>(func_decl, identifier, parameters);
+            ret = std::make_shared<BoundIntrinsicDecl>(func_decl, func_decl->module(), identifier, parameters);
             break;
         default:
             fatal("Unreachable");

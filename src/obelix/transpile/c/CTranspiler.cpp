@@ -7,6 +7,7 @@
 #include <unistd.h>
 #include <filesystem>
 #include <memory>
+#include <set>
 
 #include <core/Error.h>
 #include <core/Logging.h>
@@ -23,6 +24,43 @@ namespace Obelix {
 logging_category(c_transpiler);
 
 static std::string obl_dir;
+
+std::string c_function_name(pBoundFunctionDecl const& function)
+{
+    static std::map<std::string, std::string> name_for_function;
+    static std::set<size_t> hashes;
+
+    if (name_for_function.contains(function->to_string()))
+        return name_for_function.at(function->to_string());
+
+    if (std::dynamic_pointer_cast<BoundIntrinsicDecl>(function) != nullptr)
+        return function->name();
+
+    if (auto native = std::dynamic_pointer_cast<BoundNativeFunctionDecl>(function); native != nullptr)
+        return native->native_function_name();
+
+    if (function->name() == "main")
+        return "$main";
+
+    auto function_name = format("{}${}", function->module(), function->name());
+    replace_all(function_name, "/", "$");
+
+    if (function->parameters().empty())
+        return function_name;
+
+    size_t hash = 0u;
+    size_t shift = 1;
+    do {
+        for (auto const& param : function->parameters()) {
+            hash = (hash << shift++) ^ std::hash<ObjectType> {}(*param->type());
+        }
+        hash %= 4096;
+    } while (hashes.contains(hash) && (shift < 62));
+    auto ret = format("{}_{}", function_name, hash);
+    name_for_function[function->to_string()] = ret;
+    hashes.insert(hash);
+    return ret;
+}
 
 std::string type_to_c_type(std::shared_ptr<ObjectType> const& type)
 {
@@ -236,7 +274,7 @@ R"(/*
             break;
         }
         default:
-            fatal("Ur mom {}", 12);
+            fatal("Cannot declare custom type {}", type);
         }
     }
     for (auto const& module : compilation->modules()) {
@@ -248,14 +286,9 @@ R"(/*
                 writeln(ctx, format("\n/* Exported by {}: */\n", module->name()));
             num_exports++;
             if (auto function = std::dynamic_pointer_cast<BoundFunctionDecl>(exprt); function != nullptr) {
-                auto function_name = function->name();
-                if (function_name == "main")
-                    function_name = "$main";
-                if (auto native = std::dynamic_pointer_cast<BoundNativeFunctionDecl>(function); native != nullptr)
-                    function_name = native->native_function_name();
                 write(ctx, "extern ");
                 type_to_c_type(ctx, function->type());
-                write(ctx, format(" {}(", function_name));
+                write(ctx, format(" {}(", c_function_name(function)));
                 auto first { true };
                 for (auto const& param : function->parameters()) {
                     if (!first)
@@ -358,10 +391,7 @@ NODE_PROCESSOR(BoundFunctionDecl)
     auto func_decl = std::dynamic_pointer_cast<BoundFunctionDecl>(tree);
 
     type_to_c_type(ctx, func_decl->type());
-    auto name = func_decl->name();
-    if (name == "main")
-        name = "$main";
-    write(ctx, format(" {}(", name));
+    write(ctx, format(" {}(", c_function_name(func_decl)));
     auto first { true };
     for (auto& param : func_decl->parameters()) {
         if (!first)
@@ -385,7 +415,7 @@ NODE_PROCESSOR(BoundFunctionCall)
 {
     auto call = std::dynamic_pointer_cast<BoundFunctionCall>(tree);
     TRY_RETURN(function_call(ctx, result, call, [&call, &ctx]() -> ErrorOr<void, SyntaxError> {
-        write(ctx, call->name());
+        write(ctx, c_function_name(call->declaration()));
         write(ctx, "(");
         for (auto ix = 0; ix < call->arguments().size(); ++ix) {
             if (ix > 0)
