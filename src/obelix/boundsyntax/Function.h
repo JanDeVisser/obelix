@@ -15,8 +15,9 @@ namespace Obelix {
 
 NODE_CLASS(BoundFunctionDecl, BoundStatement)
 public:
-    BoundFunctionDecl(std::shared_ptr<SyntaxNode> const&, std::shared_ptr<BoundIdentifier>, BoundIdentifiers);
+    BoundFunctionDecl(std::shared_ptr<SyntaxNode> const&, std::string, std::shared_ptr<BoundIdentifier>, BoundIdentifiers);
     BoundFunctionDecl(std::shared_ptr<BoundFunctionDecl> const&);
+    [[nodiscard]] std::string const& module() const;
     [[nodiscard]] std::shared_ptr<BoundIdentifier> const& identifier() const;
     [[nodiscard]] std::string const& name() const;
     [[nodiscard]] std::shared_ptr<ObjectType> type() const;
@@ -28,10 +29,11 @@ public:
     [[nodiscard]] std::string to_string() const override;
 
 protected:
-    explicit BoundFunctionDecl(std::shared_ptr<BoundIdentifier>, BoundIdentifiers);
+    explicit BoundFunctionDecl(std::string, std::shared_ptr<BoundIdentifier>, BoundIdentifiers);
     [[nodiscard]] std::string parameters_to_string() const;
 
 private:
+    std::string m_module;
     std::shared_ptr<BoundIdentifier> m_identifier;
     BoundIdentifiers m_parameters;
 };
@@ -40,8 +42,8 @@ using BoundFunctionDecls = std::vector<std::shared_ptr<BoundFunctionDecl>>;
 
 NODE_CLASS(BoundNativeFunctionDecl, BoundFunctionDecl)
 public:
-    BoundNativeFunctionDecl(std::shared_ptr<NativeFunctionDecl> const&, std::shared_ptr<BoundIdentifier>, BoundIdentifiers);
-    BoundNativeFunctionDecl(std::shared_ptr<BoundNativeFunctionDecl> const&, std::shared_ptr<BoundIdentifier>, BoundIdentifiers);
+    BoundNativeFunctionDecl(std::shared_ptr<NativeFunctionDecl> const&, std::string, std::shared_ptr<BoundIdentifier>, BoundIdentifiers);
+    BoundNativeFunctionDecl(std::shared_ptr<BoundNativeFunctionDecl> const&, std::string, std::shared_ptr<BoundIdentifier>, BoundIdentifiers);
     [[nodiscard]] std::string const& native_function_name() const;
     [[nodiscard]] std::string attributes() const override;
     [[nodiscard]] std::string to_string() const override;
@@ -52,8 +54,8 @@ private:
 
 NODE_CLASS(BoundIntrinsicDecl, BoundFunctionDecl)
 public:
-    BoundIntrinsicDecl(std::shared_ptr<SyntaxNode> const&, std::shared_ptr<BoundIdentifier>, BoundIdentifiers);
-    BoundIntrinsicDecl(std::shared_ptr<BoundIdentifier>, BoundIdentifiers);
+    BoundIntrinsicDecl(std::shared_ptr<SyntaxNode> const&, std::string, std::shared_ptr<BoundIdentifier>, BoundIdentifiers);
+    BoundIntrinsicDecl(std::string, std::shared_ptr<BoundIdentifier>, BoundIdentifiers);
     explicit BoundIntrinsicDecl(std::shared_ptr<BoundFunctionDecl> const&);
     [[nodiscard]] std::string to_string() const override;
 };

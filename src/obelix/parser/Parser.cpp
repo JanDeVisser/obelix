@@ -267,14 +267,14 @@ std::shared_ptr<Statement> Parser::parse_function_definition(Token const& func_t
     if (current_code() == KeywordLink) {
         lex();
         if (auto link_target_maybe = match(TokenCode::DoubleQuotedString, "after '->'"); link_target_maybe.has_value()) {
-            return std::make_shared<NativeFunctionDecl>(name, func_ident, params, link_target_maybe.value().value());
+            return std::make_shared<NativeFunctionDecl>(name, m_current_module, func_ident, params, link_target_maybe.value().value());
         }
         return nullptr;
     }
     if (func_token.code() == KeywordIntrinsic) {
-        return std::make_shared<IntrinsicDecl>(name, func_ident, params);
+        return std::make_shared<IntrinsicDecl>(name, m_current_module, func_ident, params);
     }
-    func_decl = std::make_shared<FunctionDecl>(name, func_ident, params);
+    func_decl = std::make_shared<FunctionDecl>(name, m_current_module, func_ident, params);
     auto stmt = parse_statement();
     if (stmt == nullptr)
         return nullptr;

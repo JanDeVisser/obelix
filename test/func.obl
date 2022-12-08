@@ -5,7 +5,7 @@ func f(p1: s32, p2: s32) : s32
 
 func main() : s32
 {
-    puti(f(1s32, 2s32))
-    putln("")
+    puti(f(1, 2))
+    putln()
     return 0
 }

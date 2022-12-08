@@ -12,11 +12,17 @@ extern_logging_category(parser);
 
 // -- FunctionDecl ----------------------------------------------------------
 
-FunctionDecl::FunctionDecl(Token token, std::shared_ptr<Identifier> identifier, Identifiers parameters)
+FunctionDecl::FunctionDecl(Token token, std::string module, std::shared_ptr<Identifier> identifier, Identifiers parameters)
     : Statement(std::move(token))
+    , m_module(std::move(module))
     , m_identifier(std::move(identifier))
     , m_parameters(std::move(parameters))
 {
+}
+
+std::string const& FunctionDecl::module() const
+{
+    return m_module;
 }
 
 std::shared_ptr<Identifier> const& FunctionDecl::identifier() const
@@ -87,8 +93,8 @@ std::string FunctionDecl::parameters_to_string() const
 
 // -- NativeFunctionDecl ----------------------------------------------------
 
-NativeFunctionDecl::NativeFunctionDecl(Token token, std::shared_ptr<Identifier> identifier, Identifiers parameters, std::string native_function)
-    : FunctionDecl(std::move(token), std::move(identifier), std::move(parameters))
+NativeFunctionDecl::NativeFunctionDecl(Token token, std::string module, std::shared_ptr<Identifier> identifier, Identifiers parameters, std::string native_function)
+    : FunctionDecl(std::move(token), std::move(module), std::move(identifier), std::move(parameters))
     , m_native_function_name(std::move(native_function))
 {
 }
@@ -110,8 +116,8 @@ std::string NativeFunctionDecl::to_string() const
 
 // -- IntrinsicDecl ---------------------------------------------------------
 
-IntrinsicDecl::IntrinsicDecl(Token token, std::shared_ptr<Identifier> identifier, Identifiers parameters)
-    : FunctionDecl(std::move(token), std::move(identifier), std::move(parameters))
+IntrinsicDecl::IntrinsicDecl(Token token, std::string module, std::shared_ptr<Identifier> identifier, Identifiers parameters)
+    : FunctionDecl(std::move(token), std::move(module), std::move(identifier), std::move(parameters))
 {
 }
 

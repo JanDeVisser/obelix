@@ -142,7 +142,7 @@ std::shared_ptr<BoundIntrinsicDecl> MethodDescription::declaration() const
     for (auto const& p : parameters()) {
         params.push_back(make_node<BoundIdentifier>(Token {}, p.name, p.type));
     }
-    return make_node<BoundIntrinsicDecl>(ident, params);
+    return make_node<BoundIntrinsicDecl>("/", ident, params);
 }
 
 
