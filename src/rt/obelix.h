@@ -48,6 +48,7 @@ extern uint32_t str_length(string);
 extern int str_compare(string, string);
 extern string to_string_s(int64_t, int);
 extern string to_string_u(uint64_t, int);
+extern void str_inspect_pools();
 
 extern int $fputs(int, string);
 extern int $puts(string);
