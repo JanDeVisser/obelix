@@ -16,6 +16,10 @@ intrinsic int_to_string(i: s32) : string
 
 intrinsic add_int_int(i1: s32, i2: s32) : string
 
+func length(s: string) : u32 -> "str_length"
+
+
+
 func fsize(fd: s32) : s64 -> "fsize"
 func memset(buffer: ptr<char>, ch : u32, len: u32) : ptr<char> -> "memset"
 func memcpy(dst: ptr<char>, src: ptr<char>, len: u32) : ptr<char> -> "memcpy"
