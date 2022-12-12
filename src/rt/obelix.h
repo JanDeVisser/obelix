@@ -57,8 +57,9 @@ extern int putln_();
 extern int putln(string);
 extern int putln_s(int64_t);
 extern int putln_u(uint64_t);
-extern int putint(int64_t);
-extern int putint(int64_t);
+extern int putuint(uint64_t);
+extern int putsint(int64_t);
+extern int puthex(uint64_t);
 
 extern string cstr_to_string(char *);
 extern int cputs(char *);

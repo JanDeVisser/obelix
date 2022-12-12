@@ -51,7 +51,7 @@ int putln(string s)
 
 int putln_u(uint64_t i)
 {
-    int ret = putint(i);
+    int ret = putuint(i);
     if (ret < 0)
         return ret;
     ret = write(1, "\n", 1);
@@ -62,7 +62,7 @@ int putln_u(uint64_t i)
 
 int putln_s(int64_t i)
 {
-    int ret = putint(i);
+    int ret = putsint(i);
     if (ret < 0)
         return ret;
     ret = write(1, "\n", 1);
@@ -71,7 +71,7 @@ int putln_s(int64_t i)
     return ret;
 }
 
-int putint(int64_t num)
+int putsint(int64_t num)
 {
     string s = to_string_s(num, 10);
     int ret = $puts(s);
@@ -79,7 +79,15 @@ int putint(int64_t num)
     return ret;
 }
 
-int puthex(int64_t num)
+int putuint(uint64_t num)
+{
+    string s = to_string_u(num, 10);
+    int ret = $puts(s);
+    str_free(s);
+    return ret;
+}
+
+int puthex(uint64_t num)
 {
     string s = to_string_s(num, 16);
     int ret = $puts(s);
