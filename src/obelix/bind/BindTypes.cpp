@@ -17,7 +17,7 @@ namespace Obelix {
 
 logging_category(bind);
 
-ErrorOr<std::shared_ptr<BoundExpression>, SyntaxError> make_function_call(BindContext& ctx, std::shared_ptr<SyntaxNode> function, std::shared_ptr<BoundExpressionList> arguments)
+ErrorOr<std::shared_ptr<BoundExpression>, SyntaxError> make_function_call(BindContext& ctx, pSyntaxNode function, pBoundExpressionList arguments)
 {
     BoundExpressions args;
     ObjectTypes arg_types;
@@ -51,14 +51,19 @@ ErrorOr<std::shared_ptr<BoundExpression>, SyntaxError> make_function_call(BindCo
     }
 
     if (auto member_access = std::dynamic_pointer_cast<UnboundMemberAccess>(function); member_access != nullptr) {
-        auto module = std::dynamic_pointer_cast<BoundModule>(member_access->structure());
-        if (module == nullptr) {
-            return SyntaxError { ErrorCode::ObjectNotCallable, member_access };
-        }
-        if (auto declaration = ctx.match(member_access->structure()->qualified_name(), member_access->member()->name(), arg_types); declaration != nullptr) {
-            bound_function = std::make_shared<BoundImportedFunction>(member_access->token(), module, declaration);
+        if (auto module = std::dynamic_pointer_cast<BoundModule>(member_access->structure()); module != nullptr) {
+            if (auto declaration = ctx.match(member_access->structure()->qualified_name(), member_access->member()->name(), arg_types); declaration != nullptr) {
+                bound_function = std::make_shared<BoundImportedFunction>(member_access->token(), module, declaration);
+            } else {
+                return nullptr;
+            }
         } else {
-            return nullptr;
+            BoundExpressions arg_list_with_this;
+            arg_list_with_this.push_back(member_access->structure());
+            for (auto const& arg : arguments->expressions()) {
+                arg_list_with_this.push_back(arg);
+            }
+            return make_function_call(ctx, member_access->member(), std::make_shared<BoundExpressionList>(arguments->token(), arg_list_with_this));
         }
     }
     if (bound_function == nullptr) {
@@ -572,7 +577,10 @@ NODE_PROCESSOR(BinaryExpression)
             return SyntaxError { ErrorCode::NotMember, rhs->token(), rhs, lhs };
         }
         default:
-            return SyntaxError { ErrorCode::CannotAccessMember, lhs->token(), lhs->to_string() };
+            auto field_var = std::dynamic_pointer_cast<Variable>(rhs);
+            if (field_var == nullptr)
+                return SyntaxError { ErrorCode::NotMember, rhs->token(), rhs, lhs };
+            return std::make_shared<UnboundMemberAccess>(lhs, field_var);
         }
     }
 
@@ -758,11 +766,11 @@ NODE_PROCESSOR(Variable)
 NODE_PROCESSOR(UnboundMemberAccess)
 {
     auto member_access = std::dynamic_pointer_cast<UnboundMemberAccess>(tree);
-    auto module = std::dynamic_pointer_cast<BoundModule>(member_access->structure());
-    assert(module != nullptr); // FIXME Return SyntaxError
-    if (auto var_decl_maybe = ctx.exported_variable(module->name(), member_access->member()->name()); var_decl_maybe.has_value()) {
-        auto member_variable = std::make_shared<BoundVariable>(member_access->member()->token(), member_access->member()->name(), var_decl_maybe.value()->type());
-        return std::make_shared<BoundMemberAccess>(module, member_variable);
+    if (auto module = std::dynamic_pointer_cast<BoundModule>(member_access->structure()); module != nullptr) {
+        if (auto var_decl_maybe = ctx.exported_variable(module->name(), member_access->member()->name()); var_decl_maybe.has_value()) {
+            auto member_variable = std::make_shared<BoundVariable>(member_access->member()->token(), member_access->member()->name(), var_decl_maybe.value()->type());
+            return std::make_shared<BoundMemberAccess>(module, member_variable);
+        }
     }
     ctx.add_unresolved(member_access);
     return tree;
