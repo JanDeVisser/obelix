@@ -107,6 +107,11 @@ std::string BoundFunctionDecl::parameters_to_string() const
     return ret;
 }
 
+void BoundFunctionDecl::add_parameter(pBoundIdentifier parameter)
+{
+    m_parameters.push_back(std::move(parameter));
+}
+
 // -- BoundNativeFunctionDecl -----------------------------------------------
 
 BoundNativeFunctionDecl::BoundNativeFunctionDecl(std::shared_ptr<NativeFunctionDecl> const& decl, std::string module, std::shared_ptr<BoundIdentifier> identifier, BoundIdentifiers parameters)
@@ -156,6 +161,22 @@ BoundIntrinsicDecl::BoundIntrinsicDecl(std::shared_ptr<BoundFunctionDecl> const&
 std::string BoundIntrinsicDecl::to_string() const
 {
     return format("intrinsic {}({}): {}", name(), parameters_to_string(), type());
+}
+
+// -- BoundMethodDecl -------------------------------------------------------
+
+BoundMethodDecl::BoundMethodDecl(pSyntaxNode const& decl, pMethodDescription method)
+    : BoundFunctionDecl(decl, "/", std::make_shared<BoundIdentifier>(decl->token(), method->name(), method->return_type()), {})
+    , m_method(std::move(method))
+{
+    for (auto const& param : m_method->parameters()) {
+        add_parameter(std::make_shared<BoundIdentifier>(Token {}, param.name, param.type));
+    }
+}
+
+pMethodDescription const& BoundMethodDecl::method() const
+{
+    return m_method;
 }
 
 // -- FunctionBlock ---------------------------------------------------------
@@ -369,6 +390,19 @@ BoundIntrinsicCall::BoundIntrinsicCall(std::shared_ptr<BoundIntrinsicCall> const
 IntrinsicType BoundIntrinsicCall::intrinsic() const
 {
     return m_intrinsic;
+}
+
+// -- BoundMethodCall -------------------------------------------------------
+
+BoundMethodCall::BoundMethodCall(Token token, pBoundMethodDecl const& declaration, pBoundExpression self, BoundExpressions arguments)
+    : BoundFunctionCall(std::move(token), declaration, std::move(arguments))
+    , m_self(std::move(self))
+{
+}
+
+pBoundExpression const& BoundMethodCall::self() const
+{
+    return m_self;
 }
 
 // -- BoundFunction ---------------------------------------------------------

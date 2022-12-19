@@ -16,6 +16,7 @@ namespace Obelix {
 NODE_CLASS(BoundFunctionDecl, BoundStatement)
 public:
     BoundFunctionDecl(std::shared_ptr<SyntaxNode> const&, std::string, std::shared_ptr<BoundIdentifier>, BoundIdentifiers);
+    BoundFunctionDecl(std::string, std::shared_ptr<BoundIdentifier>, BoundIdentifiers);
     BoundFunctionDecl(std::shared_ptr<BoundFunctionDecl> const&);
     [[nodiscard]] std::string const& module() const;
     [[nodiscard]] std::shared_ptr<BoundIdentifier> const& identifier() const;
@@ -29,8 +30,8 @@ public:
     [[nodiscard]] std::string to_string() const override;
 
 protected:
-    explicit BoundFunctionDecl(std::string, std::shared_ptr<BoundIdentifier>, BoundIdentifiers);
     [[nodiscard]] std::string parameters_to_string() const;
+    void add_parameter(pBoundIdentifier);
 
 private:
     std::string m_module;
@@ -58,6 +59,14 @@ public:
     BoundIntrinsicDecl(std::string, std::shared_ptr<BoundIdentifier>, BoundIdentifiers);
     explicit BoundIntrinsicDecl(std::shared_ptr<BoundFunctionDecl> const&);
     [[nodiscard]] std::string to_string() const override;
+};
+
+NODE_CLASS(BoundMethodDecl, BoundFunctionDecl)
+public:
+    BoundMethodDecl(pSyntaxNode const&, pMethodDescription);
+    pMethodDescription const& method() const;
+private:
+    pMethodDescription m_method;
 };
 
 NODE_CLASS(FunctionBlock, Block)
@@ -125,6 +134,15 @@ public:
 
 private:
     IntrinsicType m_intrinsic;
+};
+
+NODE_CLASS(BoundMethodCall, BoundFunctionCall)
+public:
+    BoundMethodCall(Token, pBoundMethodDecl const&, pBoundExpression, BoundExpressions);
+    [[nodiscard]] pBoundExpression const& self() const;
+
+private:
+    pBoundExpression m_self;
 };
 
 ABSTRACT_NODE_CLASS(BoundFunction, BoundExpression)

@@ -7,6 +7,7 @@
 #pragma once
 
 #include <obelix/syntax/Forward.h>
+#include <obelix/boundsyntax/Function.h>
 #include <obelix/boundsyntax/Statement.h>
 
 namespace Obelix {
@@ -26,15 +27,22 @@ private:
 
 NODE_CLASS(BoundStructDefinition, BoundStatement)
 public:
-    BoundStructDefinition(std::shared_ptr<StructDefinition> const&, std::shared_ptr<ObjectType>);
+    BoundStructDefinition(pStructDefinition const&, pObjectType, BoundIdentifiers, Statements = {});
+    BoundStructDefinition(Token, pObjectType, BoundIdentifiers, Statements = {});
     [[nodiscard]] std::string const& name() const;
     [[nodiscard]] std::shared_ptr<ObjectType> type() const;
     [[nodiscard]] std::string attributes() const override;
+    [[nodiscard]] Nodes children() const override;
     [[nodiscard]] std::string to_string() const override;
+    [[nodiscard]] BoundIdentifiers const& fields() const;
+    [[nodiscard]] Statements const& methods() const;
+    [[nodiscard]] bool is_fully_bound() const override;
 
 private:
     std::string m_name;
-    std::shared_ptr<ObjectType> m_type;
+    pObjectType m_type;
+    BoundIdentifiers m_fields;
+    Statements m_methods;
 };
 
 NODE_CLASS(BoundEnumValueDef, SyntaxNode)
