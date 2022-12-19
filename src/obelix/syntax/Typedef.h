@@ -9,6 +9,7 @@
 #include <obelix/syntax/Syntax.h>
 #include <obelix/syntax/Type.h>
 #include <obelix/syntax/Expression.h>
+#include <obelix/syntax/Function.h>
 #include <obelix/syntax/Statement.h>
 
 namespace Obelix {
@@ -26,16 +27,17 @@ private:
 
 NODE_CLASS(StructDefinition, Statement)
 public:
-    StructDefinition(Token, std::string, Identifiers);
+    StructDefinition(Token, std::string, Identifiers, FunctionDefs = {});
     [[nodiscard]] Nodes children() const override;
     [[nodiscard]] std::string to_string() const override;
     [[nodiscard]] std::string attributes() const override;
     [[nodiscard]] std::string const& name() const;
     [[nodiscard]] Identifiers const& fields() const;
-
+    [[nodiscard]] FunctionDefs const& methods() const;
 private:
     std::string m_name;
     Identifiers m_fields;
+    FunctionDefs m_methods;
 };
 
 NODE_CLASS(EnumValue, SyntaxNode)

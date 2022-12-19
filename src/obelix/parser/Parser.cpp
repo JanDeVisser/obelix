@@ -414,20 +414,33 @@ std::shared_ptr<Statement> Parser::parse_struct(Token const& struct_token)
     lex();
 
     Identifiers fields;
+    FunctionDefs  methods;
     do {
-        auto field_name_maybe = match(TokenCode::Identifier);
-        if (!field_name_maybe.has_value())
-            return nullptr;
-        expect(TokenCode::Colon);
-        auto field_type = parse_type();
-        if (!field_type) {
-            add_error(peek(), format("Syntax Error: Expected type after ':', got '{}' ({})", peek().value(), peek().code_name()));
+        switch (current_code()) {
+        case TokenCode::Identifier: {
+            auto field_name = lex();
+            expect(TokenCode::Colon);
+            auto field_type = parse_type();
+            if (!field_type) {
+                add_error(peek(), format("Syntax Error: Expected type after ':', got '{}' ({})", peek().value(), peek().code_name()));
+                return nullptr;
+            }
+            fields.push_back(std::make_shared<Identifier>(field_name, field_name.value(), field_type));
+            break;
+        }
+        case Parser::KeywordFunc: {
+            auto func_def = parse_function_definition(lex());
+            if (func_def == nullptr)
+                return nullptr;
+            methods.push_back(std::dynamic_pointer_cast<FunctionDef>(func_def));
+            break;
+        }
+        default:
             return nullptr;
         }
-        fields.push_back(std::make_shared<Identifier>(field_name_maybe.value(), field_name_maybe.value().value(), field_type));
     } while (current_code() != TokenCode::CloseBrace);
     lex();
-    return std::make_shared<StructDefinition>(struct_token, name, fields);
+    return std::make_shared<StructDefinition>(struct_token, name, fields, methods);
 }
 
 std::shared_ptr<VariableDeclaration> Parser::parse_static_variable_declaration()
@@ -632,7 +645,7 @@ private:
         { TokenCode::Tilde, OperandKind::None, OperandKind::None, -1, OperandKind::Value, 13 },
         { TokenCode::ExclamationPoint, OperandKind::None, OperandKind::None, -1, OperandKind::Value, 13 },
         { TokenCode::AtSign, OperandKind::None, OperandKind::None, -1, OperandKind::Value, 13 },
-        { TokenCode::Period, OperandKind::Value, OperandKind::Value, 14 },
+        { TokenCode::Period, OperandKind::Value, OperandKind::Value, 14, OperandKind::Value, 14 },
         { TokenCode::OpenBracket, OperandKind::Value, OperandKind::Value, 14 },
         { TokenCode::OpenParen, OperandKind::Value, OperandKind::Value, 14 },
         { Parser::KeywordAs, OperandKind::Value, OperandKind::Type, 14 },

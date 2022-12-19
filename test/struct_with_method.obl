@@ -1,0 +1,18 @@
+struct A {
+  foo: s64
+  bar: s64
+
+  func quux() : s32
+  {
+    return 12
+  }
+}
+
+func main(): s32
+{
+  var a: A
+  a.foo = 2
+  a.bar = 5
+  var x = a.quux()
+  return x
+}

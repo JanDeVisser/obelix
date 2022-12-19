@@ -36,10 +36,21 @@ std::string BoundType::to_string() const
 
 // -- BoundStructDefinition -------------------------------------------------
 
-BoundStructDefinition::BoundStructDefinition(std::shared_ptr<StructDefinition> const& struct_def, std::shared_ptr<ObjectType> type)
+BoundStructDefinition::BoundStructDefinition(pStructDefinition const& struct_def, pObjectType type, BoundIdentifiers fields, Statements methods)
     : BoundStatement(struct_def->token())
     , m_name(struct_def->name())
     , m_type(std::move(type))
+    , m_fields(std::move(fields))
+    , m_methods(std::move(methods))
+{
+}
+
+BoundStructDefinition::BoundStructDefinition(Token token, pObjectType type, BoundIdentifiers fields, Statements methods)
+    : BoundStatement(std::move(token))
+    , m_name(type->name())
+    , m_type(std::move(type))
+    , m_fields(std::move(fields))
+    , m_methods(std::move(methods))
 {
 }
 
@@ -58,6 +69,13 @@ std::string BoundStructDefinition::attributes() const
     return format(R"(name="{}")", name());
 }
 
+Nodes BoundStructDefinition::children() const
+{
+    Nodes ret;
+    ret.push_back(std::make_shared<NodeList<Statement>>("methods", m_methods));
+    return ret;
+}
+
 std::string BoundStructDefinition::to_string() const
 {
     auto ret = format("struct {} {", name());
@@ -67,6 +85,24 @@ std::string BoundStructDefinition::to_string() const
     }
     ret += " }";
     return ret;
+}
+
+BoundIdentifiers const& BoundStructDefinition::fields() const
+{
+    return m_fields;
+}
+
+Statements const& BoundStructDefinition::methods() const
+{
+    return m_methods;
+}
+
+bool BoundStructDefinition::is_fully_bound() const
+{
+    return std::all_of(m_methods.begin(), m_methods.end(),
+            [](pStatement const& stmt) {
+                return stmt->is_fully_bound();
+            });
 }
 
 // -- BoundEnumValueDef -----------------------------------------------------

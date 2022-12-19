@@ -112,6 +112,7 @@ namespace Obelix {
     S(BoundFunctionCall)                \
     S(BoundNativeFunctionCall)          \
     S(BoundIntrinsicCall)               \
+    S(BoundMethodCall)                  \
     S(BoundVariableDeclaration)         \
     S(BoundStaticVariableDeclaration)   \
     S(BoundLocalVariableDeclaration)    \
@@ -132,6 +133,7 @@ namespace Obelix {
     S(BoundFunctionDecl)                \
     S(BoundNativeFunctionDecl)          \
     S(BoundIntrinsicDecl)               \
+    S(BoundMethodDecl)                  \
     S(BoundAssignment)                  \
     S(BoundConditionalValue)            \
     S(BoundFunctionDef)
@@ -141,7 +143,7 @@ enum class SyntaxNodeType {
 #define ENUM_SYNTAXNODETYPE(type) type,
     ENUMERATE_SYNTAXNODETYPES(ENUM_SYNTAXNODETYPE)
 #undef ENUM_SYNTAXNODETYPE
-    NodeList,
+        NodeList,
     Count
 };
 

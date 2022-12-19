@@ -191,6 +191,21 @@ ErrorOrNode process_tree(std::shared_ptr<SyntaxNode> const& tree, Context& ctx, 
         return std::make_shared<StructDefinition>(struct_def->token(), struct_def->name(), fields);
     }
 
+    case SyntaxNodeType::BoundStructDefinition: {
+        auto struct_def = std::dynamic_pointer_cast<BoundStructDefinition>(tree);
+        BoundIdentifiers fields;
+        for (auto const& field : struct_def->fields()) {
+            auto processed_field = TRY_AND_CAST(BoundIdentifier, field, ctx);
+            fields.push_back(processed_field);
+        }
+        Statements methods;
+        for (auto const& method : struct_def->methods()) {
+            auto processed_method = TRY_AND_CAST(Statement, method, ctx);
+            methods.push_back(processed_method);
+        }
+        return std::make_shared<BoundStructDefinition>(struct_def->token(), struct_def->type(), fields, methods);
+    }
+
     case SyntaxNodeType::EnumDef: {
         auto enum_def = std::dynamic_pointer_cast<EnumDef>(tree);
         EnumValues values;
@@ -272,7 +287,8 @@ ErrorOrNode process_tree(std::shared_ptr<SyntaxNode> const& tree, Context& ctx, 
 
     case SyntaxNodeType::BoundFunctionDecl:
     case SyntaxNodeType::BoundNativeFunctionDecl:
-    case SyntaxNodeType::BoundIntrinsicDecl: {
+    case SyntaxNodeType::BoundIntrinsicDecl:
+    case SyntaxNodeType::BoundMethodDecl: {
         auto func_decl = std::dynamic_pointer_cast<BoundFunctionDecl>(tree);
         auto identifier = std::dynamic_pointer_cast<BoundIdentifier>(func_decl->identifier());
         BoundIdentifiers parameters;
@@ -289,6 +305,9 @@ ErrorOrNode process_tree(std::shared_ptr<SyntaxNode> const& tree, Context& ctx, 
             break;
         case SyntaxNodeType::BoundIntrinsicDecl:
             ret = std::make_shared<BoundIntrinsicDecl>(func_decl, func_decl->module(), identifier, parameters);
+            break;
+        case SyntaxNodeType::BoundMethodDecl:
+            ret = std::make_shared<BoundMethodDecl>(func_decl, std::dynamic_pointer_cast<BoundMethodDecl>(func_decl)->method());
             break;
         default:
             fatal("Unreachable");
