@@ -137,13 +137,15 @@ MaterializeContext& make_subcontext(MaterializeContext& ctx, Args&&... args)
 
 [[nodiscard]] int offset(MaterializeContext const& ctx)
 {
-    return ctx.call_on_ancestors<int>(
+    auto ret = ctx.call_on_ancestors<int>(
         [](MaterializeContext const& ctx) -> std::optional<int> {
             if (ctx().level() == MaterializeContextPayload::ContextLevel::Block)
                 return {};
             return ctx().offset();
         }
     );
+    assert(ret.has_value());
+    return ret.value();
 }
 
 void increase_offset(MaterializeContext& ctx, int increment)

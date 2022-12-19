@@ -203,12 +203,13 @@ public:
     }
 
     template <typename Return>
-    Return call_on_ancestors(std::function<std::optional<Return>(Context<T,Payload>&)> const& action)
+    std::optional<Return> call_on_ancestors(std::function<std::optional<Return>(Context<T,Payload>&)> const& action)
     {
         auto result_maybe = action(*this);
         if (result_maybe.has_value())
             return result_maybe.value();
-        assert(parent() != nullptr);
+        if (parent() == nullptr)
+            return {};
         return parent()->template call_on_ancestors<Return>(action);
     }
 
@@ -220,12 +221,13 @@ public:
     }
 
     template <typename Return>
-    [[nodiscard]] Return call_on_ancestors(std::function<std::optional<Return>(Context<T,Payload> const&)> const& action) const
+    [[nodiscard]] std::optional<Return> call_on_ancestors(std::function<std::optional<Return>(Context<T,Payload> const&)> const& action) const
     {
         auto result_maybe = action(*this);
         if (result_maybe.has_value())
             return result_maybe.value();
-        assert(parent() != nullptr);
+        if (parent() == nullptr)
+            return {};
         return parent()->template call_on_ancestors<Return>(action);
     }
 
