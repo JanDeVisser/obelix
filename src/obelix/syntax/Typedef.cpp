@@ -35,19 +35,19 @@ std::string const& StructForward::name() const
 
 // -- StructDefinition ------------------------------------------------------
 
-StructDefinition::StructDefinition(Token token, std::string name, Identifiers fields)
+StructDefinition::StructDefinition(Token token, std::string name, Identifiers fields, FunctionDefs methods)
     : Statement(std::move(token))
     , m_name(std::move(name))
     , m_fields(std::move(fields))
+    , m_methods(std::move(methods))
 {
 }
 
 Nodes StructDefinition::children() const
 {
     Nodes ret;
-    for (auto const& field : m_fields) {
-        ret.push_back(field);
-    }
+    ret.push_back(std::make_shared<NodeList<Identifier>>("fields", m_fields));
+    ret.push_back(std::make_shared<NodeList<FunctionDef>>("methods", m_methods));
     return ret;
 }
 
@@ -74,6 +74,11 @@ std::string const& StructDefinition::name() const
 Identifiers const& StructDefinition::fields() const
 {
     return m_fields;
+}
+
+FunctionDefs const& StructDefinition::methods() const
+{
+    return m_methods;
 }
 
 // -- EnumValue -------------------------------------------------------------
