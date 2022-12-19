@@ -14,7 +14,7 @@ namespace Obelix {
 
 QStringScanner::QStringScanner(std::string quotes)
     : Scanner()
-    , m_quotes(move(quotes))
+    , m_quotes(std::move(quotes))
 {
 }
 
