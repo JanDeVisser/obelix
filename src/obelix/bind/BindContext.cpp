@@ -45,6 +45,7 @@ pModuleContext ContextImpl::module_impl()
 {
     switch (type()) {
     case BindContextType::SubContext:
+    case BindContextType::StructContext:
         assert(parent_impl() != nullptr);
         return parent_impl()->module_impl();
     case BindContextType::ModuleContext:
@@ -59,6 +60,7 @@ pRootContext ContextImpl::root_impl()
     switch (type()) {
     case BindContextType::SubContext:
     case BindContextType::ModuleContext:
+    case BindContextType::StructContext:
         assert(parent_impl() != nullptr);
         return parent_impl()->root_impl();
     case BindContextType::RootContext:
@@ -70,6 +72,7 @@ pModuleContext ContextImpl::module_impl(std::string const& module)
 {
     switch (type()) {
     case BindContextType::SubContext:
+    case BindContextType::StructContext:
         assert(parent_impl() != nullptr);
         return root_impl()->module_impl(module);
     case BindContextType::ModuleContext: {
@@ -83,7 +86,7 @@ pModuleContext ContextImpl::module_impl(std::string const& module)
     }
 }
 
-std::optional<SyntaxError> ContextImpl::declare(std::string const& name, pBoundVariableDeclaration const& decl)
+ErrorOr<void, SyntaxError> ContextImpl::declare(std::string const& name, pBoundVariableDeclaration const& decl)
 {
     if (m_variables.contains(name))
         return SyntaxError(ErrorCode::VariableAlreadyDeclared, name);
@@ -101,7 +104,6 @@ std::optional<pBoundVariableDeclaration> ContextImpl::get(std::string const& nam
         return m_parent_impl->get(name);
     return {};
 }
-
 
 // -- SubContext ------------------------------------------------------------
 
@@ -215,12 +217,26 @@ BoundStatements const& ModuleContext::imports() const
 void ModuleContext::dump() const
 {
     std::cerr << name() << "\n";
-    for (int count = 0; count < name().length(); ++count) std::cerr << "=";
+    for (int count = 0; count < name().length(); ++count)
+        std::cerr << "=";
     std::cerr << "\n";
     for (auto const& fnc : exports()) {
         std::cerr << fnc->to_string() << "\n";
     }
     std::cerr << "\n";
+}
+
+// -- StructContext ---------------------------------------------------------
+
+StructContext::StructContext(pContextImpl parent_impl, std::string name)
+    : ExportsFunctions(BindContextType::StructContext, std::move(parent_impl))
+    , m_name(std::move(name))
+{
+}
+
+std::string const& StructContext::name() const
+{
+    return m_name;
 }
 
 // -- RootContext -----------------------------------------------------------
@@ -286,6 +302,26 @@ void RootContext::add_module_context(pModuleContext const& ctx)
         m_module_contexts[ctx->name()] = ctx;
 }
 
+pBoundStructDefinition RootContext::struct_definition(std::string const& name)
+{
+    if (auto ctx = struct_context(name); ctx != nullptr)
+        return ctx->struct_definition;
+    return nullptr;
+}
+
+pStructContext RootContext::struct_context(const std::string& name)
+{
+    if (m_struct_contexts.contains(name))
+        return m_struct_contexts.at(name);
+    return nullptr;
+}
+
+void RootContext::add_struct_context(pStructContext const& ctx)
+{
+    if (!m_struct_contexts.contains(ctx->name()))
+        m_struct_contexts[ctx->name()] = ctx;
+}
+
 void RootContext::dump() const
 {
     std::cerr << "\nExported Functions:\n";
@@ -315,6 +351,7 @@ BindContext::BindContext(BindContextType type)
         m_impl = std::make_shared<SubContext>(impl());
         break;
     case BindContextType::ModuleContext:
+    case BindContextType::StructContext:
         break;
     case BindContextType::RootContext:
         m_impl = std::make_shared<RootContext>(impl());
@@ -338,13 +375,41 @@ BindContext& BindContext::make_modulecontext(const std::string& name)
     auto root = std::dynamic_pointer_cast<RootContext>(m_impl);
     auto impl = root->module_context(name);
     if (impl == nullptr) {
-        impl = std::make_shared<ModuleContext>(this->impl(), name);
+        impl = std::make_shared<ModuleContext>(m_impl, name);
         root->add_module_context(impl);
     }
     sub.m_impl = impl;
-    sub.return_type = return_type;
     m_impl->m_child_impls.push_back(sub.m_impl);
     return sub;
+}
+
+BindContext& BindContext::make_structcontext(const std::string& name)
+{
+    assert(m_impl->type() == BindContextType::ModuleContext);
+    auto& sub = m_children.emplace_back(BindContextType::StructContext);
+    auto module = std::dynamic_pointer_cast<ModuleContext>(m_impl);
+    auto root = std::dynamic_pointer_cast<RootContext>(m_impl->root_impl());
+    auto impl = root->struct_context(name);
+    if (impl == nullptr) {
+        impl = std::make_shared<StructContext>(m_impl, name);
+        root->add_struct_context(impl);
+    }
+    sub.m_impl = impl;
+    m_impl->m_child_impls.push_back(sub.m_impl);
+    return sub;
+}
+
+std::string BindContext::scope_name() const
+{
+    auto impl = m_impl;
+    while (impl != nullptr) {
+        if (impl->type() == BindContextType::StructContext)
+            return std::dynamic_pointer_cast<StructContext>(impl)->name();
+        if (impl->type() == BindContextType::ModuleContext)
+            return std::dynamic_pointer_cast<ModuleContext>(impl)->name();
+        impl = impl->parent_impl();
+    }
+    fatal("Unreachable");
 }
 
 void BindContext::add_custom_type(pObjectType type)
@@ -357,7 +422,7 @@ ObjectTypes const& BindContext::custom_types() const
     return m_impl->root_impl()->custom_types();
 }
 
-std::optional<SyntaxError> BindContext::declare(std::string const& name, Obelix::pBoundVariableDeclaration const& decl)
+ErrorOr<void, SyntaxError> BindContext::declare(std::string const& name, Obelix::pBoundVariableDeclaration const& decl)
 {
     return impl()->declare(name, decl);
 }
@@ -440,6 +505,17 @@ pBoundModule BindContext::module(std::string const& name) const
     return m_impl->root_impl()->module(name);
 }
 
+pBoundStructDefinition BindContext::struct_definition(std::string const& name)
+{
+    return m_impl->root_impl()->struct_definition(name);
+}
+
+void BindContext::set_struct_definition(pBoundStructDefinition struct_def)
+{
+    assert(m_impl->type() == BindContextType::StructContext);
+    std::dynamic_pointer_cast<StructContext>(m_impl)->struct_definition = std::move(struct_def);
+}
+
 pBoundFunctionDecl BindContext::match(std::string const& name, ObjectTypes arg_types, bool also_check_root) const
 {
     if (auto ret = m_impl->module_impl()->match(name, arg_types); ret != nullptr)
@@ -463,6 +539,17 @@ pBoundFunctionDecl BindContext::match(std::string const& module, std::string con
 void BindContext::dump() const
 {
     m_impl->root_impl()->dump();
+}
+
+bool BindContext::in_struct_def() const
+{
+    auto impl = m_impl;
+    while (impl != nullptr) {
+        if (impl->type() == BindContextType::StructContext)
+            return true;
+        impl = impl->parent_impl();
+    }
+    return false;
 }
 
 }

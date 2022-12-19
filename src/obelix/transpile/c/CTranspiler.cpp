@@ -25,7 +25,7 @@ logging_category(c_transpiler);
 
 static std::string obl_dir;
 
-std::string c_function_name(pBoundFunctionDecl const& function)
+std::string c_function_name(pBoundFunctionDecl const& function, CTranspilerContext &ctx)
 {
     static std::map<std::string, std::string> name_for_function;
     static std::set<size_t> hashes;
@@ -42,7 +42,12 @@ std::string c_function_name(pBoundFunctionDecl const& function)
     if (function->name() == "main")
         return "$main";
 
-    auto function_name = format("{}${}", function->module(), function->name());
+    std::string function_name;
+    if (auto method = std::dynamic_pointer_cast<BoundMethodDecl>(function); method != nullptr) {
+        function_name = format("${}${}", method->method()->method_of()->name(), function->name());
+    } else {
+        function_name = format("{}${}", function->module(), function->name());
+    }
     replace_all(function_name, "/", "$");
 
     if (function->parameters().empty())
@@ -140,6 +145,25 @@ std::string type_initialize(std::shared_ptr<ObjectType> const& type)
     return initial_value;
 }
 
+void function_decl(CTranspilerContext& ctx, pBoundFunctionDecl const& function, bool parameter_names = false)
+{
+    type_to_c_type(ctx, function->type());
+    write(ctx, format(" {}(", c_function_name(function, ctx)));
+    auto method = std::dynamic_pointer_cast<BoundMethodDecl>(function);
+    if (method != nullptr) {
+        type_to_c_type(ctx, method->method()->method_of());
+        if (parameter_names)
+            write(ctx, " $this");
+    }
+    for (auto const& param : function->parameters()) {
+        write(ctx, ", ");
+        type_to_c_type(ctx, param->type());
+        if (parameter_names)
+            write(ctx, param->name());
+    }
+    write(ctx, ")");
+}
+
 ErrorOr<void, SyntaxError> evaluate_arguments(CTranspilerContext& ctx, ProcessResult& result, std::shared_ptr<BoundFunctionDecl> const& decl, BoundExpressions const& arguments)
 {
     auto first { true };
@@ -157,6 +181,12 @@ ErrorOr<void, SyntaxError> function_call(CTranspilerContext& ctx, ProcessResult&
 {
     writeln(ctx, "({");
     indent(ctx);
+    if (auto method = std::dynamic_pointer_cast<BoundMethodDecl>(call->declaration()); method != nullptr) {
+        type_to_c_type(ctx, method->method()->method_of());
+        write(ctx, " $this = ");
+        TRY_RETURN(process(std::dynamic_pointer_cast<BoundMethodCall>(call)->self(), ctx));
+        writeln(ctx, ";");
+    }
     auto count { 0 };
     for (auto const& arg : call->arguments()) {
         type_to_c_type(ctx, arg->type());
@@ -170,13 +200,12 @@ ErrorOr<void, SyntaxError> function_call(CTranspilerContext& ctx, ProcessResult&
     writeln(ctx, ";");
     count = 0;
     for (auto const& arg : call->arguments()) {
-        auto method_descr_maybe = arg->type()->get_method(Operator::Destructor, {});
-        if (method_descr_maybe.has_value()) {
-            auto method_descr = method_descr_maybe.value();
+        auto method_descr = arg->type()->get_method(Operator::Destructor, {});
+        if (method_descr != nullptr) {
             writeln(ctx, "({");
             indent(ctx);
             writeln(ctx, format("{} $self = $arg{};", type_to_c_type(arg->type()), count));
-            CTranspilerFunctionType impl = get_c_transpiler_intrinsic(method_descr.implementation().intrinsic);
+            CTranspilerFunctionType impl = get_c_transpiler_intrinsic(method_descr->implementation().intrinsic);
             if (!impl)
                 return SyntaxError { ErrorCode::InternalError, call->token(), format("No C Transpiler implementation for destructor of {}", arg->type()) };
             TRY_RETURN(impl(ctx, {}));
@@ -206,14 +235,13 @@ ErrorOr<void,SyntaxError> transpile_block(pBlock const& block, CTranspilerContex
         auto variable = std::dynamic_pointer_cast<BoundVariableDeclaration>(name_var.second);
         if (variable->is_static())
             continue;
-        auto method_descr_maybe = variable->type()->get_method(Operator::Destructor, {});
-        if (!method_descr_maybe.has_value())
+        auto method_descr = variable->type()->get_method(Operator::Destructor, {});
+        if (method_descr == nullptr)
             continue;
-        auto method_descr = method_descr_maybe.value();
         writeln(ctx, "({");
         indent(ctx);
         writeln(ctx, format("{} $self = {};", type_to_c_type(variable->type()), variable->name()));
-        CTranspilerFunctionType impl = get_c_transpiler_intrinsic(method_descr.implementation().intrinsic);
+        CTranspilerFunctionType impl = get_c_transpiler_intrinsic(method_descr->implementation().intrinsic);
         if (!impl)
             return SyntaxError { ErrorCode::InternalError, variable->token(), format("No C Transpiler implementation for destructor of {}", variable->type()) };
         TRY_RETURN(impl(ctx, {}));
@@ -287,21 +315,35 @@ R"(/*
             num_exports++;
             if (auto function = std::dynamic_pointer_cast<BoundFunctionDecl>(exprt); function != nullptr) {
                 write(ctx, "extern ");
-                type_to_c_type(ctx, function->type());
-                write(ctx, format(" {}(", c_function_name(function)));
-                auto first { true };
-                for (auto const& param : function->parameters()) {
-                    if (!first)
-                        write(ctx, ", ");
-                    type_to_c_type(ctx, param->type());
-                    first = false;
-                }
-                writeln(ctx, ");");
+                function_decl(ctx, function, false);
+                writeln(ctx, ";");
             }
             if (auto variable = std::dynamic_pointer_cast<BoundGlobalVariableDeclaration>(exprt); variable != nullptr) {
                 write(ctx, "extern ");
                 type_to_c_type(ctx, variable->type());
                 writeln(ctx, format(" {};", variable->name()));
+            }
+        }
+    }
+    for (auto const& module : compilation->modules()) {
+        if (module->name() == "/")
+            continue;
+        for (auto stmt : module->block()->statements()) {
+            auto bound_type = std::dynamic_pointer_cast<BoundStructDefinition>(stmt);
+            if (bound_type == nullptr)
+                continue;
+            auto num_methods = 0u;
+            auto struct_ctx = ctx.make_subcontext();
+            for (auto const& method : bound_type->methods()) {
+                auto bound_method = std::dynamic_pointer_cast<BoundFunctionDef>(method);
+                if (bound_method == nullptr)
+                    continue;
+                if (num_methods == 0)
+                    writeln(ctx, format("\n/* Methods of {}: */\n", bound_type->name()));
+                num_methods++;
+                write(ctx, "extern ");
+                function_decl(struct_ctx, bound_method->declaration(), false);
+                writeln(ctx, ";");
             }
         }
     }
@@ -386,27 +428,32 @@ NODE_PROCESSOR(BoundEnumDef)
     return tree;
 }
 
+NODE_PROCESSOR(BoundStructDefinition)
+{
+    auto struct_def = std::dynamic_pointer_cast<BoundStructDefinition>(tree);
+    auto struct_ctx = ctx.make_subcontext();
+    for (auto method_stmt : struct_def->methods()) {
+        if (auto method = std::dynamic_pointer_cast<BoundFunctionDef>(method_stmt); method != nullptr) {
+            TRY_RETURN(process(method, ctx, result));
+        }
+    }
+    return tree;
+}
+
 NODE_PROCESSOR(BoundFunctionDecl)
 {
     auto func_decl = std::dynamic_pointer_cast<BoundFunctionDecl>(tree);
-
-    type_to_c_type(ctx, func_decl->type());
-    write(ctx, format(" {}(", c_function_name(func_decl)));
-    auto first { true };
-    for (auto& param : func_decl->parameters()) {
-        if (!first)
-            write(ctx, ", ");
-        write(ctx, format("{} {}", type_to_c_type(param->type()), param->name()));
-        first = false;
-    }
-    writeln(ctx, ")");
+    function_decl(ctx, func_decl, true);
     return tree;
 }
+
+ALIAS_NODE_PROCESSOR(BoundMethodDecl, BoundFunctionDecl)
 
 NODE_PROCESSOR(BoundFunctionDef)
 {
     auto func_def = std::dynamic_pointer_cast<BoundFunctionDef>(tree);
     TRY_RETURN(process(func_def->declaration(), ctx));
+    auto s = func_def->statement();
     TRY_RETURN(process(func_def->statement(), ctx));
     return tree;
 }
@@ -415,7 +462,7 @@ NODE_PROCESSOR(BoundFunctionCall)
 {
     auto call = std::dynamic_pointer_cast<BoundFunctionCall>(tree);
     TRY_RETURN(function_call(ctx, result, call, [&call, &ctx]() -> ErrorOr<void, SyntaxError> {
-        write(ctx, c_function_name(call->declaration()));
+        write(ctx, c_function_name(call->declaration(), ctx));
         write(ctx, "(");
         for (auto ix = 0; ix < call->arguments().size(); ++ix) {
             if (ix > 0)
@@ -453,6 +500,22 @@ NODE_PROCESSOR(BoundIntrinsicCall)
         if (!impl)
             return SyntaxError { ErrorCode::InternalError, call->token(), format("No C Transpiler implementation for intrinsic {}", call->to_string()) };
         TRY_RETURN(impl(ctx, call->argument_types()));
+        return {};
+    }));
+    return tree;
+}
+
+NODE_PROCESSOR(BoundMethodCall)
+{
+    auto call = std::dynamic_pointer_cast<BoundMethodCall>(tree);
+    TRY_RETURN(function_call(ctx, result, call, [&call, &ctx]() -> ErrorOr<void, SyntaxError> {
+        write(ctx, c_function_name(call->declaration(), ctx));
+        write(ctx, "($this");
+        for (auto ix = 0; ix < call->arguments().size(); ++ix) {
+            write(ctx, ", ");
+            write(ctx, format("$arg{}", ix));
+        }
+        write(ctx, ")");
         return {};
     }));
     return tree;

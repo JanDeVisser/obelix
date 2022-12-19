@@ -1,5 +1,5 @@
 /*
- * Copyright (c) ${YEAR}, Jan de Visser <jan@finiandarcy.com>
+ * Copyright (c) 2021-2022, Jan de Visser <jan@finiandarcy.com>
  *
  * SPDX-License-Identifier: MIT
  */
@@ -54,7 +54,7 @@ FieldDef::FieldDef(std::string n, PrimitiveType t)
 {
 }
 
-FieldDef::FieldDef(std::string n, std::shared_ptr<ObjectType> t)
+FieldDef::FieldDef(std::string n, pObjectType t)
     : name(std::move(n))
     , type(std::move(t))
 {
@@ -65,39 +65,39 @@ bool FieldDef::operator==(Obelix::FieldDef const& other) const
     return name == other.name && *type == *other.type;
 }
 
-std::unordered_map<PrimitiveType, std::shared_ptr<ObjectType>> ObjectType::s_types_by_id {};
-std::unordered_map<std::string, std::shared_ptr<ObjectType>> ObjectType::s_types_by_name {};
-std::vector<std::shared_ptr<ObjectType>> ObjectType::s_template_specializations {};
+std::unordered_map<PrimitiveType, pObjectType> ObjectType::s_types_by_id {};
+std::unordered_map<std::string, pObjectType> ObjectType::s_types_by_name {};
+std::vector<pObjectType> ObjectType::s_template_specializations {};
 
-[[maybe_unused]] std::shared_ptr<ObjectType> s_self;
-[[maybe_unused]] std::shared_ptr<ObjectType> s_argument;
-[[maybe_unused]] std::shared_ptr<ObjectType> s_compatible;
-[[maybe_unused]] std::shared_ptr<ObjectType> s_assignable_to;
-[[maybe_unused]] std::shared_ptr<ObjectType> s_unknown;
-[[maybe_unused]] std::shared_ptr<ObjectType> s_void;
-[[maybe_unused]] std::shared_ptr<ObjectType> s_incrementable;
-[[maybe_unused]] std::shared_ptr<ObjectType> s_comparable;
-[[maybe_unused]] std::shared_ptr<ObjectType> s_boolean;
-[[maybe_unused]] std::shared_ptr<ObjectType> s_integer_number;
-[[maybe_unused]] std::shared_ptr<ObjectType> s_signed_integer_number;
-[[maybe_unused]] std::shared_ptr<ObjectType> s_integer;
-[[maybe_unused]] std::shared_ptr<ObjectType> s_unsigned;
-[[maybe_unused]] std::shared_ptr<ObjectType> s_long;
-[[maybe_unused]] std::shared_ptr<ObjectType> s_ulong;
-[[maybe_unused]] std::shared_ptr<ObjectType> s_word;
-[[maybe_unused]] std::shared_ptr<ObjectType> s_uword;
-[[maybe_unused]] std::shared_ptr<ObjectType> s_byte;
-[[maybe_unused]] std::shared_ptr<ObjectType> s_char;
-[[maybe_unused]] std::shared_ptr<ObjectType> s_float;
-[[maybe_unused]] std::shared_ptr<ObjectType> s_null;
-[[maybe_unused]] std::shared_ptr<ObjectType> s_pointer;
-[[maybe_unused]] std::shared_ptr<ObjectType> s_array;
-[[maybe_unused]] std::shared_ptr<ObjectType> s_char_ptr;
-[[maybe_unused]] std::shared_ptr<ObjectType> s_string;
-[[maybe_unused]] std::shared_ptr<ObjectType> s_enum;
-[[maybe_unused]] std::shared_ptr<ObjectType> s_conditional;
-[[maybe_unused]] std::shared_ptr<ObjectType> s_type;
-[[maybe_unused]] std::shared_ptr<ObjectType> s_any;
+[[maybe_unused]] pObjectType s_self;
+[[maybe_unused]] pObjectType s_argument;
+[[maybe_unused]] pObjectType s_compatible;
+[[maybe_unused]] pObjectType s_assignable_to;
+[[maybe_unused]] pObjectType s_unknown;
+[[maybe_unused]] pObjectType s_void;
+[[maybe_unused]] pObjectType s_incrementable;
+[[maybe_unused]] pObjectType s_comparable;
+[[maybe_unused]] pObjectType s_boolean;
+[[maybe_unused]] pObjectType s_integer_number;
+[[maybe_unused]] pObjectType s_signed_integer_number;
+[[maybe_unused]] pObjectType s_integer;
+[[maybe_unused]] pObjectType s_unsigned;
+[[maybe_unused]] pObjectType s_long;
+[[maybe_unused]] pObjectType s_ulong;
+[[maybe_unused]] pObjectType s_word;
+[[maybe_unused]] pObjectType s_uword;
+[[maybe_unused]] pObjectType s_byte;
+[[maybe_unused]] pObjectType s_char;
+[[maybe_unused]] pObjectType s_float;
+[[maybe_unused]] pObjectType s_null;
+[[maybe_unused]] pObjectType s_pointer;
+[[maybe_unused]] pObjectType s_array;
+[[maybe_unused]] pObjectType s_char_ptr;
+[[maybe_unused]] pObjectType s_string;
+[[maybe_unused]] pObjectType s_enum;
+[[maybe_unused]] pObjectType s_conditional;
+[[maybe_unused]] pObjectType s_type;
+[[maybe_unused]] pObjectType s_any;
 
 static void initialize_types()
 {
@@ -114,7 +114,7 @@ static void initialize_types()
     s_type = ObjectType::register_type(PrimitiveType::Type);
 
     s_incrementable = ObjectType::register_type(PrimitiveType::Incrementable,
-        [](std::shared_ptr<ObjectType> const& type) {
+        [](pObjectType const& type) {
             type->add_method(MethodDescription { Operator::UnaryIncrement, PrimitiveType::Self });
             type->add_method(MethodDescription { Operator::UnaryDecrement, PrimitiveType::Self });
             type->add_method(MethodDescription { Operator::BinaryIncrement, PrimitiveType::Self, IntrinsicType::NotIntrinsic, { { "other", PrimitiveType::Compatible } } });
@@ -122,7 +122,7 @@ static void initialize_types()
         });
 
     s_boolean = ObjectType::register_type(PrimitiveType::Boolean,
-        [](std::shared_ptr<ObjectType> const& type) {
+        [](pObjectType const& type) {
             type->add_method(MethodDescription { Operator::LogicalInvert, PrimitiveType::Self, IntrinsicType::invert_bool, {}, true });
             type->add_method(MethodDescription { Operator::LogicalAnd, PrimitiveType::Self, IntrinsicType::and_bool_bool, { { "other", PrimitiveType::Boolean } }, true });
             type->add_method(MethodDescription { Operator::LogicalOr, PrimitiveType::Self, IntrinsicType::or_bool_bool, { { "other", PrimitiveType::Boolean } }, true });
@@ -130,7 +130,7 @@ static void initialize_types()
         });
 
     s_comparable = ObjectType::register_type(PrimitiveType::Comparable,
-        [](std::shared_ptr<ObjectType> const& type) {
+        [](pObjectType const& type) {
             type->add_method(MethodDescription { Operator::Less, PrimitiveType::Boolean, IntrinsicType::NotIntrinsic, { { "other", PrimitiveType::Compatible } }, true });
             type->add_method(MethodDescription { Operator::LessEquals, PrimitiveType::Boolean, IntrinsicType::NotIntrinsic, { { "other", PrimitiveType::Compatible } }, true });
             type->add_method(MethodDescription { Operator::Greater, PrimitiveType::Boolean, IntrinsicType::NotIntrinsic, { { "other", PrimitiveType::Compatible } }, true });
@@ -138,7 +138,7 @@ static void initialize_types()
         });
 
     s_integer_number = ObjectType::register_type(PrimitiveType::IntegerNumber,
-        [](std::shared_ptr<ObjectType> const& type) {
+        [](pObjectType const& type) {
             type->has_template_parameter({ "signed", TemplateParameterType::Boolean });
             type->has_template_parameter({ "size", TemplateParameterType::Integer });
 
@@ -167,7 +167,7 @@ static void initialize_types()
         });
 
     s_signed_integer_number = ObjectType::register_type(PrimitiveType::SignedIntegerNumber,
-        [](std::shared_ptr<ObjectType> const& type) {
+        [](pObjectType const& type) {
             type->has_template_parameter({ "signed", TemplateParameterType::Boolean });
             type->has_template_parameter({ "size", TemplateParameterType::Integer });
 
@@ -175,20 +175,20 @@ static void initialize_types()
         });
 
     s_integer = ObjectType::register_type("s32", s_signed_integer_number, TemplateArguments { { "signed", true }, { "size", 4 } },
-        [](std::shared_ptr<ObjectType> const& type) {
+        [](pObjectType const& type) {
             type->has_alias("int");
             type->has_size(4);
             type->add_method(MethodDescription { Operator::Negate, PrimitiveType::Self, IntrinsicType::negate_s32, {}, true });
         });
 
     s_unsigned = ObjectType::register_type("u32", s_integer_number, TemplateArguments { { "signed", false }, { "size", 4 } },
-        [](std::shared_ptr<ObjectType> const& type) {
+        [](pObjectType const& type) {
             type->has_alias("uint");
             type->has_size(4);
         });
 
     s_long = ObjectType::register_type("s64", s_signed_integer_number, TemplateArguments { { "signed", true }, { "size", 8 } },
-        [](std::shared_ptr<ObjectType> const& type) {
+        [](pObjectType const& type) {
             type->has_alias("long");
             type->has_size(8);
             type->add_method(MethodDescription { Operator::Negate, PrimitiveType::Self, IntrinsicType::negate_s64, {}, true });
@@ -196,39 +196,39 @@ static void initialize_types()
 
     s_ulong = ObjectType::register_type("u64", s_integer_number,
         TemplateArguments { { "signed", false }, { "size", 8 } },
-        [](std::shared_ptr<ObjectType> const& type) {
+        [](pObjectType const& type) {
             type->has_alias("ulong");
             type->has_size(8);
         });
 
     s_word = ObjectType::register_type("s16", s_signed_integer_number, TemplateArguments { { "signed", true }, { "size", 2 } },
-        [](std::shared_ptr<ObjectType> const& type) {
+        [](pObjectType const& type) {
             type->has_alias("word");
             type->has_size(8);
             type->add_method(MethodDescription { Operator::Negate, PrimitiveType::Self, IntrinsicType::negate_s16, {}, true });
         });
 
     s_uword = ObjectType::register_type("u16", s_integer_number, TemplateArguments { { "signed", false }, { "size", 2 } },
-        [](std::shared_ptr<ObjectType> const& type) {
+        [](pObjectType const& type) {
             type->has_alias("uword");
             type->has_size(8);
         });
 
     s_byte = ObjectType::register_type("s8", s_signed_integer_number, TemplateArguments { { "signed", true }, { "size", 1 } },
-        [](std::shared_ptr<ObjectType> const& type) {
+        [](pObjectType const& type) {
             type->has_alias("char");
             type->has_size(1);
             type->add_method(MethodDescription { Operator::Negate, PrimitiveType::Self, IntrinsicType::negate_s8, {}, true });
         });
 
     s_char = ObjectType::register_type("u8", s_integer_number, TemplateArguments { { "signed", false }, { "size", 1 } },
-        [](std::shared_ptr<ObjectType> const& type) {
+        [](pObjectType const& type) {
             type->has_alias("byte");
             type->has_size(1);
         });
 
     s_float = ObjectType::register_type(PrimitiveType::Float,
-        [](std::shared_ptr<ObjectType> const& type) {
+        [](pObjectType const& type) {
             type->add_method(MethodDescription { Operator::Identity, PrimitiveType::Self, IntrinsicType::NotIntrinsic, {}, true });
             type->add_method(MethodDescription { Operator::Negate, PrimitiveType::Self, IntrinsicType::NotIntrinsic, {}, true });
             type->add_method(MethodDescription { Operator::Add, PrimitiveType::Self, IntrinsicType::NotIntrinsic, { { "other", PrimitiveType::Compatible } }, true });
@@ -240,11 +240,11 @@ static void initialize_types()
         });
 
     s_null = ObjectType::register_type(PrimitiveType::Null,
-        [](std::shared_ptr<ObjectType> const& type) {
+        [](pObjectType const& type) {
         });
 
     s_pointer = ObjectType::register_type(PrimitiveType::Pointer,
-        [](std::shared_ptr<ObjectType> const& type) {
+        [](pObjectType const& type) {
             type->has_template_parameter({ "target", TemplateParameterType::Type });
             type->has_alias("ptr");
             type->has_size(8);
@@ -257,19 +257,19 @@ static void initialize_types()
             type->add_method(MethodDescription { Operator::Subtract, PrimitiveType::Self, IntrinsicType::NotIntrinsic, { { "other", ObjectType::get("u64") } } });
             type->will_be_a(s_comparable);
 
-            type->has_template_stamp([](std::shared_ptr<ObjectType> const& instantiation) {
-                instantiation->add_method(MethodDescription { Operator::Dereference, instantiation->template_argument<std::shared_ptr<ObjectType>>("target") });
+            type->has_template_stamp([](pObjectType const& instantiation) {
+                instantiation->add_method(MethodDescription { Operator::Dereference, instantiation->template_argument<pObjectType>("target") });
             });
         });
 
     s_array = ObjectType::register_type(PrimitiveType::Array,
-        [](std::shared_ptr<ObjectType> const& type) {
+        [](pObjectType const& type) {
             type->has_template_parameter({ "base_type", TemplateParameterType::Type });
             type->has_template_parameter({ "size", TemplateParameterType::Integer });
             type->has_size(8);
 
-            type->has_template_stamp([](std::shared_ptr<ObjectType> const& instantiation) {
-                auto base_type = instantiation->template_argument<std::shared_ptr<ObjectType>>("base_type");
+            type->has_template_stamp([](pObjectType const& instantiation) {
+                auto base_type = instantiation->template_argument<pObjectType>("base_type");
                 instantiation->add_method(MethodDescription { Operator::Subscript, base_type,
                     IntrinsicType::NotIntrinsic, { { "subscript", ObjectType::get("s32") } } });
                 instantiation->has_size(instantiation->template_argument<long>("size") * base_type->size());
@@ -279,7 +279,7 @@ static void initialize_types()
     s_char_ptr = ObjectType::specialize(s_pointer, { { "target", s_char } }).value();
 
     s_string = ObjectType::register_type(PrimitiveType::String,
-        [](std::shared_ptr<ObjectType> const& type) {
+        [](pObjectType const& type) {
             type->add_method(MethodDescription { Operator::Add, PrimitiveType::Self, IntrinsicType::add_str_str, { { "other", PrimitiveType::Self } }, true });
             type->add_method(MethodDescription { Operator::Multiply, PrimitiveType::Self, IntrinsicType::multiply_str_int, { { "other", s_unsigned } }, true });
             type->add_method(MethodDescription { Operator::Destructor, PrimitiveType::Any, IntrinsicType::free_str, { {  } }, false });
@@ -288,26 +288,26 @@ static void initialize_types()
         });
 
     s_enum = ObjectType::register_type(PrimitiveType::Enum,
-        [](std::shared_ptr<ObjectType> const& type) {
+        [](pObjectType const& type) {
             type->has_template_parameter({ "base_type", TemplateParameterType::Type, TemplateParameterMultiplicity::Required, TemplateArgument(s_uword) });
             type->has_template_parameter({ "values", TemplateParameterType::NameValue, TemplateParameterMultiplicity::Multiple });
             type->has_size(4);
 
-            type->has_template_stamp([](std::shared_ptr<ObjectType> const& instantiation) {
+            type->has_template_stamp([](pObjectType const& instantiation) {
                 instantiation->add_method(MethodDescription { Operator::AddressOf, s_string,
                     IntrinsicType::enum_text_value, { } });
             });
         });
 
     s_conditional = ObjectType::register_type(PrimitiveType::Conditional,
-        [](std::shared_ptr<ObjectType> const& type) {
+        [](pObjectType const& type) {
             type->has_template_parameter({ "success_type", TemplateParameterType::Type, TemplateParameterMultiplicity::Required });
             type->has_template_parameter({ "error_type", TemplateParameterType::Type, TemplateParameterMultiplicity::Required });
             type->has_size(4);
 
-            type->has_template_stamp([](std::shared_ptr<ObjectType> const& instantiation) {
-                auto success_type = instantiation->template_argument<std::shared_ptr<ObjectType>>("success_type");
-                auto error_type = instantiation->template_argument<std::shared_ptr<ObjectType>>("error_type");
+            type->has_template_stamp([](pObjectType const& instantiation) {
+                auto success_type = instantiation->template_argument<pObjectType>("success_type");
+                auto error_type = instantiation->template_argument<pObjectType>("error_type");
                 instantiation->add_method(MethodDescription { "ok", success_type });
                 instantiation->add_method(MethodDescription { "error", error_type });
                 instantiation->has_size(ObjectType::get(PrimitiveType::Boolean)->size() + std::max(success_type->size(), error_type->size()));
@@ -315,7 +315,7 @@ static void initialize_types()
         });
 
     s_any = ObjectType::register_type(PrimitiveType::Any,
-        [](std::shared_ptr<ObjectType> const& type) {
+        [](pObjectType const& type) {
             type->add_method(MethodDescription { Operator::Assign, PrimitiveType::Self, IntrinsicType::NotIntrinsic, { { "other", PrimitiveType::Compatible } } });
             type->add_method(MethodDescription { Operator::Equals, PrimitiveType::Boolean, IntrinsicType::NotIntrinsic, { { "other", PrimitiveType::Compatible } } });
             type->add_method(MethodDescription { Operator::NotEquals, PrimitiveType::Boolean, IntrinsicType::NotIntrinsic, { { "other", PrimitiveType::Compatible } } });
@@ -355,11 +355,11 @@ std::string ObjectType::to_string() const
     return ret;
 }
 
-MethodDescription& ObjectType::add_method(MethodDescription md)
+pMethodDescription ObjectType::add_method(MethodDescription const& md)
 {
-    auto shared_ptr_type = ObjectType::get(name());
-    md.set_method_of(shared_ptr_type);
-    m_methods.push_back(md);
+    pMethodDescription new_md = std::make_shared<MethodDescription>(md, shared_from_this());
+    new_md->set_method_of(shared_from_this());
+    m_methods.push_back(std::move(new_md));
     return m_methods.back();
 }
 
@@ -375,7 +375,7 @@ ObjectType::ObjectType(PrimitiveType type, std::string name) noexcept
 {
 }
 
-void ObjectType::will_be_a(std::shared_ptr<ObjectType> type)
+void ObjectType::will_be_a(pObjectType type)
 {
     m_is_a.push_back(std::move(type));
 }
@@ -439,7 +439,7 @@ bool ObjectType::is_template_specialization() const
     return m_specializes_template != nullptr;
 }
 
-std::shared_ptr<ObjectType> ObjectType::specializes_template() const
+pObjectType ObjectType::specializes_template() const
 {
     return m_specializes_template;
 }
@@ -449,7 +449,7 @@ TemplateArguments const& ObjectType::template_arguments() const
     return m_template_arguments;
 }
 
-bool ObjectType::is_a(std::shared_ptr<ObjectType> const& other) const
+bool ObjectType::is_a(pObjectType const& other) const
 {
     return is_a(other.get());
 }
@@ -459,17 +459,22 @@ FieldDefs const& ObjectType::fields() const
     return m_fields;
 }
 
-bool ObjectType::is_assignable_to(std::shared_ptr<ObjectType> const& other) const
+bool ObjectType::is_assignable_to(pcObjectType const& other) const
 {
     return is_assignable_to(*other);
 }
 
-bool ObjectType::is_compatible_with(std::shared_ptr<ObjectType> const& other) const
+bool ObjectType::is_assignable_to(pObjectType const& other) const
+{
+    return is_assignable_to(*other);
+}
+
+bool ObjectType::is_compatible_with(pObjectType const& other) const
 {
     return is_compatible_with(*other);
 }
 
-CanCast ObjectType::can_cast_to(std::shared_ptr<ObjectType> const& other) const
+CanCast ObjectType::can_cast_to(pObjectType const& other) const
 {
     return can_cast_to(*other);
 }
@@ -518,13 +523,13 @@ bool ObjectType::is_assignable_to(ObjectType const& assignee) const
         return false;
     }
     if (assignee.type() == PrimitiveType::Conditional && type() != PrimitiveType::Conditional) {
-        auto success_type = assignee.template_argument<std::shared_ptr<ObjectType>>("success_type");
-        auto error_type = assignee.template_argument<std::shared_ptr<ObjectType>>("error_type");
+        auto success_type = assignee.template_argument<pObjectType>("success_type");
+        auto error_type = assignee.template_argument<pObjectType>("error_type");
         return is_assignable_to(success_type) || is_assignable_to(error_type);
     }
     if (assignee.type() != PrimitiveType::Conditional && type() == PrimitiveType::Conditional) {
-        auto success_type = template_argument<std::shared_ptr<ObjectType>>("success_type");
-        auto error_type = template_argument<std::shared_ptr<ObjectType>>("error_type");
+        auto success_type = template_argument<pObjectType>("success_type");
+        auto error_type = template_argument<pObjectType>("error_type");
         return success_type->is_assignable_to(assignee) || error_type->is_assignable_to(assignee);
     }
     if (is_template_specialization() && assignee.is_template_specialization() && (*specializes_template() == *assignee.specializes_template())) {
@@ -571,8 +576,8 @@ bool ObjectType::is_compatible_with(ObjectType const& other) const
         return false;
     }
     if (type() == PrimitiveType::Conditional && other.type() != PrimitiveType::Conditional) {
-        auto success_type = template_argument<std::shared_ptr<ObjectType>>("success_type");
-        auto error_type = template_argument<std::shared_ptr<ObjectType>>("error_type");
+        auto success_type = template_argument<pObjectType>("success_type");
+        auto error_type = template_argument<pObjectType>("error_type");
         return is_compatible_with(success_type) || is_compatible_with(error_type);
     }
     return *this == other;
@@ -609,7 +614,7 @@ CanCast ObjectType::can_cast_to(Obelix::ObjectType const& other) const
     }
 }
 
-ErrorOr<std::shared_ptr<ObjectType>> ObjectType::smallest_compatible_type() const
+ErrorOr<pObjectType> ObjectType::smallest_compatible_type() const
 {
     if (type() != PrimitiveType::IntegerNumber && type() != PrimitiveType::SignedIntegerNumber)
         return get(this);
@@ -693,13 +698,13 @@ bool ObjectType::has_template_argument(std::string const& arg) const
     return m_template_arguments.contains(arg);
 }
 
-bool ObjectType::is_compatible(MethodDescription const& mth, ObjectTypes const& argument_types) const
+bool ObjectType::is_compatible(pMethodDescription const& mth, ObjectTypes const& argument_types) const
 {
-    if (mth.parameters().size() != argument_types.size())
+    if (mth->parameters().size() != argument_types.size())
         return false;
     auto ix = 0u;
-    for (; ix < mth.parameters().size(); ++ix) {
-        auto const& param = mth.parameters()[ix];
+    for (; ix < mth->parameters().size(); ++ix) {
+        auto const& param = mth->parameters()[ix];
         auto const& arg_type = argument_types[ix];
         switch (param.type->type()) {
             case PrimitiveType::Self:
@@ -720,24 +725,24 @@ bool ObjectType::is_compatible(MethodDescription const& mth, ObjectTypes const& 
                 break;
         }
     }
-    return (ix == mth.parameters().size());
+    return (ix == mth->parameters().size());
 }
 
-std::optional<std::shared_ptr<ObjectType>> ObjectType::return_type_of(std::string_view method_name, ObjectTypes const& argument_types) const
+pObjectType ObjectType::return_type_of(std::string_view method_name, ObjectTypes const& argument_types) const
 {
-    auto check_methods_of = [&method_name, &argument_types, this](ObjectType const* type) -> std::shared_ptr<ObjectType> const& {
+    auto check_methods_of = [&method_name, &argument_types, this](ObjectType const* type) -> pObjectType {
         for (auto& mth : type->m_methods) {
-            if (mth.is_operator())
+            if (mth->is_operator())
                 continue;
-            if (mth.name() != method_name)
+            if (mth->name() != method_name)
                 continue;
             if (!is_compatible(mth, argument_types))
                 continue;
-            if (*(mth.return_type()) == *s_self)
+            if (*(mth->return_type()) == *s_self)
                 return ObjectType::get(this);
-            if (*(mth.return_type()) == *s_argument)
+            if (*(mth->return_type()) == *s_argument)
                 return argument_types[0];
-            return mth.return_type();
+            return mth->return_type();
         }
         return s_unknown;
     };
@@ -758,25 +763,23 @@ std::optional<std::shared_ptr<ObjectType>> ObjectType::return_type_of(std::strin
     return {};
 }
 
-std::optional<std::shared_ptr<ObjectType>> ObjectType::return_type_of(Operator op, ObjectTypes const& argument_types) const
+pObjectType ObjectType::return_type_of(Operator op, ObjectTypes const& argument_types) const
 {
-    auto check_operators_of = [&op, &argument_types, this](ObjectType const* type) -> std::shared_ptr<ObjectType> const& {
+    auto check_operators_of = [&op, &argument_types, this](ObjectType const* type) -> pObjectType {
         for (auto& mth : type->m_methods) {
-            if (!mth.is_operator())
+            if (!mth->is_operator())
                 continue;
-            if (mth.op() != op)
+            if (mth->op() != op)
                 continue;
-            if (!is_compatible(mth, argument_types)) {
-                debug(type, "Found operator but incompatible argument types");
+            if (!is_compatible(mth, argument_types))
                 continue;
-            }
-            if (mth.return_type()->type() == PrimitiveType::Self)
+            if (mth->return_type()->type() == PrimitiveType::Self)
                 return ObjectType::get(this);
-            if (mth.return_type()->type() == PrimitiveType::Argument)
+            if (mth->return_type()->type() == PrimitiveType::Argument)
                 return argument_types[0];
-            return mth.return_type();
+            return mth->return_type();
         }
-        return s_unknown;
+        return nullptr;
     };
 
     std::string s;
@@ -795,35 +798,92 @@ std::optional<std::shared_ptr<ObjectType>> ObjectType::return_type_of(Operator o
         }
         if (type->is_template_specialization())
             types.push_back(type->specializes_template());
-        debug(type, "Checking operators of type {}", type->to_string());
-        if (auto ret = check_operators_of(type.get()); *ret != *s_unknown) {
-            debug(type, "Return type is {}", ret->to_string());
+        if (auto ret = check_operators_of(type.get()); ret != nullptr)
             return ret;
-        }
     }
-    debug(type, "No matching operator found");
-    return {};
+    return nullptr;
 }
 
-std::optional<MethodDescription> ObjectType::get_method(Operator op) const
+MethodDescriptions ObjectType::methods(bool deep) const
 {
-    auto check_operators_of = [&op, this](ObjectType const* type) -> std::optional<MethodDescription> {
+    MethodDescriptions ret;
+    if (!deep)
+        return m_methods;
+
+    cObjectTypes types { s_any, shared_from_this() };
+    while (!types.empty()) {
+        auto type = types.back();
+        types.pop_back();
+        for (auto& is_a : type->m_is_a) {
+            types.push_back(is_a);
+        }
+        if (type->is_template_specialization())
+            types.push_back(type->specializes_template());
+        for (auto const& m : type->m_methods)
+            ret.push_back(m);
+    }
+    return ret;
+}
+
+
+pMethodDescription ObjectType::get_method(Operator op) const
+{
+    auto check_operators_of = [&op, this](ObjectType const* type) -> pMethodDescription {
         for (auto& mth : type->m_methods) {
-            if (!mth.is_operator())
+            if (!mth->is_operator())
                 continue;
-            if (mth.op() != op)
+            if (mth->op() != op)
                 continue;
-            if (*(mth.return_type()) == *s_self) {
-                auto ret = mth;
-                ret.set_return_type(ObjectType::get(this));
+            if (*(mth->return_type()) == *s_self) {
+                auto ret = std::make_shared<MethodDescription>(*mth);
+                ret->set_return_type(ObjectType::get(this));
                 return ret;
             }
             return mth;
         }
-        return {};
+        return nullptr;
     };
 
-    debug(type, "{}::get_method({})", this->to_string(), op);
+    cObjectTypes types { s_any, shared_from_this() };
+    while (!types.empty()) {
+        auto type = types.back();
+        types.pop_back();
+        for (auto& is_a : type->m_is_a) {
+            types.push_back(is_a);
+        }
+        if (type->is_template_specialization())
+            types.push_back(type->specializes_template());
+        if (auto ret = check_operators_of(type.get()); ret != nullptr)
+            return ret;
+    }
+    return {};
+}
+
+pMethodDescription ObjectType::get_method(Operator op, ObjectTypes const& argument_types) const
+{
+    auto check_operators_of = [&op, &argument_types, this](ObjectType const* type) -> pMethodDescription {
+        for (auto& mth : type->m_methods) {
+            if (!mth->is_operator())
+                continue;
+            if (mth->op() != op)
+                continue;
+            if (!mth->is_compatible(argument_types))
+                continue;
+            if (*(mth->return_type()) == *s_self) {
+                auto ret = std::make_shared<MethodDescription>(*mth);
+                ret->set_return_type(ObjectType::get(this));
+                return ret;
+            }
+            if (*(mth->return_type()) == *s_argument) {
+                auto ret = mth;
+                ret->set_return_type(argument_types[0]);
+                return ret;
+            }
+            return mth;
+        }
+        return nullptr;
+    };
+
     auto self = get(this);
     ObjectTypes types { s_any, self };
     while (!types.empty()) {
@@ -834,46 +894,38 @@ std::optional<MethodDescription> ObjectType::get_method(Operator op) const
         }
         if (type->is_template_specialization())
             types.push_back(type->specializes_template());
-        debug(type, "Checking operators of type {}", type->to_string());
-        if (auto ret = check_operators_of(type.get()); ret.has_value()) {
-            debug(type, "Return method is {}", ret.value().name());
+        if (auto ret = check_operators_of(type.get()); ret != nullptr)
             return ret;
-        }
     }
-    debug(type, "No matching operator found");
-    return {};
+    return nullptr;
 }
 
-std::optional<MethodDescription> ObjectType::get_method(Operator op, ObjectTypes const& argument_types) const
+pMethodDescription ObjectType::get_method(std::string const& name, ObjectTypes const& argument_types) const
 {
-    auto check_operators_of = [&op, &argument_types, this](ObjectType const* type) -> std::optional<MethodDescription> {
+    auto check_methods_of = [&name, &argument_types, this](ObjectType const* type) -> pMethodDescription {
         for (auto& mth : type->m_methods) {
-            if (!mth.is_operator())
+            if (mth->is_operator())
                 continue;
-            if (mth.op() != op)
+            if (mth->name() != name)
                 continue;
-            if (!is_compatible(mth, argument_types)) {
-                debug(type, "Found operator but incompatible argument types");
+            if (!is_compatible(mth, argument_types))
                 continue;
-            }
-            if (*(mth.return_type()) == *s_self) {
-                auto ret = mth;
-                ret.set_return_type(ObjectType::get(this));
+            if (*(mth->return_type()) == *s_self) {
+                auto ret = std::make_shared<MethodDescription>(*mth);
+                ret->set_return_type(ObjectType::get(this));
                 return ret;
             }
-            if (*(mth.return_type()) == *s_argument) {
+            if (*(mth->return_type()) == *s_argument) {
                 auto ret = mth;
-                ret.set_return_type(argument_types[0]);
+                ret->set_return_type(argument_types[0]);
                 return ret;
             }
             return mth;
         }
-        return {};
+        return nullptr;
     };
 
-    debug(type, "{}::get_method({})", this->to_string(), op);
-    auto self = get(this);
-    ObjectTypes types { s_any, self };
+    cObjectTypes types { s_any, shared_from_this() };
     while (!types.empty()) {
         auto type = types.back();
         types.pop_back();
@@ -882,32 +934,33 @@ std::optional<MethodDescription> ObjectType::get_method(Operator op, ObjectTypes
         }
         if (type->is_template_specialization())
             types.push_back(type->specializes_template());
-        debug(type, "Checking operators of type {}", type->to_string());
-        if (auto ret = check_operators_of(type.get()); ret.has_value()) {
-            debug(type, "Return method is {}", ret.value().name());
+        if (auto ret = check_methods_of(type.get()); ret != nullptr)
             return ret;
-        }
     }
-    debug(type, "No matching operator found");
-    return {};
+    return nullptr;
 }
 
-std::shared_ptr<ObjectType> const& ObjectType::get(PrimitiveType type)
+bool ObjectType::has_method(std::string const& name) const
+{
+    return std::any_of(m_methods.begin(), m_methods.end(), [&name](pMethodDescription const& method) -> bool {
+        return !method->is_operator() && name == method->name();
+    });
+}
+
+pObjectType const& ObjectType::get(PrimitiveType type)
 {
     initialize_types();
-    debug(type, "ObjectType::get({}: PrimitiveType)", type);
     if (!s_types_by_id.contains(type)) {
         ObjectType::register_type(type,
-            [](std::shared_ptr<ObjectType> const& type) {
+            [](pObjectType const& type) {
             });
     }
     return s_types_by_id.at(type);
 }
 
-std::shared_ptr<ObjectType> const& ObjectType::get(std::string const& type)
+pObjectType ObjectType::get(std::string const& type)
 {
     initialize_types();
-    debug(type, "ObjectType::get({}: std::string)", type);
     if (s_types_by_name.contains(type))
         return s_types_by_name.at(type);
     auto type_maybe = PrimitiveType_by_name(type);
@@ -916,10 +969,10 @@ std::shared_ptr<ObjectType> const& ObjectType::get(std::string const& type)
         s_types_by_name[type] = ret;
         return s_types_by_name[type];
     }
-    return s_unknown;
+    return nullptr;
 }
 
-std::shared_ptr<ObjectType> const& ObjectType::get(ObjectType const* type)
+pObjectType ObjectType::get(ObjectType const* type)
 {
     initialize_types();
     debug(type, "ObjectType::get({}: ObjectType*)", *type);
@@ -931,18 +984,17 @@ std::shared_ptr<ObjectType> const& ObjectType::get(ObjectType const* type)
             return instantiation;
         }
     }
-    return s_unknown;
+    return nullptr;
 }
 
-std::shared_ptr<ObjectType> ObjectType::register_type(PrimitiveType type, ObjectTypeBuilder const& builder) noexcept
+pObjectType ObjectType::register_type(PrimitiveType type, ObjectTypeBuilder const& builder) noexcept
 {
     return register_type(type, PrimitiveType_name(type), builder);
 }
 
-std::shared_ptr<ObjectType> ObjectType::register_type(PrimitiveType type, std::string const& name, ObjectTypeBuilder const& builder) noexcept
+pObjectType ObjectType::register_type(PrimitiveType type, std::string const& name, ObjectTypeBuilder const& builder) noexcept
 {
     initialize_types();
-    debug(type, "Registering primitive type {}", name);
     auto ptr = std::make_shared<ObjectType>(type, name);
     register_type_in_caches(ptr);
     if (builder != nullptr)
@@ -950,10 +1002,9 @@ std::shared_ptr<ObjectType> ObjectType::register_type(PrimitiveType type, std::s
     return ptr;
 }
 
-std::shared_ptr<ObjectType> ObjectType::register_type(std::string name, std::shared_ptr<ObjectType> const& specialization_of, TemplateArguments const& template_args, ObjectTypeBuilder const& builder) noexcept
+pObjectType ObjectType::register_type(std::string name, pObjectType const& specialization_of, TemplateArguments const& template_args, ObjectTypeBuilder const& builder) noexcept
 {
     initialize_types();
-    debug(type, "Registering {} as specialization of {} with arguments {}", name, specialization_of, template_args);
     auto ret_or_error = ObjectType::specialize(specialization_of, template_args);
     if (ret_or_error.is_error())
         fatal("specialize '{}' failed: {}", name, ret_or_error.error());
@@ -965,7 +1016,7 @@ std::shared_ptr<ObjectType> ObjectType::register_type(std::string name, std::sha
     return type;
 }
 
-std::shared_ptr<ObjectType> ObjectType::register_struct_type(std::string const& name, FieldDefs fields, ObjectTypeBuilder const& builder)
+pObjectType ObjectType::register_struct_type(std::string const& name, FieldDefs fields, ObjectTypeBuilder const& builder)
 {
     auto ret_or_error = make_struct_type(name, std::move(fields), builder);
     if (ret_or_error.is_error()) {
@@ -974,7 +1025,7 @@ std::shared_ptr<ObjectType> ObjectType::register_struct_type(std::string const& 
     return ret_or_error.value();
 }
 
-ErrorOr<std::shared_ptr<ObjectType>> ObjectType::specialize(std::shared_ptr<ObjectType> const& base_type, TemplateArguments const& template_args)
+ErrorOr<pObjectType> ObjectType::specialize(pObjectType const& base_type, TemplateArguments const& template_args)
 {
     static uint16_t counter = 0;
     if (base_type->is_parameterized() && (template_args.size() != base_type->template_parameters().size()))
@@ -989,7 +1040,7 @@ ErrorOr<std::shared_ptr<ObjectType>> ObjectType::specialize(std::shared_ptr<Obje
     }
     debug(type, "Specializing {} with arguments {}", base_type, template_args);
     auto specialization = register_type(base_type->type(), format("{}_{}", base_type->name(), counter++),
-        [&template_args, &base_type](std::shared_ptr<ObjectType> const& new_type) {
+        [&template_args, &base_type](pObjectType const& new_type) {
             new_type->m_specializes_template = base_type;
             new_type->m_template_arguments = template_args;
             if (base_type->m_stamp) {
@@ -1000,7 +1051,7 @@ ErrorOr<std::shared_ptr<ObjectType>> ObjectType::specialize(std::shared_ptr<Obje
     return specialization;
 }
 
-ErrorOr<std::shared_ptr<ObjectType>> ObjectType::specialize(std::string const& base_type_name, TemplateArguments const& template_args)
+ErrorOr<pObjectType> ObjectType::specialize(std::string const& base_type_name, TemplateArguments const& template_args)
 {
     auto base_type = ObjectType::get(base_type_name);
     if (base_type == nullptr || *base_type == *s_unknown)
@@ -1011,11 +1062,10 @@ ErrorOr<std::shared_ptr<ObjectType>> ObjectType::specialize(std::string const& b
     return new_type_maybe;
 }
 
-ErrorOr<std::shared_ptr<ObjectType>> ObjectType::make_struct_type(std::string name, FieldDefs fields, ObjectTypeBuilder const& builder)
+ErrorOr<pObjectType> ObjectType::make_struct_type(std::string name, FieldDefs fields, ObjectTypeBuilder const& builder)
 {
-    debug(type, "Making struct {}", name);
     initialize_types();
-    std::shared_ptr<ObjectType> ret;
+    pObjectType ret;
     if (s_types_by_name.contains(name)) {
         auto existing = s_types_by_name.at(name);
         if (existing->type() != PrimitiveType::Struct)
@@ -1046,7 +1096,7 @@ ErrorOr<std::shared_ptr<ObjectType>> ObjectType::make_struct_type(std::string na
     return ret;
 }
 
-std::shared_ptr<ObjectType> ObjectType::make_enum_type(std::string const& name, NVPs const& values)
+pObjectType ObjectType::make_enum_type(std::string const& name, NVPs const& values)
 {
     initialize_types();
     TemplateArgumentValues arg_values;
@@ -1075,7 +1125,7 @@ ErrorOr<void> ObjectType::extend_enum_type(NVPs const& new_values)
     return {};
 }
 
-void ObjectType::register_type_in_caches(std::shared_ptr<ObjectType> const& type)
+void ObjectType::register_type_in_caches(pObjectType const& type)
 {
     if (!type->is_template_specialization() && !s_types_by_id.contains(type->type()))
         s_types_by_id[type->type()] = type;
@@ -1087,7 +1137,7 @@ void ObjectType::register_type_in_caches(std::shared_ptr<ObjectType> const& type
 
 void ObjectType::dump()
 {
-    auto dump_type = [](std::shared_ptr<ObjectType> const& type) {
+    auto dump_type = [](pObjectType const& type) {
         return format("to_string: {} name: '{}', primitive type: {}, is_specialization: {}",
             type->to_string(), type->name(), type->type(), type->is_template_specialization());
     };

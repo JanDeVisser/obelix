@@ -94,7 +94,10 @@ struct Converter<PrimitiveType> {
 };
 
 class ObjectType;
-using ObjectTypes = std::vector<std::shared_ptr<ObjectType>>;
+using pObjectType = std::shared_ptr<ObjectType>;
+using pcObjectType = std::shared_ptr<ObjectType const>;
+using ObjectTypes = std::vector<pObjectType>;
+using cObjectTypes = std::vector<pcObjectType>;
 
 struct MethodImpl {
     bool is_intrinsic { false };
@@ -105,26 +108,30 @@ struct MethodImpl {
 
 struct MethodParameter {
     MethodParameter(char const* n, PrimitiveType);
-    MethodParameter(char const* n, std::shared_ptr<ObjectType>);
+    MethodParameter(char const* n, pObjectType);
+    MethodParameter(std::string n, pObjectType);
 
-    char const* name;
-    std::shared_ptr<ObjectType> type;
+    std::string name;
+    pObjectType type;
 };
 
 using MethodParameters = std::vector<MethodParameter>;
 
-class MethodDescription {
+class MethodDescription : public std::enable_shared_from_this<MethodDescription> {
 public:
     MethodDescription() = default;
+    MethodDescription(MethodDescription const&) = default;
+    MethodDescription(MethodDescription const&, pObjectType);
     MethodDescription(char const*, PrimitiveType, IntrinsicType = IntrinsicType::NotIntrinsic, MethodParameters = {}, bool pure = false);
-    MethodDescription(char const*, std::shared_ptr<ObjectType>, IntrinsicType = IntrinsicType::NotIntrinsic, MethodParameters = {}, bool pure = false);
+    MethodDescription(char const*, pObjectType, IntrinsicType = IntrinsicType::NotIntrinsic, MethodParameters = {}, bool pure = false);
+    MethodDescription(std::string, pObjectType, MethodParameters = {});
     MethodDescription(Operator, PrimitiveType, IntrinsicType = IntrinsicType::NotIntrinsic, MethodParameters = {}, bool pure = false);
-    MethodDescription(Operator, std::shared_ptr<ObjectType>, IntrinsicType = IntrinsicType::NotIntrinsic, MethodParameters = {}, bool pure = false);
+    MethodDescription(Operator, pObjectType, IntrinsicType = IntrinsicType::NotIntrinsic, MethodParameters = {}, bool pure = false);
 
-    [[nodiscard]] std::string_view name() const;
+    [[nodiscard]] std::string const& name() const;
     [[nodiscard]] Operator op() const;
-    [[nodiscard]] std::shared_ptr<ObjectType> const& return_type() const;
-    void set_return_type(std::shared_ptr<ObjectType> ret_type);
+    [[nodiscard]] pObjectType const& return_type() const;
+    void set_return_type(pObjectType const& ret_type);
     void set_default_implementation(std::string const&);
     void set_default_implementation(IntrinsicType);
     void set_implementation(Architecture, IntrinsicType);
@@ -135,36 +142,36 @@ public:
     [[nodiscard]] MethodParameters const& parameters() const;
     [[nodiscard]] bool is_operator() const;
     [[nodiscard]] bool is_pure() const;
-    [[nodiscard]] std::shared_ptr<class BoundIntrinsicDecl> declaration() const;
-    [[nodiscard]] std::shared_ptr<ObjectType> const& method_of() const;
+    [[nodiscard]] std::shared_ptr<class BoundFunctionDecl> declaration() const;
+    [[nodiscard]] pObjectType const& method_of() const;
+    [[nodiscard]] bool is_compatible(ObjectTypes const&) const;
 
 protected:
     void set_method_of(std::shared_ptr<ObjectType> method_of);
     friend class ObjectType;
 
 private:
-    union {
-        char const* m_name { nullptr };
-        Operator m_operator;
-    };
-    bool m_is_operator;
+    std::string m_name;
+    Operator m_operator { Operator::Invalid };
+    bool m_is_operator { false };
     bool m_is_pure { false };
     std::shared_ptr<ObjectType> m_return_type;
     bool m_varargs { false };
     MethodParameters m_parameters {};
-    MethodImpl m_default_implementation { true, false, IntrinsicType::NotIntrinsic, "" };
+    MethodImpl m_default_implementation { false, false, IntrinsicType::NotIntrinsic, "" };
     std::unordered_map<Architecture, MethodImpl> m_implementations {};
-    std::shared_ptr<ObjectType> m_method_of;
+    pObjectType m_method_of;
 };
 
-using MethodDescriptions = std::vector<MethodDescription>;
+using pMethodDescription = std::shared_ptr<MethodDescription>;
+using MethodDescriptions = std::vector<pMethodDescription>;
 
 struct FieldDef {
     FieldDef(std::string, PrimitiveType);
-    FieldDef(std::string, std::shared_ptr<ObjectType>);
+    FieldDef(std::string, pObjectType);
 
     std::string name;
-    std::shared_ptr<ObjectType> type;
+    pObjectType type;
     [[nodiscard]] bool operator==(FieldDef const&) const;
 };
 
@@ -240,13 +247,13 @@ struct Converter<TemplateParameterMultiplicity> {
 using NVP = std::pair<std::string, long>;
 using NVPs = std::vector<NVP>;
 
-using TemplateArgumentValue = std::variant<std::shared_ptr<ObjectType>, long, std::string, bool, NVP>;
+using TemplateArgumentValue = std::variant<pObjectType, long, std::string, bool, NVP>;
 using TemplateArgumentValues = std::vector<TemplateArgumentValue>;
 
 struct TemplateArgument {
     TemplateArgument() = default;
     explicit TemplateArgument(TemplateParameterType);
-    TemplateArgument(std::shared_ptr<ObjectType>);
+    TemplateArgument(pObjectType);
     TemplateArgument(long);
     TemplateArgument(int);
     TemplateArgument(std::string);
@@ -263,7 +270,7 @@ struct TemplateArgument {
     [[nodiscard]] std::string to_string() const;
     [[nodiscard]] bool operator==(TemplateArgument const&) const;
 
-    [[nodiscard]] std::shared_ptr<ObjectType> as_type() const;
+    [[nodiscard]] pObjectType as_type() const;
     [[nodiscard]] long as_integer() const;
     [[nodiscard]] std::string const& as_string() const;
     [[nodiscard]] bool as_bool() const;
@@ -357,7 +364,7 @@ enum class CanCast {
     Always,
 };
 
-using ObjectTypeBuilder = std::function<void(std::shared_ptr<ObjectType> const&)>;
+using ObjectTypeBuilder = std::function<void(pObjectType const&)>;
 using CanCastTo = std::function<CanCast(std::shared_ptr<const ObjectType> const&, std::shared_ptr<const ObjectType> const&)>;
 
 class ObjectType : public std::enable_shared_from_this<ObjectType> {
@@ -371,8 +378,7 @@ public:
     [[nodiscard]] bool is_custom() const { return m_custom; }
     void will_be_custom(bool custom) { m_custom = custom; }
 
-    MethodDescription& add_method(MethodDescription);
-    void will_be_a(std::shared_ptr<ObjectType>);
+    void will_be_a(pObjectType);
     void has_template_parameter(TemplateParameter const&);
     void has_size(size_t);
     void has_template_stamp(ObjectTypeBuilder const&);
@@ -387,7 +393,7 @@ public:
     [[nodiscard]] TemplateParameter const& template_parameter(std::string const&) const;
     [[nodiscard]] TemplateParameter const& template_parameter(size_t) const;
     [[nodiscard]] bool is_template_specialization() const;
-    [[nodiscard]] std::shared_ptr<ObjectType> specializes_template() const;
+    [[nodiscard]] pObjectType specializes_template() const;
     [[nodiscard]] TemplateArguments const& template_arguments() const;
     [[nodiscard]] bool has_template_argument(std::string const&) const;
 
@@ -427,74 +433,79 @@ public:
     }
 
     [[nodiscard]] bool is_a(ObjectType const*) const;
-    [[nodiscard]] bool is_a(std::shared_ptr<ObjectType> const&) const;
-    [[nodiscard]] std::optional<std::shared_ptr<ObjectType>> return_type_of(std::string_view method_name, ObjectTypes const& argument_types = {}) const;
-    [[nodiscard]] std::optional<std::shared_ptr<ObjectType>> return_type_of(Operator op, ObjectTypes const& argument_types = {}) const;
+    [[nodiscard]] bool is_a(pObjectType const&) const;
+    [[nodiscard]] pObjectType return_type_of(std::string_view method_name, ObjectTypes const& argument_types = {}) const;
+    [[nodiscard]] pObjectType return_type_of(Operator op, ObjectTypes const& argument_types = {}) const;
 
-    [[nodiscard]] std::optional<MethodDescription> get_method(Operator op) const;
-    [[nodiscard]] std::optional<MethodDescription> get_method(Operator op, ObjectTypes const& argument_types) const;
+    pMethodDescription add_method(MethodDescription const&);
+    [[nodiscard]] MethodDescriptions methods(bool) const;
+    [[nodiscard]] pMethodDescription get_method(Operator op) const;
+    [[nodiscard]] pMethodDescription get_method(Operator op, ObjectTypes const& argument_types) const;
+    [[nodiscard]] pMethodDescription get_method(std::string const&, ObjectTypes const& argument_types) const;
+    [[nodiscard]] bool has_method(std::string const&) const;
     [[nodiscard]] FieldDefs const& fields() const;
     [[nodiscard]] FieldDef const& field(std::string const&) const;
     ErrorOr<void> extend_enum_type(NVPs const&);
 
     bool operator==(ObjectType const&) const;
-    [[nodiscard]] bool is_assignable_to(std::shared_ptr<ObjectType> const&) const;
+    [[nodiscard]] bool is_assignable_to(pcObjectType const&) const;
+    [[nodiscard]] bool is_assignable_to(pObjectType const&) const;
     [[nodiscard]] bool is_assignable_to(ObjectType const&) const;
-    [[nodiscard]] bool is_compatible_with(std::shared_ptr<ObjectType> const&) const;
+    [[nodiscard]] bool is_compatible_with(pObjectType const&) const;
     [[nodiscard]] bool is_compatible_with(ObjectType const&) const;
 
-    [[nodiscard]] CanCast can_cast_to(std::shared_ptr<ObjectType> const&) const;
+    [[nodiscard]] CanCast can_cast_to(pObjectType const&) const;
     [[nodiscard]] CanCast can_cast_to(ObjectType const&) const;
 
     template<typename... Args>
-    [[nodiscard]] std::optional<std::shared_ptr<ObjectType>> return_type_of(std::string_view method_name, ObjectTypes& arg_types, std::shared_ptr<ObjectType> arg_type, Args&&... args) const
+    [[nodiscard]] pObjectType return_type_of(std::string_view method_name, ObjectTypes& arg_types, pObjectType arg_type, Args&&... args) const
     {
         arg_types.push_back(std::move(arg_type));
         return return_type_of(method_name, arg_types, std::forward<Args>(args)...);
     }
 
     template<typename... Args>
-    [[nodiscard]] std::optional<std::shared_ptr<ObjectType>> return_type_of(std::string_view method_name, std::shared_ptr<ObjectType> arg_type, Args&&... args) const
+    [[nodiscard]] pObjectType return_type_of(std::string_view method_name, pObjectType arg_type, Args&&... args) const
     {
         ObjectTypes arg_types { std::move(arg_type) };
         return return_type_of(method_name, arg_types, std::forward<Args>(args)...);
     }
 
     template<typename... Args>
-    [[nodiscard]] std::optional<std::shared_ptr<ObjectType>> return_type_of(Operator op, ObjectTypes& arg_types, std::shared_ptr<ObjectType> arg_type, Args&&... args) const
+    [[nodiscard]] pObjectType return_type_of(Operator op, ObjectTypes& arg_types, pObjectType arg_type, Args&&... args) const
     {
         arg_types.push_back(std::move(arg_type));
         return return_type_of(op, arg_types, std::forward<Args>(args)...);
     }
 
     template<typename... Args>
-    [[nodiscard]] std::optional<std::shared_ptr<ObjectType>> return_type_of(Operator op, std::shared_ptr<ObjectType> arg_type, Args&&... args) const
+    [[nodiscard]] pObjectType return_type_of(Operator op, pObjectType arg_type, Args&&... args) const
     {
         ObjectTypes arg_types { std::move(arg_type) };
         return return_type_of(op, arg_types, std::forward<Args>(args)...);
     }
 
-    static std::shared_ptr<ObjectType> register_type(PrimitiveType, ObjectTypeBuilder const& = nullptr) noexcept;
-    static std::shared_ptr<ObjectType> register_type(PrimitiveType, std::string const&, ObjectTypeBuilder const&) noexcept;
-    static std::shared_ptr<ObjectType> register_type(std::string, std::shared_ptr<ObjectType> const&, TemplateArguments const&, ObjectTypeBuilder const& = nullptr) noexcept;
+    static pObjectType register_type(PrimitiveType, ObjectTypeBuilder const& = nullptr) noexcept;
+    static pObjectType register_type(PrimitiveType, std::string const&, ObjectTypeBuilder const&) noexcept;
+    static pObjectType register_type(std::string, pObjectType const&, TemplateArguments const&, ObjectTypeBuilder const& = nullptr) noexcept;
 
-    static std::shared_ptr<ObjectType> const& get(PrimitiveType);
-    static std::shared_ptr<ObjectType> const& get(std::string const&);
-    static std::shared_ptr<ObjectType> const& get(ObjectType const*);
-    static ErrorOr<std::shared_ptr<ObjectType>> specialize(std::shared_ptr<ObjectType> const&, TemplateArguments const&);
-    static ErrorOr<std::shared_ptr<ObjectType>> specialize(std::string const&, TemplateArguments const&);
+    static pObjectType const& get(PrimitiveType);
+    static pObjectType get(std::string const&);
+    static pObjectType get(ObjectType const*);
+    static ErrorOr<pObjectType> specialize(pObjectType const&, TemplateArguments const&);
+    static ErrorOr<pObjectType> specialize(std::string const&, TemplateArguments const&);
 
-    static ErrorOr<std::shared_ptr<ObjectType>> make_struct_type(std::string, FieldDefs, ObjectTypeBuilder const& = nullptr);
-    static std::shared_ptr<ObjectType> register_struct_type(std::string const&, FieldDefs, ObjectTypeBuilder const& = nullptr);
-    static std::shared_ptr<ObjectType> make_enum_type(std::string const&, NVPs const&);
+    static ErrorOr<pObjectType> make_struct_type(std::string, FieldDefs, ObjectTypeBuilder const& = nullptr);
+    static pObjectType register_struct_type(std::string const&, FieldDefs, ObjectTypeBuilder const& = nullptr);
+    static pObjectType make_enum_type(std::string const&, NVPs const&);
 
-    [[nodiscard]] ErrorOr<std::shared_ptr<ObjectType>> smallest_compatible_type() const;
+    [[nodiscard]] ErrorOr<pObjectType> smallest_compatible_type() const;
 
     static void dump();
 
 private:
-    [[nodiscard]] bool is_compatible(MethodDescription const&, ObjectTypes const&) const;
-    static void register_type_in_caches(std::shared_ptr<ObjectType> const&);
+    [[nodiscard]] bool is_compatible(pMethodDescription const&, ObjectTypes const&) const;
+    static void register_type_in_caches(pObjectType const&);
 
     PrimitiveType m_type { PrimitiveType::Unknown };
     bool m_custom { false };
@@ -503,24 +514,22 @@ private:
     std::vector<std::string> m_aliases {};
     MethodDescriptions m_methods {};
     FieldDefs m_fields {};
-    std::vector<std::shared_ptr<ObjectType>> m_is_a;
+    std::vector<pObjectType> m_is_a;
     TemplateParameters m_template_parameters {};
     std::vector<std::string> m_template_parameters_by_index {};
-    std::shared_ptr<ObjectType> m_specializes_template { nullptr };
+    pObjectType m_specializes_template { nullptr };
     TemplateArguments m_template_arguments {};
     ObjectTypeBuilder m_stamp {};
     CanCastTo m_can_cast_to {};
 
-    static std::unordered_map<PrimitiveType, std::shared_ptr<ObjectType>> s_types_by_id;
-    static std::unordered_map<std::string, std::shared_ptr<ObjectType>> s_types_by_name;
-    static std::vector<std::shared_ptr<ObjectType>> s_template_specializations;
+    static std::unordered_map<PrimitiveType, pObjectType> s_types_by_id;
+    static std::unordered_map<std::string, pObjectType> s_types_by_name;
+    static std::vector<pObjectType> s_template_specializations;
 };
-
-using pObjectType = std::shared_ptr<ObjectType>;
 
 template<typename T>
 struct TypeGetter {
-    std::shared_ptr<ObjectType> operator()()
+    pObjectType operator()()
     {
         if (std::is_integral<T>()) {
             std::string prefix = "u";
@@ -538,7 +547,7 @@ struct TypeGetter {
 
 template<>
 struct TypeGetter<bool> {
-    std::shared_ptr<ObjectType> operator()()
+    pObjectType operator()()
     {
         return ObjectType::get(PrimitiveType::Boolean);
     }
@@ -546,15 +555,15 @@ struct TypeGetter<bool> {
 
 template<>
 struct TypeGetter<std::string> {
-    std::shared_ptr<ObjectType> operator()()
+    pObjectType operator()()
     {
         return ObjectType::get("string");
     }
 };
 
 template<>
-struct TypeGetter<std::shared_ptr<ObjectType>> {
-    std::shared_ptr<ObjectType> operator()()
+struct TypeGetter<pObjectType> {
+    pObjectType operator()()
     {
         return ObjectType::get("type");
     }
@@ -562,7 +571,7 @@ struct TypeGetter<std::shared_ptr<ObjectType>> {
 
 template<>
 struct TypeGetter<ObjectType> {
-    std::shared_ptr<ObjectType> operator()()
+    pObjectType operator()()
     {
         return ObjectType::get("type");
     }
@@ -570,7 +579,7 @@ struct TypeGetter<ObjectType> {
 
 template<typename T>
 struct TypeGetter<T*> {
-    std::shared_ptr<ObjectType> operator()()
+    pObjectType operator()()
     {
         auto ret_or_error = ObjectType::specialize(ObjectType::get("pointer"),
             { { "target", TemplateArgument(TypeGetter<T> {}()) } });
@@ -582,14 +591,14 @@ struct TypeGetter<T*> {
 
 template<>
 struct TypeGetter<void*> {
-    std::shared_ptr<ObjectType> operator()()
+    pObjectType operator()()
     {
         return ObjectType::get("pointer");
     }
 };
 
 template<typename T>
-std::shared_ptr<ObjectType> get_type()
+pObjectType get_type()
 {
     return TypeGetter<T> {}();
 }
@@ -612,7 +621,7 @@ struct Converter<ObjectType> {
     }
 };
 
-std::string type_name(std::shared_ptr<ObjectType> type);
+std::string type_name(pObjectType type);
 
 }
 

@@ -22,34 +22,32 @@ NODE_PROCESSOR(BoundUnaryExpression)
     auto operand = TRY_AND_CAST(BoundExpression, expr->operand(), ctx);
 
     IntrinsicType intrinsic;
-    std::shared_ptr<BoundIntrinsicDecl> decl;
+    std::shared_ptr<BoundFunctionDecl> decl;
     switch (expr->op()) {
     case UnaryOperator::Identity: {
         return operand;
     }
     case UnaryOperator::Dereference: {
-        auto method_descr_maybe = operand->type()->get_method(Operator::Dereference);
-        if (!method_descr_maybe.has_value())
+        auto method_descr = operand->type()->get_method(Operator::Dereference);
+        if (method_descr == nullptr)
             return SyntaxError { ErrorCode::InternalError, expr->token(), format("No method defined for unary operator {}::{}", operand->type()->to_string(), expr->op()) };
-        auto method_descr = method_descr_maybe.value();
-        decl = method_descr.declaration();
+        decl = method_descr->declaration();
         intrinsic = IntrinsicType::dereference;
         break;
     }
     default: {
-        auto method_descr_maybe = operand->type()->get_method(to_operator(expr->op()), {});
-        if (!method_descr_maybe.has_value())
+        auto method_descr = operand->type()->get_method(to_operator(expr->op()), {});
+        if (method_descr == nullptr)
             return SyntaxError { ErrorCode::InternalError, expr->token(), format("No method defined for unary operator {}::{}", operand->type()->to_string(), expr->op()) };
-        auto method_descr = method_descr_maybe.value();
-        decl = method_descr.declaration();
-        auto impl = method_descr.implementation(Architecture::C_TRANSPILER);
+        decl = method_descr->declaration();
+        auto impl = method_descr->implementation(Architecture::C_TRANSPILER);
         if (!impl.is_intrinsic || impl.intrinsic == IntrinsicType::NotIntrinsic)
-            return SyntaxError { ErrorCode::InternalError, expr->token(), format("No intrinsic defined for {}", method_descr.name()) };
+            return SyntaxError { ErrorCode::InternalError, expr->token(), format("No intrinsic defined for {}", method_descr->name()) };
         intrinsic = impl.intrinsic;
         break;
     }
     }
-    return TRY(process(std::make_shared<BoundIntrinsicCall>(expr->token(), decl, BoundExpressions { operand }, intrinsic), ctx, result));
+    return TRY(process(std::make_shared<BoundIntrinsicCall>(expr->token(), std::dynamic_pointer_cast<BoundIntrinsicDecl>(decl), BoundExpressions { operand }, intrinsic), ctx, result));
 }
 
 NODE_PROCESSOR(BoundBinaryExpression)
@@ -90,15 +88,17 @@ NODE_PROCESSOR(BoundBinaryExpression)
         rhs = TRY(std::dynamic_pointer_cast<BoundIntLiteral>(rhs)->cast(lhs->type()));
     if ((lhs->node_type() == SyntaxNodeType::BoundIntLiteral) && (rhs->type()->type() == lhs->type()->type()) && (lhs->type()->size() > rhs->type()->size()))
         lhs = TRY(std::dynamic_pointer_cast<BoundIntLiteral>(rhs)->cast(rhs->type()));
-    auto method_descr_maybe = lhs->type()->get_method(to_operator(expr->op()), { rhs->type() });
-    if (!method_descr_maybe.has_value())
+    auto method_descr = lhs->type()->get_method(to_operator(expr->op()), { rhs->type() });
+    if (method_descr == nullptr)
         return SyntaxError { ErrorCode::InternalError, lhs->token(), format("No method defined for binary operator {}::{}({})", lhs->type()->to_string(), expr->op(), rhs->type()->to_string()) };
-    auto method_descr = method_descr_maybe.value();
-    auto impl = method_descr.implementation();
+    auto impl = method_descr->implementation();
     if (!impl.is_intrinsic || impl.intrinsic == IntrinsicType::NotIntrinsic)
-        return SyntaxError { ErrorCode::InternalError, lhs->token(), format("No intrinsic defined for {}", method_descr.name()) };
+        return SyntaxError { ErrorCode::InternalError, lhs->token(), format("No intrinsic defined for {}", method_descr->name()) };
     auto intrinsic = impl.intrinsic;
-    return TRY(process(std::make_shared<BoundIntrinsicCall>(expr->token(), method_descr.declaration(), BoundExpressions { lhs, rhs }, intrinsic), ctx));
+    auto decl = method_descr->declaration();
+    if (auto intrinsic_decl = std::dynamic_pointer_cast<BoundIntrinsicDecl>(decl); intrinsic_decl != nullptr)
+        return TRY(process(std::make_shared<BoundIntrinsicCall>(expr->token(), intrinsic_decl, BoundExpressions { lhs, rhs }, intrinsic), ctx));
+    return TRY(process(std::make_shared<BoundFunctionCall>(expr->token(), decl, BoundExpressions { lhs, rhs }), ctx));
 }
 
 ProcessResult resolve_operators(std::shared_ptr<SyntaxNode> const& tree)
