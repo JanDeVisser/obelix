@@ -14,7 +14,7 @@ namespace Obelix {
 
 NODE_CLASS(BoundPass, BoundStatement)
 public:
-    explicit BoundPass(Token, std::shared_ptr<Statement> const& = nullptr);
+    explicit BoundPass(Span, std::shared_ptr<Statement> const& = nullptr);
     [[nodiscard]] std::shared_ptr<Statement> const& elided_statement() const;
     [[nodiscard]] std::string text_contents() const override;
     [[nodiscard]] std::string to_string() const override;
@@ -40,7 +40,7 @@ private:
 NODE_CLASS(BoundBranch, BoundStatement)
 public:
     BoundBranch(std::shared_ptr<SyntaxNode> const&, std::shared_ptr<BoundExpression>, std::shared_ptr<Statement>);
-    BoundBranch(Token, std::shared_ptr<BoundExpression>, std::shared_ptr<Statement>);
+    BoundBranch(Span, std::shared_ptr<BoundExpression>, std::shared_ptr<Statement>);
     [[nodiscard]] Nodes children() const override;
     [[nodiscard]] std::string to_string() const override;
     [[nodiscard]] std::shared_ptr<BoundExpression> const& condition() const;
@@ -56,7 +56,7 @@ using BoundBranches = std::vector<std::shared_ptr<BoundBranch>>;
 NODE_CLASS(BoundIfStatement, BoundStatement)
 public:
     BoundIfStatement(std::shared_ptr<IfStatement> const& if_stmt, BoundBranches branches, std::shared_ptr<Statement> else_stmt);
-    BoundIfStatement(Token token, BoundBranches branches, std::shared_ptr<Statement> else_stmt = nullptr);
+    BoundIfStatement(Span location, BoundBranches branches, std::shared_ptr<Statement> else_stmt = nullptr);
 
     [[nodiscard]] Nodes children() const override;
     [[nodiscard]] std::string to_string() const override;
@@ -101,7 +101,7 @@ private:
 NODE_CLASS(BoundSwitchStatement, BoundStatement)
 public:
     BoundSwitchStatement(std::shared_ptr<SyntaxNode> const&, std::shared_ptr<BoundExpression>, BoundBranches, std::shared_ptr<BoundBranch>);
-    BoundSwitchStatement(Token token, std::shared_ptr<BoundExpression>, BoundBranches, std::shared_ptr<BoundBranch>);
+    BoundSwitchStatement(Span location, std::shared_ptr<BoundExpression>, BoundBranches, std::shared_ptr<BoundBranch>);
     [[nodiscard]] std::shared_ptr<BoundExpression> const& expression() const;
     [[nodiscard]] BoundBranches const& cases() const;
     [[nodiscard]] std::shared_ptr<BoundBranch> const& default_case() const;

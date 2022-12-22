@@ -12,8 +12,8 @@ extern_logging_category(parser);
 
 // -- SyntaxNode ------------------------------------------------------------
 
-SyntaxNode::SyntaxNode(Token token)
-    : m_token(std::move(token))
+SyntaxNode::SyntaxNode(Span location)
+    : m_location(std::move(location))
 {
 }
 
@@ -67,9 +67,9 @@ std::string SyntaxNode::to_xml() const
     return to_xml(0);
 }
 
-Token const& SyntaxNode::token() const
+Span const& SyntaxNode::location() const
 {
-    return m_token;
+    return m_location;
 }
 
 }

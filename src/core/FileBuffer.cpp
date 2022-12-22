@@ -16,28 +16,28 @@ namespace Obelix {
 
 logging_category(filebuffer);
 
-ErrorOr<void> BufferLocator::check_existence(std::string const& file_name)
+ErrorOr<void, SystemError> BufferLocator::check_existence(std::string const& file_name)
 {
     auto fh = ::open(file_name.c_str(), O_RDONLY);
     auto sg = ScopeGuard([fh]() { if (fh > 0) ::close(fh); });
     if (fh < 0) {
         switch (errno) {
         case ENOENT:
-            return Error<int> { ErrorCode::NoSuchFile, ENOENT, file_name };
+            return SystemError { ErrorCode::NoSuchFile, "File '{}' does not exist", file_name };
         default:
-            return Error<int> { ErrorCode::IOError, errno, format("Error opening file '{}': {}", file_name, strerror(errno)) };
+            return SystemError { ErrorCode::IOError, "Error opening file '{}'", file_name };
         }
     }
 
     struct stat sb;
     if (auto rc = fstat(fh, &sb); rc < 0)
-        return Error<int> { ErrorCode::IOError, errno, format("Error stat-ing file '{}': {}", file_name, strerror(errno)) };
+        return SystemError { ErrorCode::IOError, "Error stat-ing file '{}'", file_name };
     if (S_ISDIR(sb.st_mode))
-        return Error<int> { ErrorCode::PathIsDirectory, file_name };
+        return SystemError { ErrorCode::PathIsDirectory, "Path '{}' is a directory, not a file", file_name };
     return {};
 }
 
-ErrorOr<std::string> SimpleBufferLocator::locate(std::string const& file_name) const
+ErrorOr<std::string, SystemError> SimpleBufferLocator::locate(std::string const& file_name) const
 {
     auto exists = check_existence(file_name);
     if (exists.is_error())
@@ -46,18 +46,22 @@ ErrorOr<std::string> SimpleBufferLocator::locate(std::string const& file_name) c
 }
 
 FileBuffer::FileBuffer(std::string const& file_name, BufferLocator* locator)
-    : m_buffer(std::make_unique<StringBuffer>())
+    : m_file_name(file_name)
+    , m_buffer(std::make_unique<StringBuffer>())
+{
+    m_buffer_locator.reset((locator != nullptr) ? locator : new SimpleBufferLocator());
+}
+
+ErrorOr<std::shared_ptr<FileBuffer>,SystemError> FileBuffer::create(std::string const& file_name, BufferLocator* locator)
 {
     debug(filebuffer, "Going to read {}", file_name);
-    m_buffer_locator.reset((locator != nullptr) ? locator : new SimpleBufferLocator());
-    auto file_name_or_error = m_buffer_locator->locate(file_name);
-    if (file_name_or_error.is_error()) {
-        m_error = file_name_or_error.error();
-        return;
-    }
+    auto ret = std::shared_ptr<FileBuffer>(new FileBuffer(file_name, locator));
+    auto file_name_or_error = ret->m_buffer_locator->locate(file_name);
+    if (file_name_or_error.is_error())
+        return file_name_or_error.error();
 
-    m_path = file_name_or_error.value();
-    auto fh = ::open(file_path().c_str(), O_RDONLY);
+    ret->m_path = file_name_or_error.value();
+    auto fh = ::open(ret->file_path().c_str(), O_RDONLY);
     auto file_closer = ScopeGuard([fh]() {
         if (fh > 0)
             close(fh);
@@ -65,23 +69,16 @@ FileBuffer::FileBuffer(std::string const& file_name, BufferLocator* locator)
     if (fh < 0) {
         switch (errno) {
         case ENOENT:
-            m_error = Error<int> { ErrorCode::NoSuchFile, ENOENT, m_file_name };
-            break;
+            return SystemError { ErrorCode::NoSuchFile, "File '{}' does not exist", ret->file_name() };
         default:
-            m_error = Error<int> { ErrorCode::IOError, errno, format("Error opening file '{}': {}", m_file_name, strerror(errno)) };
-            break;
+            return SystemError { ErrorCode::IOError, "Error opening file '{}'", ret->file_name() };
         }
-        return;
     }
     struct stat sb;
-    if (auto rc = fstat(fh, &sb); rc < 0) {
-        m_error = Error<int> { ErrorCode::IOError, errno, format("Error stat-ing file '{}': {}", m_file_name, strerror(errno)) };
-        return;
-    }
-    if (S_ISDIR(sb.st_mode)) {
-        m_error = Error<int> { ErrorCode::PathIsDirectory, m_file_name };
-        return;
-    }
+    if (auto rc = fstat(fh, &sb); rc < 0)
+        return SystemError { ErrorCode::IOError, "Error stat-ing file '{}'", ret->file_name() };
+    if (S_ISDIR(sb.st_mode))
+        return SystemError { ErrorCode::PathIsDirectory, "Path '{}' is a directory, not a file", ret->file_name() };
 
     auto size = sb.st_size;
     auto buf = new char[size + 1];
@@ -89,11 +86,12 @@ FileBuffer::FileBuffer(std::string const& file_name, BufferLocator* locator)
         delete[] buf;
     });
     if (auto rc = ::read(fh, (void*)buf, size); rc < size) {
-        m_error = Error<int> { ErrorCode::IOError, errno, format("Error reading '{}': {}", m_file_name, strerror(errno)) };
+        return SystemError { ErrorCode::IOError, "Error reading '{}'", ret->file_name() };
     } else {
         buf[size] = '\0';
-        m_buffer->assign(buf);
+        ret->m_buffer->assign(buf);
     }
+    return ret;
 }
 
 std::string FileBuffer::file_name() const

@@ -13,11 +13,18 @@ namespace Obelix {
 
 logging_category(parser);
 
-Parser::Parser(ParserContext& ctx, std::string const& file_name)
-    : BasicParser(file_name, new ObelixBufferLocator(ctx.config))
+ErrorOr<std::shared_ptr<Parser>, SystemError> Parser::create(ParserContext& ctx, std::string const& file_name)
+{
+    auto ret = std::shared_ptr<Parser>(new Parser(ctx));
+    TRY_RETURN(ret->read_file(file_name, new ObelixBufferLocator(ctx.config)));
+    ret->m_current_module = sanitize_module_name(file_name);
+    return ret;
+}
+
+Parser::Parser(ParserContext& ctx)
+    : BasicParser()
     , m_ctx(ctx)
 {
-    m_current_module = sanitize_module_name(file_name);
     lexer().add_scanner<QStringScanner>();
     lexer().add_scanner<IdentifierScanner>();
     lexer().add_scanner<NumberScanner>(Obelix::NumberScanner::Config { true, false, true, false, true });
@@ -88,7 +95,7 @@ std::shared_ptr<Statement> Parser::parse_top_level_statement()
     std::shared_ptr<Statement> ret;
     switch (token.code()) {
     case TokenCode::SemiColon:
-        return std::make_shared<Pass>(lex());
+        return std::make_shared<Pass>(lex().location());
     case TokenCode::OpenBrace: {
         lex();
         Statements statements;
@@ -134,7 +141,7 @@ std::shared_ptr<Statement> Parser::parse_statement()
     std::shared_ptr<Statement> ret;
     switch (token.code()) {
     case TokenCode::SemiColon:
-        return std::make_shared<Pass>(lex());
+        return std::make_shared<Pass>(lex().location());
     case TokenCode::OpenBrace: {
         lex();
         Statements statements;
@@ -161,7 +168,7 @@ std::shared_ptr<Statement> Parser::parse_statement()
         auto expr = parse_expression();
         if (!expr)
             return nullptr;
-        return std::make_shared<Return>(token, expr);
+        return std::make_shared<Return>(token.location(), expr);
     }
     case TokenCode::Identifier: {
         if (token.value() == "error") {
@@ -169,14 +176,14 @@ std::shared_ptr<Statement> Parser::parse_statement()
             auto expr = parse_expression();
             if (!expr)
                 return nullptr;
-            return std::make_shared<Return>(token, expr, true);
+            return std::make_shared<Return>(token.location(), expr, true);
         }
         break;
     }
     case KeywordBreak:
-        return std::make_shared<Break>(lex());
+        return std::make_shared<Break>(lex().location());
     case KeywordContinue:
-        return std::make_shared<Continue>(lex());
+        return std::make_shared<Continue>(lex().location());
     case TokenCode::CloseBrace:
     case TokenCode::EndOfFile:
         return nullptr;
@@ -207,14 +214,14 @@ std::shared_ptr<Block> Parser::parse_block(Statements& block)
     if (!expect(TokenCode::CloseBrace)) {
         return nullptr;
     }
-    return std::make_shared<Block>(token, block);
+    return std::make_shared<Block>(token.location(), block);
 }
 
 std::shared_ptr<Statement> Parser::parse_function_definition(Token const& func_token)
 {
     auto name_maybe = match(TokenCode::Identifier);
     if (!name_maybe.has_value()) {
-        add_error(peek(), "Syntax Error: expecting variable name after the 'func' keyword, got '{}'");
+        add_error(peek(), "Expecting variable name after the 'func' keyword, got '{}'");
         return nullptr;
     }
     auto name = name_maybe.value();
@@ -226,7 +233,7 @@ std::shared_ptr<Statement> Parser::parse_function_definition(Token const& func_t
     while (!done) {
         auto param_name_maybe = match(TokenCode::Identifier);
         if (!param_name_maybe.has_value()) {
-            add_error(peek(), "Syntax Error: Expected parameter name, got '{}'");
+            add_error(peek(), "Expected parameter name, got '{}'");
             return nullptr;
         }
         auto param_name = param_name_maybe.value();
@@ -235,10 +242,10 @@ std::shared_ptr<Statement> Parser::parse_function_definition(Token const& func_t
 
         auto param_type = parse_type();
         if (!param_type) {
-            add_error(peek(), format("Syntax Error: Expected type name for parameter {}, got '{}'", param_name_maybe.value(), peek().value()));
+            add_error(peek(), "Syntax Error: Expected type name for parameter {}, got '{}'", param_name_maybe.value(), peek().value());
             return nullptr;
         }
-        params.push_back(std::make_shared<Identifier>(param_name, param_name.value(), param_type));
+        params.push_back(std::make_shared<Identifier>(param_name.location(), param_name.value(), param_type));
         switch (current_code()) {
         case TokenCode::Comma:
             lex();
@@ -247,7 +254,7 @@ std::shared_ptr<Statement> Parser::parse_function_definition(Token const& func_t
             done = true;
             break;
         default:
-            add_error(peek(), format("Syntax Error: Expected ',' or ')' in function parameter list, got '{}'", peek().value()));
+            add_error(peek(), "Syntax Error: Expected ',' or ')' in function parameter list, got '{}'", peek().value());
             return nullptr;
         }
     }
@@ -258,27 +265,27 @@ std::shared_ptr<Statement> Parser::parse_function_definition(Token const& func_t
 
     auto type = parse_type();
     if (!type) {
-        add_error(peek(), format("Syntax Error: Expected return type name, got '{}'", peek().value()));
+        add_error(peek(), "Syntax Error: Expected return type name, got '{}'", peek().value());
         return nullptr;
     }
 
-    auto func_ident = std::make_shared<Identifier>(name, name.value(), type);
+    auto func_ident = std::make_shared<Identifier>(name.location(), name.value(), type);
     std::shared_ptr<FunctionDecl> func_decl;
     if (current_code() == KeywordLink) {
         lex();
         if (auto link_target_maybe = match(TokenCode::DoubleQuotedString, "after '->'"); link_target_maybe.has_value()) {
-            return std::make_shared<NativeFunctionDecl>(name, m_current_module, func_ident, params, link_target_maybe.value().value());
+            return std::make_shared<NativeFunctionDecl>(name.location(), m_current_module, func_ident, params, link_target_maybe.value().value());
         }
         return nullptr;
     }
     if (func_token.code() == KeywordIntrinsic) {
-        return std::make_shared<IntrinsicDecl>(name, m_current_module, func_ident, params);
+        return std::make_shared<IntrinsicDecl>(name.location(), m_current_module, func_ident, params);
     }
-    func_decl = std::make_shared<FunctionDecl>(name, m_current_module, func_ident, params);
+    func_decl = std::make_shared<FunctionDecl>(name.location(), m_current_module, func_ident, params);
     auto stmt = parse_statement();
     if (stmt == nullptr)
         return nullptr;
-    return std::make_shared<FunctionDef>(func_token, func_decl, stmt);
+    return std::make_shared<FunctionDef>(func_token.location(), func_decl, stmt);
 }
 
 std::shared_ptr<IfStatement> Parser::parse_if_statement(Token const& if_token)
@@ -300,17 +307,17 @@ std::shared_ptr<IfStatement> Parser::parse_if_statement(Token const& if_token)
             auto elif_stmt = parse_statement();
             if (!elif_stmt)
                 return nullptr;
-            branches.push_back(std::make_shared<Branch>(elif_token, elif_condition, elif_stmt));
+            branches.push_back(std::make_shared<Branch>(elif_token.location(), elif_condition, elif_stmt));
         } break;
         case KeywordElse: {
             auto else_token = lex();
             auto else_stmt = parse_statement();
             if (!else_stmt)
                 return nullptr;
-            return std::make_shared<IfStatement>(if_token, condition, if_stmt, branches, else_stmt);
+            return std::make_shared<IfStatement>(if_token.location(), condition, if_stmt, branches, else_stmt);
         }
         default:
-            return std::make_shared<IfStatement>(if_token, condition, if_stmt, branches, nullptr);
+            return std::make_shared<IfStatement>(if_token.location(), condition, if_stmt, branches, nullptr);
         }
     }
 }
@@ -338,7 +345,7 @@ std::shared_ptr<SwitchStatement> Parser::parse_switch_statement(Token const& swi
             auto stmt = parse_statement();
             if (!stmt)
                 return nullptr;
-            cases.push_back(std::make_shared<CaseStatement>(case_token, expr, stmt));
+            cases.push_back(std::make_shared<CaseStatement>(case_token.location(), expr, stmt));
         } break;
         case KeywordDefault: {
             auto default_token = lex();
@@ -348,12 +355,12 @@ std::shared_ptr<SwitchStatement> Parser::parse_switch_statement(Token const& swi
             auto stmt = parse_statement();
             if (!stmt)
                 return nullptr;
-            default_case = std::make_shared<DefaultCase>(default_token, stmt);
+            default_case = std::make_shared<DefaultCase>(default_token.location(), stmt);
             break;
         }
         case TokenCode::CloseBrace:
             lex();
-            return std::make_shared<SwitchStatement>(switch_token, switch_expr, cases, default_case);
+            return std::make_shared<SwitchStatement>(switch_token.location(), switch_expr, cases, default_case);
         default:
             add_error(peek(), "Syntax Error: Unexpected token '{}' in switch statement");
             return nullptr;
@@ -373,14 +380,14 @@ std::shared_ptr<WhileStatement> Parser::parse_while_statement(Token const& while
     auto stmt = parse_statement();
     if (!stmt)
         return nullptr;
-    return std::make_shared<WhileStatement>(while_token, condition, stmt);
+    return std::make_shared<WhileStatement>(while_token.location(), condition, stmt);
 }
 
 std::shared_ptr<ForStatement> Parser::parse_for_statement(Token const& for_token)
 {
     if (!expect(TokenCode::OpenParen, " in 'for' statement"))
         return nullptr;
-    auto variable = match(TokenCode::Identifier, " in 'for' ststement");
+    auto variable = match(TokenCode::Identifier, " in 'for' statement");
     if (!variable.has_value())
         return nullptr;
 
@@ -399,8 +406,8 @@ std::shared_ptr<ForStatement> Parser::parse_for_statement(Token const& for_token
     auto stmt = parse_statement();
     if (!stmt)
         return nullptr;
-    auto variable_node = std::make_shared<Variable>(variable.value(), variable.value().value(), type);
-    return std::make_shared<ForStatement>(for_token, variable_node, expr, stmt);
+    auto variable_node = std::make_shared<Variable>(variable.value().location(), variable.value().value(), type);
+    return std::make_shared<ForStatement>(for_token.location(), variable_node, expr, stmt);
 }
 
 std::shared_ptr<Statement> Parser::parse_struct(Token const& struct_token)
@@ -410,7 +417,7 @@ std::shared_ptr<Statement> Parser::parse_struct(Token const& struct_token)
         return nullptr;
     auto name = identifier_maybe->value();
     if (current_code() != TokenCode::OpenBrace)
-        return std::make_shared<StructForward>(lex(), name);
+        return std::make_shared<StructForward>(lex().location(), name);
     lex();
 
     Identifiers fields;
@@ -422,10 +429,10 @@ std::shared_ptr<Statement> Parser::parse_struct(Token const& struct_token)
             expect(TokenCode::Colon);
             auto field_type = parse_type();
             if (!field_type) {
-                add_error(peek(), format("Syntax Error: Expected type after ':', got '{}' ({})", peek().value(), peek().code_name()));
+                add_error(peek(), "Syntax Error: Expected type after ':', got '{}' ({})", peek().value(), peek().code_name());
                 return nullptr;
             }
-            fields.push_back(std::make_shared<Identifier>(field_name, field_name.value(), field_type));
+            fields.push_back(std::make_shared<Identifier>(field_name.location(), field_name.value(), field_type));
             break;
         }
         case Parser::KeywordFunc: {
@@ -440,7 +447,7 @@ std::shared_ptr<Statement> Parser::parse_struct(Token const& struct_token)
         }
     } while (current_code() != TokenCode::CloseBrace);
     lex();
-    return std::make_shared<StructDefinition>(struct_token, name, fields, methods);
+    return std::make_shared<StructDefinition>(struct_token.location(), name, fields, methods);
 }
 
 std::shared_ptr<VariableDeclaration> Parser::parse_static_variable_declaration()
@@ -451,7 +458,7 @@ std::shared_ptr<VariableDeclaration> Parser::parse_static_variable_declaration()
     case KeywordConst:
         return parse_variable_declaration(lex(), code == KeywordConst, VariableKind::Static);
     default:
-        add_error(peek(), format("Syntax Error: Expected 'const' or 'var' after 'static', got '{}' ({})", peek().value(), peek().code_name()));
+        add_error(peek(), "Syntax Error: Expected 'const' or 'var' after 'static', got '{}' ({})", peek().value(), peek().code_name());
         return nullptr;
     }
 }
@@ -464,7 +471,7 @@ std::shared_ptr<VariableDeclaration> Parser::parse_global_variable_declaration()
     case KeywordConst:
         return parse_variable_declaration(lex(), code == KeywordConst, VariableKind::Global);
     default:
-        add_error(peek(), format("Syntax Error: Expected 'const' or 'var' after 'static', got '{}' ({})", peek().value(), peek().code_name()));
+        add_error(peek(), "Syntax Error: Expected 'const' or 'var' after 'static', got '{}' ({})", peek().value(), peek().code_name());
         return nullptr;
     }
 }
@@ -481,12 +488,12 @@ std::shared_ptr<VariableDeclaration> Parser::parse_variable_declaration(Token co
         lex();
         auto var_type = parse_type();
         if (!var_type) {
-            add_error(peek(), format("Syntax Error: Expected type after ':', got '{}' ({})", peek().value(), peek().code_name()));
+            add_error(peek(), "Syntax Error: Expected type after ':', got '{}' ({})", peek().value(), peek().code_name());
             return nullptr;
         }
         type = var_type;
     }
-    auto var_ident = std::make_shared<Identifier>(identifier, identifier.value(), type);
+    auto var_ident = std::make_shared<Identifier>(identifier.location(), identifier.value(), type);
     std::shared_ptr<Expression> expr { nullptr };
     if (current_code() == TokenCode::Equals) {
         lex();
@@ -495,19 +502,19 @@ std::shared_ptr<VariableDeclaration> Parser::parse_variable_declaration(Token co
             return nullptr;
     } else {
         if (constant) {
-            add_error(peek(), format("Syntax Error: Expected expression after constant declaration, got '{}' ({})", peek().value(), peek().code_name()));
+            add_error(peek(), "Syntax Error: Expected expression after constant declaration, got '{}' ({})", peek().value(), peek().code_name());
             return nullptr;
         }
     }
     switch (variable_kind) {
     case VariableKind::Local:
-        return std::make_shared<VariableDeclaration>(var_token, var_ident, expr, constant);
+        return std::make_shared<VariableDeclaration>(var_token.location(), var_ident, expr, constant);
     case VariableKind::Static:
-        return std::make_shared<StaticVariableDeclaration>(var_token, var_ident, expr, constant);
+        return std::make_shared<StaticVariableDeclaration>(var_token.location(), var_ident, expr, constant);
     case VariableKind::ModuleLocal:
-        return std::make_shared<LocalVariableDeclaration>(var_token, var_ident, expr, constant);
+        return std::make_shared<LocalVariableDeclaration>(var_token.location(), var_ident, expr, constant);
     case VariableKind::Global:
-        return std::make_shared<GlobalVariableDeclaration>(var_token, var_ident, expr, constant);
+        return std::make_shared<GlobalVariableDeclaration>(var_token.location(), var_ident, expr, constant);
     }
 }
 
@@ -525,7 +532,7 @@ std::shared_ptr<Import> Parser::parse_import_statement(Token const& import_token
         module_name += '/';
     }
     m_ctx.modules.insert(module_name);
-    return std::make_shared<Import>(import_token, module_name);
+    return std::make_shared<Import>(import_token.location(), module_name);
 }
 
 /*
@@ -683,7 +690,7 @@ std::shared_ptr<Expression> Parser::parse_expression_1(std::shared_ptr<Expressio
                     }
                 }
                 lex();
-                rhs = std::make_shared<ExpressionList>(op, expressions);
+                rhs = std::make_shared<ExpressionList>(op.location(), expressions);
                 break;
             }
             default: {
@@ -693,7 +700,7 @@ std::shared_ptr<Expression> Parser::parse_expression_1(std::shared_ptr<Expressio
                     if (type == nullptr) {
                         return nullptr;
                     }
-                    return std::make_shared<CastExpression>(lhs->token(), lhs, type);
+                    return std::make_shared<CastExpression>(lhs->location(), lhs, type);
                 }
                 default:
                     rhs = parse_primary_expression();
@@ -762,7 +769,7 @@ std::shared_ptr<Expression> Parser::parse_primary_expression()
             }
         }
         expr = (!type_mnemonic.empty())
-            ? std::make_shared<IntLiteral>(t, std::make_shared<ExpressionType>(t, type_mnemonic))
+            ? std::make_shared<IntLiteral>(t, std::make_shared<ExpressionType>(t.location(), type_mnemonic))
             : std::make_shared<IntLiteral>(t);
         break;
     }
@@ -774,7 +781,7 @@ std::shared_ptr<Expression> Parser::parse_primary_expression()
         break;
     case TokenCode::SingleQuotedString:
         if (t.value().length() != 1) {
-            add_error(t, format("Syntax Error: Single-quoted string should only hold a single character, not '{}'", t.value()));
+            add_error(t, "Syntax Error: Single-quoted string should only hold a single character, not '{}'", t.value());
             return nullptr;
         }
         expr = std::make_shared<CharLiteral>(t);
@@ -784,20 +791,17 @@ std::shared_ptr<Expression> Parser::parse_primary_expression()
         expr = std::make_shared<BooleanLiteral>(t);
         break;
     case TokenCode::Identifier:
-        expr = std::make_shared<Variable>(t, t.value());
+        expr = std::make_shared<Variable>(t.location(), t.value());
         break;
     default:
         if (operator_defs.is_unary(t.code())) {
             auto operand = parse_primary_expression();
             if (!operand)
                 return nullptr;
-            auto literal = std::dynamic_pointer_cast<Literal>(operand);
-            if (literal != nullptr)
-                return literal->apply(t);
             expr = std::make_shared<UnaryExpression>(t, operand);
             break;
         }
-        add_error(t, format("Syntax Error: Expected literal or variable, got '{}' ({})", t.value(), t.code_name()));
+        add_error(t, "Syntax Error: Expected literal or variable, got '{}' ({})", t.value(), t.code_name());
         return nullptr;
     }
     return expr;
@@ -817,19 +821,19 @@ std::shared_ptr<ExpressionType> Parser::parse_type()
             switch (current_code()) {
             case TokenCode::DoubleQuotedString: {
                 auto token = lex();
-                arguments.push_back(std::make_shared<StringTemplateArgument>(token, token.value()));
+                arguments.push_back(std::make_shared<StringTemplateArgument>(token.location(), token.value()));
                 break;
             }
             case TokenCode::Integer:
             case TokenCode::HexNumber: {
                 auto token = lex();
-                arguments.push_back(std::make_shared<IntegerTemplateArgument>(token, token_value<long>(token).value()));
+                arguments.push_back(std::make_shared<IntegerTemplateArgument>(token.location(), token_value<long>(token).value()));
                 break;
             }
             case TokenCode::Identifier: {
                 auto parameter = parse_type();
                 if (!parameter) {
-                    add_error(peek(), format("Syntax Error: Expected type, got '{}' ({})", peek().value(), peek().code_name()));
+                    add_error(peek(), "Syntax Error: Expected type, got '{}' ({})", peek().value(), peek().code_name());
                     return nullptr;
                 }
                 arguments.push_back(parameter);
@@ -840,30 +844,30 @@ std::shared_ptr<ExpressionType> Parser::parse_type()
             }
             if (current_code() == TokenCode::GreaterThan) {
                 lex();
-                return std::make_shared<ExpressionType>(lt_token, type_name, arguments);
+                return std::make_shared<ExpressionType>(lt_token.location(), type_name, arguments);
             }
             if (current_code() == TokenCode::ShiftRight) {
                 replace(Token { TokenCode::GreaterThan, ">" });
-                return std::make_shared<ExpressionType>(lt_token, type_name, arguments);
+                return std::make_shared<ExpressionType>(lt_token.location(), type_name, arguments);
             }
             if (!expect(TokenCode::Comma))
                 return nullptr;
         }
     }
     case TokenCode::Slash: {
-        auto success_type = std::make_shared<ExpressionType>(type_token, type_name);
+        auto success_type = std::make_shared<ExpressionType>(type_token.location(), type_name);
         auto slash = lex();
         if (current_code() != TokenCode::Identifier) {
-            add_error(peek(), format("Syntax Error: Expected type, got '{}' ({})", peek().value(), peek().code_name()));
+            add_error(peek(), "Syntax Error: Expected type, got '{}' ({})", peek().value(), peek().code_name());
             return nullptr;
         }
         auto error_type = parse_type();
         if (error_type == nullptr)
             return nullptr;
-        return std::make_shared<ExpressionType>(slash, "conditional", TemplateArgumentNodes { success_type, error_type });
+        return std::make_shared<ExpressionType>(slash.location(), "conditional", TemplateArgumentNodes { success_type, error_type });
     }
     default:
-        return std::make_shared<ExpressionType>(type_token, type_name);
+        return std::make_shared<ExpressionType>(type_token.location(), type_name);
     }
 }
 
@@ -876,7 +880,7 @@ std::shared_ptr<EnumDef> Parser::parse_enum_definition(Token const& enum_token)
     }
     auto name_maybe = match(TokenCode::Identifier);
     if (!name_maybe.has_value()) {
-        add_error(peek(), "Syntax Error: expecting enumeration name after the 'enum' keyword, got '{}'");
+        add_error(peek(), "Expecting enumeration name after the 'enum' keyword, got '{}'");
         return nullptr;
     }
     auto name = name_maybe.value();
@@ -900,23 +904,23 @@ std::shared_ptr<EnumDef> Parser::parse_enum_definition(Token const& enum_token)
             }
         }
         skip(TokenCode::Comma);
-        values.push_back(std::make_shared<EnumValue>(value_label, value_label.value(), value_value));
+        values.push_back(std::make_shared<EnumValue>(value_label.location(), value_label.value(), value_value));
     }
     lex(); // Eat the closing brace
-    return std::make_shared<EnumDef>(enum_token, name.value(), values, extend);
+    return std::make_shared<EnumDef>(enum_token.location(), name.value(), values, extend);
 }
 
 std::shared_ptr<TypeDef> Parser::parse_type_definition(Token const& type_token)
 {
     auto name_maybe = match(TokenCode::Identifier);
     if (!name_maybe.has_value()) {
-        add_error(peek(), "Syntax Error: expecting type alias after the 'type' keyword, got '{}'");
+        add_error(peek(), "Expecting type alias after the 'type' keyword, got '{}'");
         return nullptr;
     }
     (void)skip(TokenCode::Equals);
     auto type = parse_type();
     if (type == nullptr)
         return nullptr;
-    return std::make_shared<TypeDef>(type_token, name_maybe.value().value(), type);
+    return std::make_shared<TypeDef>(type_token.location(), name_maybe.value().value(), type);
 }
 }

@@ -10,26 +10,17 @@ namespace Obelix {
 
 extern_logging_category(lexer);
 
-BasicParser::BasicParser(std::string const& file_name, BufferLocator* locator)
-    : BasicParser()
+ErrorOr<std::shared_ptr<BasicParser>,SystemError> BasicParser::create(std::string const& file_name, BufferLocator* locator)
 {
-    FileBuffer buffer(file_name, locator);
-
-    m_file_name = file_name;
-    m_file_path = buffer.file_path();
-    if (!buffer.file_is_read()) {
-        add_error(Token { TokenCode::Error, file_name }, format("Could not read '{}'", file_name));
-        return;
-    }
-    m_lexer.assign(buffer.buffer()->str(), m_file_name);
-    m_buffer_read = true;
+    auto ret = std::shared_ptr<BasicParser>(new BasicParser);
+    TRY_RETURN(ret->read_file(file_name, locator));
+    return ret;
 }
 
 BasicParser::BasicParser(StringBuffer& src)
     : BasicParser()
 {
     m_lexer.assign(src.str());
-    m_buffer_read = true;
 }
 
 BasicParser::BasicParser()
@@ -37,28 +28,20 @@ BasicParser::BasicParser()
 {
 }
 
-ErrorOr<void> BasicParser::read_file(std::string const& file_name, BufferLocator* locator)
+ErrorOr<void,SystemError> BasicParser::read_file(std::string const& file_name, BufferLocator* locator)
 {
-    FileBuffer buffer(file_name, locator);
+    auto buffer = TRY(FileBuffer::create(file_name, locator));
 
     m_file_name = file_name;
-    m_file_path = buffer.file_path();
-    if (!buffer.file_is_read()) {
-        add_error(Token { TokenCode::Error, buffer.file_path() }, format("Could not read '{}'", buffer.file_path()));
-        return buffer.error();
-    }
-    m_lexer.assign(buffer.buffer()->str(), m_file_name);
-    m_buffer_read = true;
+    m_file_path = buffer->file_path();
+    m_lexer.assign(buffer->buffer()->str(), m_file_name);
     return {};
 }
 
+static Token s_eof(TokenCode::EndOfFile, "EOF triggered by lexer error");
+
 Token const& BasicParser::peek()
 {
-    static Token s_eof(TokenCode::EndOfFile, "EOF triggered by lexer error");
-
-    if (!m_buffer_read) {
-        return s_eof;
-    }
     auto& ret = m_lexer.peek();
     debug(lexer, "Parser::peek(): {}", ret.to_string());
     if (ret.code() != TokenCode::Error)
@@ -74,11 +57,6 @@ TokenCode BasicParser::current_code()
 
 Token const& BasicParser::lex()
 {
-    static Token s_eof(TokenCode::EndOfFile, "EOF triggered by lexer error");
-
-    if (!m_buffer_read) {
-        return s_eof;
-    }
     auto& ret = m_lexer.lex();
     debug(lexer, "Parser::lex(): {}", ret.to_string());
     if (ret.code() != TokenCode::Error)
@@ -89,11 +67,6 @@ Token const& BasicParser::lex()
 
 Token const& BasicParser::replace(Token token)
 {
-    static Token s_eof(TokenCode::EndOfFile, "EOF triggered by lexer error");
-
-    if (!m_buffer_read) {
-        return s_eof;
-    }
     auto& ret = m_lexer.replace(std::move(token));
     debug(lexer, "Parser::replace({}): {}", peek(), ret);
     if (ret.code() != TokenCode::Error)
@@ -107,10 +80,10 @@ std::optional<Token const> BasicParser::match(TokenCode code, char const* where)
     debug(lexer, "Parser::match({})", TokenCode_name(code));
     auto token = peek();
     if (token.code() != code) {
-        std::string msg = (where)
-            ? format("Syntax Error: expected '{}' {}, got '{}'", TokenCode_name(code), where, token.value())
-            : format("Syntax Error: expected '{}', got '{}'", TokenCode_name(code), token.value());
-        add_error(token, msg);
+        if (where)
+            add_error(token, "Expected '{}' {}, got '{}' ({})", TokenCode_name(code), where, token.value());
+        else
+            add_error(token, "Expected '{}', got '{}' ({})", TokenCode_name(code), token.value());
         return {};
     }
     return lex();
@@ -131,10 +104,10 @@ bool BasicParser::expect(TokenCode code, char const* where)
     debug(lexer, "Parser::expect({})", TokenCode_name(code));
     auto token = peek();
     if (token.code() != code) {
-        std::string msg = (where)
-            ? format("Syntax Error: expected '{}' {}, got '{}' ({})", TokenCode_to_string(code), where, token.value(), token.code_name())
-            : format("Syntax Error: expected '{}', got '{}' ({})", TokenCode_to_string(code), token.value(), token.code_name());
-        add_error(token, msg);
+        if (where)
+            add_error(token, "Expected '{}' {}, got '{}' ({})", TokenCode_to_string(code), where, token.value(), token.code_name());
+        else
+            add_error(token, "Expected '{}', got '{}' ({})", TokenCode_to_string(code), token.value(), token.code_name());
         return false;
     }
     lex();
@@ -146,20 +119,20 @@ bool BasicParser::expect(char const* expected, char const* where)
     debug(lexer, "Parser::expect({})", expected);
     auto token = peek();
     if (strcmp(token.value().c_str(), expected)) {
-        std::string msg = (where)
-            ? format("Syntax Error: expected '{}' {}, got '{}' ({})", expected, where, token.value(), token.code_name())
-            : format("Syntax Error: expected '{}', got '{}' ({})", expected, token.value(), token.code_name());
-        add_error(token, msg);
+        if (where)
+            add_error(token, "Expected '{}' {}, got '{}' ({})", expected, where, token.value(), token.code_name());
+        else
+            add_error(token, "Expected '{}', got '{}' ({})", expected, token.value(), token.code_name());
         return false;
     }
     lex();
     return true;
 }
 
-void BasicParser::add_error(Token const& token, std::string const& message)
+void BasicParser::add_error(Span const& location, std::string const& message)
 {
-    debug(lexer, "Parser::add_error({}, '{}')", token.to_string(), message);
-    m_errors.emplace_back(message, file_name(), token);
+    debug(lexer, "Parser::add_error({}, '{}')", location, message);
+    m_errors.emplace_back(location, message);
 }
 
 }

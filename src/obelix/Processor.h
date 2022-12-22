@@ -38,29 +38,28 @@ public:
     {
     }
 
-    ProcessResult(SyntaxError const& error)
-        : m_result(error)
+    ProcessResult(SyntaxError const& err)
+        : m_errors({err})
     {
-        m_errors.push_back(m_result.error());
-    }
-
-    ProcessResult(SyntaxError&& error)
-        : m_result(error)
-    {
-        m_errors.push_back(m_result.error());
     }
 
     [[nodiscard]] Errors const& errors() const { return m_errors; }
-    void push_back(SyntaxError const& err) { m_errors.push_back(err); }
-    [[nodiscard]] bool is_error() const { return m_result.is_error(); }
-    [[nodiscard]] bool has_value() const { return m_result.has_value(); }
-    [[nodiscard]] pSyntaxNode value() const { return m_result.value(); }
+    [[nodiscard]] Errors const& warnings() const { return m_warnings; }
+    [[nodiscard]] bool is_error() const { return !m_errors.empty(); }
+    [[nodiscard]] bool has_value() const { return m_errors.empty() && (m_result != nullptr); }
+    [[nodiscard]] pSyntaxNode value() const { return m_result; }
     void value(pSyntaxNode const& node) { m_result = node; }
-    [[nodiscard]] SyntaxError error() const { return m_result.error(); }
-    void error(SyntaxError const& error)
+    [[nodiscard]] SyntaxError error() const { return m_errors.back(); }
+
+    void error(SyntaxError const& err)
     {
-        m_errors.push_back(error);
-        m_result = error;
+        if (m_errors.empty() || m_errors.back() != err)
+            m_errors.push_back(err);
+    }
+
+    void warn(SyntaxError const& w)
+    {
+        m_warnings.push_back(w);
     }
 
     ProcessResult& operator=(pSyntaxNode const& result)
@@ -80,12 +79,15 @@ public:
         m_result = other.m_result;
         for (auto const& e : other.m_errors)
             m_errors.push_back(e);
+        for (auto const& w : other.m_warnings)
+            m_warnings.push_back(w);
         return *this;
     }
 
 private:
-    ErrorOrNode m_result { nullptr };
+    pSyntaxNode m_result { nullptr };
     Errors m_errors {};
+    Errors m_warnings {};
 };
 
 #define TRY_AND_TRY_CAST(cls, expr, ctx)                          \
@@ -178,7 +180,7 @@ ErrorOrNode process_tree(std::shared_ptr<SyntaxNode> const& tree, Context& ctx, 
             auto processed_arg = TRY_AND_CAST(ExpressionType, arg, ctx);
             arguments.push_back(arg);
         }
-        return std::make_shared<ExpressionType>(expr_type->token(), expr_type->type_name(), arguments);
+        return std::make_shared<ExpressionType>(expr_type->location(), expr_type->type_name(), arguments);
     }
 
     case SyntaxNodeType::StructDefinition: {
@@ -188,7 +190,7 @@ ErrorOrNode process_tree(std::shared_ptr<SyntaxNode> const& tree, Context& ctx, 
             auto processed_field = TRY_AND_CAST(Identifier, field, ctx);
             fields.push_back(processed_field);
         }
-        return std::make_shared<StructDefinition>(struct_def->token(), struct_def->name(), fields);
+        return std::make_shared<StructDefinition>(struct_def->location(), struct_def->name(), fields);
     }
 
     case SyntaxNodeType::BoundStructDefinition: {
@@ -203,7 +205,7 @@ ErrorOrNode process_tree(std::shared_ptr<SyntaxNode> const& tree, Context& ctx, 
             auto processed_method = TRY_AND_CAST(Statement, method, ctx);
             methods.push_back(processed_method);
         }
-        return std::make_shared<BoundStructDefinition>(struct_def->token(), struct_def->type(), fields, methods);
+        return std::make_shared<BoundStructDefinition>(struct_def->location(), struct_def->type(), fields, methods);
     }
 
     case SyntaxNodeType::EnumDef: {
@@ -213,7 +215,7 @@ ErrorOrNode process_tree(std::shared_ptr<SyntaxNode> const& tree, Context& ctx, 
             auto processed_value = TRY_AND_CAST(EnumValue, value, ctx);
             values.push_back(processed_value);
         }
-        return std::make_shared<EnumDef>(enum_def->token(), enum_def->name(), values, enum_def->extend());
+        return std::make_shared<EnumDef>(enum_def->location(), enum_def->name(), values, enum_def->extend());
     }
 
     case SyntaxNodeType::BoundEnumDef: {
@@ -223,19 +225,19 @@ ErrorOrNode process_tree(std::shared_ptr<SyntaxNode> const& tree, Context& ctx, 
             auto processed_value = TRY_AND_CAST(BoundEnumValueDef, value, ctx);
             values.push_back(processed_value);
         }
-        return std::make_shared<BoundEnumDef>(enum_def->token(), enum_def->name(), enum_def->type(), values, enum_def->extend());
+        return std::make_shared<BoundEnumDef>(enum_def->location(), enum_def->name(), enum_def->type(), values, enum_def->extend());
     }
 
     case SyntaxNodeType::TypeDef: {
         auto type_def = std::dynamic_pointer_cast<TypeDef>(tree);
         auto type = TRY_AND_CAST(ExpressionType, type_def, ctx);
-        return std::make_shared<TypeDef>(type_def->token(), type_def->name(), type);
+        return std::make_shared<TypeDef>(type_def->location(), type_def->name(), type);
     }
 
     case SyntaxNodeType::BoundTypeDef: {
         auto type_def = std::dynamic_pointer_cast<BoundTypeDef>(tree);
         auto type = TRY_AND_CAST(BoundType, type_def->type(), ctx);
-        return std::make_shared<BoundTypeDef>(type_def->token(), type_def->name(), type);
+        return std::make_shared<BoundTypeDef>(type_def->location(), type_def->name(), type);
     }
 
     case SyntaxNodeType::FunctionDef: {
@@ -244,7 +246,7 @@ ErrorOrNode process_tree(std::shared_ptr<SyntaxNode> const& tree, Context& ctx, 
         auto statement = func_def->statement();
         if (statement)
             statement = TRY_AND_CAST(Statement, statement, ctx);
-        ret = std::make_shared<FunctionDef>(func_def->token(), func_decl, statement);
+        ret = std::make_shared<FunctionDef>(func_def->location(), func_decl, statement);
         break;
     }
 
@@ -254,7 +256,7 @@ ErrorOrNode process_tree(std::shared_ptr<SyntaxNode> const& tree, Context& ctx, 
         auto statement = func_def->statement();
         if (statement)
             statement = TRY_AND_CAST(Statement, statement, ctx);
-        ret = std::make_shared<BoundFunctionDef>(func_def->token(), func_decl, statement);
+        ret = std::make_shared<BoundFunctionDef>(func_def->location(), func_decl, statement);
         break;
     }
 
@@ -270,14 +272,14 @@ ErrorOrNode process_tree(std::shared_ptr<SyntaxNode> const& tree, Context& ctx, 
         }
         switch (func_decl->node_type()) {
         case SyntaxNodeType::FunctionDecl:
-            ret = std::make_shared<FunctionDecl>(func_decl->token(), func_decl->module(), identifier, parameters);
+            ret = std::make_shared<FunctionDecl>(func_decl->location(), func_decl->module(), identifier, parameters);
             break;
         case SyntaxNodeType::NativeFunctionDecl:
-            ret = std::make_shared<NativeFunctionDecl>(func_decl->token(), func_decl->module(), identifier, parameters,
+            ret = std::make_shared<NativeFunctionDecl>(func_decl->location(), func_decl->module(), identifier, parameters,
                 std::dynamic_pointer_cast<NativeFunctionDecl>(func_decl)->native_function_name());
             break;
         case SyntaxNodeType::IntrinsicDecl:
-            ret = std::make_shared<IntrinsicDecl>(func_decl->token(), func_decl->module(), identifier, parameters);
+            ret = std::make_shared<IntrinsicDecl>(func_decl->location(), func_decl->module(), identifier, parameters);
             break;
         default:
             fatal("Unreachable");
@@ -329,13 +331,13 @@ ErrorOrNode process_tree(std::shared_ptr<SyntaxNode> const& tree, Context& ctx, 
             auto processed = TRY_AND_CAST(Expression, expr, ctx);
             expressions.push_back(processed);
         }
-        return std::make_shared<ExpressionList>(list->token(), expressions);
+        return std::make_shared<ExpressionList>(list->location(), expressions);
     }
 
     case SyntaxNodeType::BoundExpressionStatement: {
         auto stmt = std::dynamic_pointer_cast<BoundExpressionStatement>(tree);
         auto expr = TRY_AND_CAST(BoundExpression, stmt->expression(), ctx);
-        ret = std::make_shared<BoundExpressionStatement>(stmt->token(), expr);
+        ret = std::make_shared<BoundExpressionStatement>(stmt->location(), expr);
         break;
     }
 
@@ -353,7 +355,7 @@ ErrorOrNode process_tree(std::shared_ptr<SyntaxNode> const& tree, Context& ctx, 
 
         auto lhs = TRY_AND_CAST(BoundExpression, expr->lhs(), ctx);
         auto rhs = TRY_AND_CAST(BoundExpression, expr->rhs(), ctx);
-        ret = std::make_shared<BoundBinaryExpression>(expr->token(), lhs, expr->op(), rhs, expr->type());
+        ret = std::make_shared<BoundBinaryExpression>(expr->location(), lhs, expr->op(), rhs, expr->type());
         break;
     }
 
@@ -367,28 +369,28 @@ ErrorOrNode process_tree(std::shared_ptr<SyntaxNode> const& tree, Context& ctx, 
     case SyntaxNodeType::BoundUnaryExpression: {
         auto expr = std::dynamic_pointer_cast<BoundUnaryExpression>(tree);
         auto operand = TRY_AND_CAST(BoundExpression, expr->operand(), ctx);
-        ret = std::make_shared<BoundUnaryExpression>(expr->token(), operand, expr->op(), expr->type());
+        ret = std::make_shared<BoundUnaryExpression>(expr->location(), operand, expr->op(), expr->type());
         break;
     }
 
     case SyntaxNodeType::BoundConditionalValue: {
         auto conditional_value = std::dynamic_pointer_cast<BoundConditionalValue>(tree);
         auto expr = TRY_AND_CAST(BoundExpression, conditional_value->expression(), ctx);
-        ret = std::make_shared<BoundConditionalValue>(conditional_value->token(), expr, conditional_value->success(), conditional_value->type());
+        ret = std::make_shared<BoundConditionalValue>(conditional_value->location(), expr, conditional_value->success(), conditional_value->type());
         break;
     }
 
     case SyntaxNodeType::CastExpression: {
         auto cast_expr = std::dynamic_pointer_cast<CastExpression>(tree);
         auto expr = TRY_AND_CAST(Expression, cast_expr->expression(), ctx);
-        ret = std::make_shared<CastExpression>(cast_expr->token(), expr, cast_expr->type());
+        ret = std::make_shared<CastExpression>(cast_expr->location(), expr, cast_expr->type());
         break;
     }
 
     case SyntaxNodeType::BoundCastExpression: {
         auto cast_expr = std::dynamic_pointer_cast<BoundCastExpression>(tree);
         auto expr = TRY_AND_CAST(BoundExpression, cast_expr->expression(), ctx);
-        ret = std::make_shared<BoundCastExpression>(cast_expr->token(), expr, cast_expr->type());
+        ret = std::make_shared<BoundCastExpression>(cast_expr->location(), expr, cast_expr->type());
         break;
     }
 
@@ -396,14 +398,14 @@ ErrorOrNode process_tree(std::shared_ptr<SyntaxNode> const& tree, Context& ctx, 
         auto assignment = std::dynamic_pointer_cast<BoundAssignment>(tree);
         auto assignee = TRY_AND_CAST(BoundVariableAccess, assignment->assignee(), ctx);
         auto expression = TRY_AND_CAST(BoundExpression, assignment->expression(), ctx);
-        ret = std::make_shared<BoundAssignment>(assignment->token(), assignee, expression);
+        ret = std::make_shared<BoundAssignment>(assignment->location(), assignee, expression);
         break;
     }
 
     case SyntaxNodeType::BoundModule: {
         auto module = std::dynamic_pointer_cast<BoundModule>(tree);
         auto block = TRY_AND_CAST(Block, module->block(), ctx);
-        ret = std::make_shared<BoundModule>(module->token(), module->name(), block, module->exports(), module->imports());
+        ret = std::make_shared<BoundModule>(module->location(), module->name(), block, module->exports(), module->imports());
         break;
     }
 
@@ -431,28 +433,28 @@ ErrorOrNode process_tree(std::shared_ptr<SyntaxNode> const& tree, Context& ctx, 
     case SyntaxNodeType::VariableDeclaration: {
         auto var_decl = std::dynamic_pointer_cast<VariableDeclaration>(tree);
         auto expr = TRY_AND_CAST(Expression, var_decl->expression(), ctx);
-        ret = std::make_shared<VariableDeclaration>(var_decl->token(), var_decl->identifier(), expr);
+        ret = std::make_shared<VariableDeclaration>(var_decl->location(), var_decl->identifier(), expr);
         break;
     }
 
     case SyntaxNodeType::StaticVariableDeclaration: {
         auto var_decl = std::dynamic_pointer_cast<StaticVariableDeclaration>(tree);
         auto expr = TRY_AND_CAST(Expression, var_decl->expression(), ctx);
-        ret = std::make_shared<StaticVariableDeclaration>(var_decl->token(), var_decl->identifier(), expr);
+        ret = std::make_shared<StaticVariableDeclaration>(var_decl->location(), var_decl->identifier(), expr);
         break;
     }
 
     case SyntaxNodeType::LocalVariableDeclaration: {
         auto var_decl = std::dynamic_pointer_cast<LocalVariableDeclaration>(tree);
         auto expr = TRY_AND_CAST(Expression, var_decl->expression(), ctx);
-        ret = std::make_shared<LocalVariableDeclaration>(var_decl->token(), var_decl->identifier(), expr);
+        ret = std::make_shared<LocalVariableDeclaration>(var_decl->location(), var_decl->identifier(), expr);
         break;
     }
 
     case SyntaxNodeType::GlobalVariableDeclaration: {
         auto var_decl = std::dynamic_pointer_cast<GlobalVariableDeclaration>(tree);
         auto expr = TRY_AND_CAST(Expression, var_decl->expression(), ctx);
-        ret = std::make_shared<GlobalVariableDeclaration>(var_decl->token(), var_decl->identifier(), expr);
+        ret = std::make_shared<GlobalVariableDeclaration>(var_decl->location(), var_decl->identifier(), expr);
         break;
     }
 
@@ -460,7 +462,7 @@ ErrorOrNode process_tree(std::shared_ptr<SyntaxNode> const& tree, Context& ctx, 
         auto var_decl = std::dynamic_pointer_cast<BoundVariableDeclaration>(tree);
         auto identifier = TRY_AND_CAST(BoundIdentifier, var_decl->variable(), ctx);
         auto expr = TRY_AND_CAST(BoundExpression, var_decl->expression(), ctx);
-        ret = std::make_shared<BoundVariableDeclaration>(var_decl->token(), identifier, var_decl->is_const(), expr);
+        ret = std::make_shared<BoundVariableDeclaration>(var_decl->location(), identifier, var_decl->is_const(), expr);
         break;
     }
 
@@ -468,7 +470,7 @@ ErrorOrNode process_tree(std::shared_ptr<SyntaxNode> const& tree, Context& ctx, 
         auto var_decl = std::dynamic_pointer_cast<BoundStaticVariableDeclaration>(tree);
         auto identifier = TRY_AND_CAST(BoundIdentifier, var_decl->variable(), ctx);
         auto expr = TRY_AND_CAST(BoundExpression, var_decl->expression(), ctx);
-        ret = std::make_shared<BoundStaticVariableDeclaration>(var_decl->token(), identifier, var_decl->is_const(), expr);
+        ret = std::make_shared<BoundStaticVariableDeclaration>(var_decl->location(), identifier, var_decl->is_const(), expr);
         break;
     }
 
@@ -476,7 +478,7 @@ ErrorOrNode process_tree(std::shared_ptr<SyntaxNode> const& tree, Context& ctx, 
         auto var_decl = std::dynamic_pointer_cast<BoundLocalVariableDeclaration>(tree);
         auto identifier = TRY_AND_CAST(BoundIdentifier, var_decl->variable(), ctx);
         auto expr = TRY_AND_CAST(BoundExpression, var_decl->expression(), ctx);
-        ret = std::make_shared<BoundLocalVariableDeclaration>(var_decl->token(), identifier, var_decl->is_const(), expr);
+        ret = std::make_shared<BoundLocalVariableDeclaration>(var_decl->location(), identifier, var_decl->is_const(), expr);
         break;
     }
 
@@ -484,14 +486,14 @@ ErrorOrNode process_tree(std::shared_ptr<SyntaxNode> const& tree, Context& ctx, 
         auto var_decl = std::dynamic_pointer_cast<BoundGlobalVariableDeclaration>(tree);
         auto identifier = TRY_AND_CAST(BoundIdentifier, var_decl->variable(), ctx);
         auto expr = TRY_AND_CAST(BoundExpression, var_decl->expression(), ctx);
-        ret = std::make_shared<BoundGlobalVariableDeclaration>(var_decl->token(), identifier, var_decl->is_const(), expr);
+        ret = std::make_shared<BoundGlobalVariableDeclaration>(var_decl->location(), identifier, var_decl->is_const(), expr);
         break;
     }
 
     case SyntaxNodeType::Return: {
         auto return_stmt = std::dynamic_pointer_cast<Return>(tree);
         auto expr = TRY_AND_CAST(Expression, return_stmt->expression(), ctx);
-        ret = std::make_shared<Return>(return_stmt->token(), expr, return_stmt->return_error());
+        ret = std::make_shared<Return>(return_stmt->location(), expr, return_stmt->return_error());
         break;
     }
 
@@ -530,7 +532,7 @@ ErrorOrNode process_tree(std::shared_ptr<SyntaxNode> const& tree, Context& ctx, 
             if (branch_maybe.has_value())
                 branches.push_back(std::dynamic_pointer_cast<Branch>(branch_maybe.value()));
         }
-        ret = std::make_shared<IfStatement>(if_stmt->token(), branches);
+        ret = std::make_shared<IfStatement>(if_stmt->location(), branches);
         break;
     }
 
@@ -541,7 +543,7 @@ ErrorOrNode process_tree(std::shared_ptr<SyntaxNode> const& tree, Context& ctx, 
             auto branch_processed = TRY_AND_CAST(BoundBranch, branch, ctx);
             branches.push_back(branch_processed);
         }
-        ret = std::make_shared<BoundIfStatement>(if_stmt->token(), branches);
+        ret = std::make_shared<BoundIfStatement>(if_stmt->location(), branches);
         break;
     }
 
@@ -550,7 +552,7 @@ ErrorOrNode process_tree(std::shared_ptr<SyntaxNode> const& tree, Context& ctx, 
         auto condition = TRY_AND_CAST(Expression, while_stmt->condition(), ctx);
         auto stmt = TRY_AND_CAST(Statement, while_stmt->statement(), ctx);
         if ((condition != while_stmt->condition()) || (stmt != while_stmt->statement()))
-            ret = std::make_shared<WhileStatement>(while_stmt->token(), condition, stmt);
+            ret = std::make_shared<WhileStatement>(while_stmt->location(), condition, stmt);
         break;
     }
 
@@ -568,7 +570,7 @@ ErrorOrNode process_tree(std::shared_ptr<SyntaxNode> const& tree, Context& ctx, 
         auto variable = TRY_AND_CAST(Variable, for_stmt->variable(), ctx);
         auto range = TRY_AND_CAST(Expression, for_stmt->range(), ctx);
         auto stmt = TRY_AND_CAST(Statement, for_stmt->statement(), ctx);
-        ret = std::make_shared<ForStatement>(for_stmt->token(), variable, range, stmt);
+        ret = std::make_shared<ForStatement>(for_stmt->location(), variable, range, stmt);
         break;
     }
 
@@ -609,7 +611,7 @@ ErrorOrNode process_tree(std::shared_ptr<SyntaxNode> const& tree, Context& ctx, 
             cases.push_back(TRY_AND_CAST(CaseStatement, case_stmt, ctx));
         }
         auto default_case = TRY_AND_CAST(DefaultCase, switch_stmt->default_case(), ctx);
-        ret = std::make_shared<SwitchStatement>(switch_stmt->token(), expr, cases, default_case);
+        ret = std::make_shared<SwitchStatement>(switch_stmt->location(), expr, cases, default_case);
         break;
     }
 
@@ -654,7 +656,7 @@ ErrorOrNode process_block(std::shared_ptr<SyntaxNode> const& tree, Context& ctx,
         }
     }
     if (statements != block->statements())
-        return std::make_shared<StmtClass>(tree->token(), statements, std::forward<Args>(args)...);
+        return std::make_shared<StmtClass>(tree->location(), statements, std::forward<Args>(args)...);
     else
         return tree;
 }
@@ -698,15 +700,15 @@ ProcessResult& process(std::shared_ptr<SyntaxNode> const& tree, Ctx& ctx, Proces
     case SyntaxNodeType::type: {                                                            \
         log_message = format("<{} {}> => ", #type, tree);                                   \
         ErrorOrNode processed = process_node<Ctx, SyntaxNodeType::type>(tree, ctx, result); \
-        result = nullptr;                                                                   \
         if (processed.is_error()) {                                                         \
             log_message += format("Error {}", processed.error());                           \
-            result = processed.error();                                                     \
+            result.error(processed.error());                                                \
+            result = tree;                                                                  \
         } else {                                                                            \
             result = processed.value();                                                     \
             log_message += format("<{} {}>", result.value()->node_type(), result.value());  \
         }                                                                                   \
-        debug(processor, "{}", log_message);                                                   \
+        debug(processor, "{}", log_message);                                                \
         return result;                                                                      \
     }
         ENUMERATE_SYNTAXNODETYPES(ENUM_SYNTAXNODETYPE)
@@ -743,37 +745,29 @@ ErrorOrNode process_node(std::shared_ptr<SyntaxNode> const& tree, Ctx& ctx, Proc
 template<class Cls, class Ctx>
 ErrorOrTypedNode<Cls> try_and_try_cast(pSyntaxNode const& expr, Ctx& ctx, ProcessResult& result)
 {
-    auto processed_maybe = process(expr, ctx, result);
-    if (processed_maybe.is_error()) {
-        debug(processor, "Processing node results in error '{}' instead of node of type '{}'",
-            processed_maybe.error(), typeid(Cls).name());
-        return processed_maybe.error();
+    process(expr, ctx, result);
+    if (result.is_error()) {
+        debug(processor, "Processing node results in error '{}' instead of node of type '{}'", result.error(), typeid(Cls).name());
+        return result.error();
     }
-    auto processed = processed_maybe.value();
-    if (processed == nullptr)
+    if (result.value() == nullptr)
         return nullptr;
-    return std::dynamic_pointer_cast<Cls>(processed);
+    return std::dynamic_pointer_cast<Cls>(result.value());
 }
 
 template<class Cls, class Ctx>
 ErrorOrTypedNode<Cls> try_and_cast(pSyntaxNode const& expr, Ctx& ctx, ProcessResult& result)
 {
-    auto processed_maybe = process(expr, ctx, result);
-    if (processed_maybe.is_error()) {
-        debug(processor, "Processing node results in error '{}' instead of node of type '{}'",
-            processed_maybe.error(), typeid(Cls).name());
-        return processed_maybe.error();
+    process(expr, ctx, result);
+    if (result.is_error()) {
+        debug(processor, "Processing node results in error '{}' instead of node of type '{}'", result.error(), typeid(Cls).name());
+        return result.error();
     }
-    auto processed = processed_maybe.value();
-    if (processed == nullptr)
+    if (result.value() == nullptr)
         return nullptr;
-    auto casted = std::dynamic_pointer_cast<Cls>(processed);
+    auto casted = std::dynamic_pointer_cast<Cls>(result.value());
     if (casted == nullptr) {
-        return SyntaxError {
-            ErrorCode::InternalError,
-            format("Processing node results in unexpected type '{}' instead of '{}'",
-                processed->node_type(), typeid(Cls).name())
-        };
+        return SyntaxError { result.value()->location(), "Processing node results in unexpected type '{}' instead of '{}'", result.value()->node_type(), typeid(Cls).name() };
     }
     return casted;
 }
@@ -796,8 +790,8 @@ ErrorOrTypedNode<Cls> try_and_cast(pSyntaxNode const& expr, Ctx& ctx, ProcessRes
         return process_node<ContextType, SyntaxNodeType::alias_node_type>(tree, ctx, result);                                                          \
     }
 
-ProcessResult fold_constants(std::shared_ptr<SyntaxNode> const&);
-ProcessResult bind_types(std::shared_ptr<SyntaxNode> const&, Config const&);
-ProcessResult lower(std::shared_ptr<SyntaxNode> const&, Config const&);
-ProcessResult resolve_operators(std::shared_ptr<SyntaxNode> const&);
+ProcessResult& fold_constants(ProcessResult&);
+ProcessResult& bind_types(Config const&, ProcessResult&);
+ProcessResult& lower(Config const&, ProcessResult&);
+ProcessResult& resolve_operators(ProcessResult&);
 }

@@ -89,9 +89,11 @@ public:
     constexpr static TokenCode KeywordExtend = TokenCode::Keyword28;
     constexpr static TokenCode KeywordAs = TokenCode::Keyword29;
 
-    Parser(ParserContext&, std::string const&);
-
+    static ErrorOr<std::shared_ptr<Parser>,SystemError> create(ParserContext&, std::string const&);
     std::shared_ptr<Module> parse();
+
+protected:
+    Parser(ParserContext&);
 
 private:
     std::shared_ptr<Statement> parse_statement();

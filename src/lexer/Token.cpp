@@ -24,6 +24,23 @@ std::string TokenCode_name(TokenCode t)
     }
 }
 
+Span Span::merge(Span const& other) const
+{
+    size_t new_start_line = start_line;
+    if (other.start_line < new_start_line)
+        new_start_line = other.start_line;
+    size_t new_end_line = end_line;
+    if (other.end_line > new_end_line)
+        new_end_line = other.end_line;
+    size_t new_start_column = start_column;
+    if (other.start_column < new_start_column)
+        new_start_column = other.start_column;
+    size_t new_end_column = end_column;
+    if (other.end_column > new_end_column)
+        new_end_column = other.end_column;
+    return Span { file_name, new_start_line, new_start_column, new_end_line, new_end_column };
+}
+
 std::string Token::to_string() const
 {
     std::string ret = code_name();

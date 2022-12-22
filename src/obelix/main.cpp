@@ -27,13 +27,12 @@ int main(int argc, char const** argv)
         exit(-1);
     }
 
-
-    auto ret_or_error = Obelix::compile_project(config);
-    if (ret_or_error.is_error()) {
-        for (auto const& e : ret_or_error.errors()) {
-            std::cerr << "ERROR: " << e.payload().location.to_string() << " " << e.message() << "\n";
-        }
-        return -1;
+    auto result = Obelix::compile_project(config);
+    for (auto const& e : result.errors()) {
+        std::cerr << "ERROR: " << e.location().to_string() << " " << e.message() << "\n";
     }
-    return 0;
+    for (auto const& e : result.warnings()) {
+        std::cerr << "WARNING: " << e.location().to_string() << " " << e.message() << "\n";
+    }
+    return (result.is_error()) ? -1 : 0;
 }

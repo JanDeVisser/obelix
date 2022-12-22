@@ -151,20 +151,6 @@ std::vector<std::pair<std::string, std::string>> parse_pairs(std::string const& 
     return ret;
 }
 
-std::string to_string(long value)
-{
-    char buf[80];
-    snprintf(buf, 79, "%ld", value);
-    return buf;
-}
-
-std::string to_hex_string(long value)
-{
-    char buf[80];
-    snprintf(buf, 79, "%lx", value);
-    return buf;
-}
-
 std::string to_string(double value)
 {
     char buf[80];

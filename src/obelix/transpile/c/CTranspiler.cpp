@@ -164,18 +164,6 @@ void function_decl(CTranspilerContext& ctx, pBoundFunctionDecl const& function, 
     write(ctx, ")");
 }
 
-ErrorOr<void, SyntaxError> evaluate_arguments(CTranspilerContext& ctx, ProcessResult& result, std::shared_ptr<BoundFunctionDecl> const& decl, BoundExpressions const& arguments)
-{
-    auto first { true };
-    for (auto const& arg : arguments) {
-        if (!first)
-            write(ctx, ", ");
-        TRY_RETURN(process(arg, ctx, result));
-        first = false;
-    }
-    return {};
-}
-
 template <typename EmitFunction>
 ErrorOr<void, SyntaxError> function_call(CTranspilerContext& ctx, ProcessResult& result, pBoundFunctionCall const& call, EmitFunction const& emitter)
 {
@@ -207,7 +195,7 @@ ErrorOr<void, SyntaxError> function_call(CTranspilerContext& ctx, ProcessResult&
             writeln(ctx, format("{} $self = $arg{};", type_to_c_type(arg->type()), count));
             CTranspilerFunctionType impl = get_c_transpiler_intrinsic(method_descr->implementation().intrinsic);
             if (!impl)
-                return SyntaxError { ErrorCode::InternalError, call->token(), format("No C Transpiler implementation for destructor of {}", arg->type()) };
+                return SyntaxError { call->location(), "No C Transpiler implementation for destructor of {}", arg->type() };
             TRY_RETURN(impl(ctx, {}));
             dedent(ctx);
             writeln(ctx, "});");
@@ -243,7 +231,7 @@ ErrorOr<void,SyntaxError> transpile_block(pBlock const& block, CTranspilerContex
         writeln(ctx, format("{} $self = {};", type_to_c_type(variable->type()), variable->name()));
         CTranspilerFunctionType impl = get_c_transpiler_intrinsic(method_descr->implementation().intrinsic);
         if (!impl)
-            return SyntaxError { ErrorCode::InternalError, variable->token(), format("No C Transpiler implementation for destructor of {}", variable->type()) };
+            return SyntaxError { variable->location(), "No C Transpiler implementation for destructor of {}", variable->type() };
         TRY_RETURN(impl(ctx, {}));
         dedent(ctx);
         writeln(ctx, "});");
@@ -453,7 +441,6 @@ NODE_PROCESSOR(BoundFunctionDef)
 {
     auto func_def = std::dynamic_pointer_cast<BoundFunctionDef>(tree);
     TRY_RETURN(process(func_def->declaration(), ctx));
-    auto s = func_def->statement();
     TRY_RETURN(process(func_def->statement(), ctx));
     return tree;
 }
@@ -498,7 +485,7 @@ NODE_PROCESSOR(BoundIntrinsicCall)
     TRY_RETURN(function_call(ctx, result, call, [&call, &ctx]() -> ErrorOr<void, SyntaxError> {
         CTranspilerFunctionType impl = get_c_transpiler_intrinsic(call->intrinsic());
         if (!impl)
-            return SyntaxError { ErrorCode::InternalError, call->token(), format("No C Transpiler implementation for intrinsic {}", call->to_string()) };
+            return SyntaxError { call->location(), "No C Transpiler implementation for intrinsic {}", call->to_string() };
         TRY_RETURN(impl(ctx, call->argument_types()));
         return {};
     }));
@@ -603,7 +590,7 @@ NODE_PROCESSOR(BoundMemberAccess)
         writeln(ctx, ";");
         char const *msg = (access->member()->name() == "value") ? CONDITIONAL_VALUE_ERROR : CONDITIONAL_ERROR_ERROR;
         char const *invert = (access->member()->name() == "value") ? "!" : "";
-        auto const& loc = access->token().location;
+        auto const& loc = access->location();
         writeln(ctx, format(R"(if ({}cond.success) $fatal(($token) {{ .file_name="{}", .line_start={}, .column_start={}, .line_end={}, .column_end={}}, "{}");)",
             invert, loc.file_name, loc.start_line, loc.start_column, loc.end_line, loc.end_column, msg));
         writeln(ctx, format(R"(cond.{};)", access->member()->name()));
@@ -678,7 +665,7 @@ NODE_PROCESSOR(BoundVariableDeclaration)
         write(ctx, type_initialize(var_decl->type()));
     }
     writeln(ctx, ";");
-    ctx.declare(var_decl->name(), var_decl);
+    TRY_RETURN(ctx.declare(var_decl->name(), var_decl));
     return tree;
 }
 
@@ -779,17 +766,16 @@ NODE_PROCESSOR(BoundSwitchStatement)
     return tree;
 }
 
-ProcessResult transpile_to_c(std::shared_ptr<SyntaxNode> const& tree, Config const& config)
+ProcessResult& transpile_to_c(ProcessResult& result, Config const& config)
 {
     CTranspilerContext root(config);
     obl_dir = config.obelix_directory();
     fs::create_directory(".obelix");
 
-    auto ret = process(tree, root);
+    process(result.value(), root, result);
 
-    if (ret.is_error()) {
-        return ret;
-    }
+    if (result.is_error())
+        return result;
 
 #if 0
     std::shared_ptr<Assembly> main { nullptr };
@@ -834,8 +820,14 @@ ProcessResult transpile_to_c(std::shared_ptr<SyntaxNode> const& tree, Config con
         o_file.replace_extension("o");
         unlink(o_file.c_str());
         std::vector<std::string> cc_args = { p.string(), "-c", "-o", o_file, format("-I{}/include", obl_dir), "-O3" };
-        if (auto code = execute(compiler, cc_args); code.is_error())
-            return SyntaxError { code.error(), Token {} };
+        if (auto code = execute(compiler, cc_args); code.is_error() || (code.value() != 0)) {
+            if (code.is_error()) {
+                result.error(SyntaxError { "Compilation of '{}' failed: {}", module_file->name(), code.error() });
+            } else {
+                result.error(SyntaxError { "Compilation of '{}' failed", module_file->name() });
+            }
+            return result;
+        }
         modules.push_back(o_file);
     }
     if (!config.cmdline_flag<bool>("keep-c-file")) {
@@ -848,17 +840,25 @@ ProcessResult transpile_to_c(std::shared_ptr<SyntaxNode> const& tree, Config con
         for (auto& m : modules)
             ld_args.push_back(m);
 
-        if (auto code = execute(linker, ld_args); code.is_error())
-            return SyntaxError { code.error(), Token {} };
+        if (auto code = execute(linker, ld_args); code.is_error() || (code.value() != 0)) {
+            if (code.is_error()) {
+                result.error(SyntaxError { "Linking failed: {}", code.error() });
+            } else {
+                result.error(SyntaxError { "Linking failed" });
+            }
+            return result;
+        }
         if (config.run) {
             auto run_cmd = format("./{}", config.main());
             auto exit_code = execute(run_cmd);
-            if (exit_code.is_error())
-                return SyntaxError { exit_code.error(), Token {} };
-            ret = make_node<BoundIntLiteral>(Token { TokenCode::Integer, format("{}", exit_code.value()) }, (long) exit_code.value());
+            if (exit_code.is_error()) {
+                result.error(SyntaxError { "Execution failed: {}", exit_code.error() });
+                return result;
+            }
+            result = std::make_shared<BoundIntLiteral>(Span {}, (long) exit_code.value());
         }
     }
-    return ret;
+    return result;
 }
 
 }

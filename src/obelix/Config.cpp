@@ -99,7 +99,7 @@ std::string Config::main() const
     return path.filename().stem().string();
 }
 
-ErrorOr<std::string> ObelixBufferLocator::check_in_dir(std::string const& directory, std::string const& file_path)
+ErrorOr<std::string,SystemError> ObelixBufferLocator::check_in_dir(std::string const& directory, std::string const& file_path)
 {
     debug(config, "Checking existence of dir {} file {}", directory, file_path);
     auto exists_in_dir = check_existence(format("{}/{}", directory, file_path));
@@ -118,7 +118,7 @@ ErrorOr<std::string> ObelixBufferLocator::check_in_dir(std::string const& direct
             return check_in_dir(directory, file_path + ".obl");
         }
         default:
-            debug(config, "Unexpected error: {}", err.message());
+            debug(config, "Unexpected error: {}", err);
             return err;
         }
     }
@@ -133,7 +133,7 @@ ErrorOr<std::string> ObelixBufferLocator::check_in_dir(std::string const& direct
     return directory + "/" + file_path;
 }
 
-ErrorOr<std::string> ObelixBufferLocator::locate(std::string const& file) const
+ErrorOr<std::string,SystemError> ObelixBufferLocator::locate(std::string const& file) const
 {
     std::string obl_dir = m_config.obelix_directory();
     debug(config, "Locating file '{}' with OBL_DIR={}", file, obl_dir);

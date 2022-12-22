@@ -16,7 +16,7 @@ namespace Obelix {
 
 NODE_CLASS(StructForward, Statement)
 public:
-    StructForward(Token, std::string);
+    StructForward(Span, std::string);
     [[nodiscard]] std::string to_string() const override;
     [[nodiscard]] std::string attributes() const override;
     [[nodiscard]] std::string const& name() const;
@@ -27,7 +27,7 @@ private:
 
 NODE_CLASS(StructDefinition, Statement)
 public:
-    StructDefinition(Token, std::string, Identifiers, FunctionDefs = {});
+    StructDefinition(Span, std::string, Identifiers, FunctionDefs = {});
     [[nodiscard]] Nodes children() const override;
     [[nodiscard]] std::string to_string() const override;
     [[nodiscard]] std::string attributes() const override;
@@ -42,7 +42,7 @@ private:
 
 NODE_CLASS(EnumValue, SyntaxNode)
 public:
-    EnumValue(Token token, std::string label, std::optional<long> value);
+    EnumValue(Span location, std::string label, std::optional<long> value);
     [[nodiscard]] std::optional<long> const& value() const;
     [[nodiscard]] std::string const& label() const;
     [[nodiscard]] std::string attributes() const override;
@@ -57,7 +57,7 @@ using EnumValues = std::vector<std::shared_ptr<EnumValue>>;
 
 NODE_CLASS(EnumDef, Statement)
 public:
-    EnumDef(Token, std::string, EnumValues, bool = false);
+    EnumDef(Span, std::string, EnumValues, bool = false);
     [[nodiscard]] std::string const& name() const;
     [[nodiscard]] EnumValues const& values() const;
     [[nodiscard]] bool extend() const;
@@ -73,7 +73,7 @@ private:
 
 NODE_CLASS(TypeDef, Statement)
 public:
-    TypeDef(Token, std::string, std::shared_ptr<ExpressionType>);
+    TypeDef(Span, std::string, std::shared_ptr<ExpressionType>);
     [[nodiscard]] std::string const& name() const;
     [[nodiscard]] std::shared_ptr<ExpressionType> const& type() const;
     [[nodiscard]] std::string attributes() const override;

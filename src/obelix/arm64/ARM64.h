@@ -11,7 +11,7 @@
 
 namespace Obelix {
 
-ProcessResult materialize_arm64(std::shared_ptr<SyntaxNode> const& tree);
-ProcessResult output_arm64(std::shared_ptr<SyntaxNode> const&, Config const& config);
+ProcessResult& materialize_arm64(ProcessResult&);
+ProcessResult& output_arm64(ProcessResult&, Config const& config);
 
 }

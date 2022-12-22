@@ -27,8 +27,8 @@ using ARM64Implementation = std::function<ErrorOr<void, SyntaxError>(ARM64Contex
 class Code {
 public:
     explicit Code(std::string prolog = "", std::string epilog = "")
-        : m_prolog(move(prolog))
-        , m_epilog(move(epilog))
+        : m_prolog(std::move(prolog))
+        , m_epilog(std::move(epilog))
     {
     }
 

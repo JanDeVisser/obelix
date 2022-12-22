@@ -13,33 +13,33 @@ extern_logging_category(parser);
 
 // -- BoundStatement --------------------------------------------------------
 
-BoundStatement::BoundStatement(Token token)
-    : Statement(std::move(token))
+BoundStatement::BoundStatement(Span location)
+    : Statement(std::move(location))
 {
 }
 
 // -- BoundExpression -------------------------------------------------------
 
-BoundExpression::BoundExpression(Token token, std::shared_ptr<ObjectType> type)
-    : SyntaxNode(std::move(token))
+BoundExpression::BoundExpression(Span location, std::shared_ptr<ObjectType> type)
+    : SyntaxNode(std::move(location))
     , m_type(std::move(type))
 {
 }
 
 BoundExpression::BoundExpression(std::shared_ptr<Expression> const& expr, std::shared_ptr<ObjectType> type)
-    : SyntaxNode(expr->token())
+    : SyntaxNode(expr->location())
     , m_type(std::move(type))
 {
 }
 
 BoundExpression::BoundExpression(std::shared_ptr<BoundExpression> const& expr, pObjectType type)
-    : SyntaxNode(expr->token())
+    : SyntaxNode(expr->location())
     , m_type((type != nullptr) ? type : expr->type())
 {
 }
 
-BoundExpression::BoundExpression(Token token, PrimitiveType type)
-    : SyntaxNode(std::move(token))
+BoundExpression::BoundExpression(Span location, PrimitiveType type)
+    : SyntaxNode(std::move(location))
     , m_type(ObjectType::get(type))
 {
 }
@@ -67,8 +67,8 @@ std::string BoundExpression::qualified_name() const
 
 // -- BoundModule -----------------------------------------------------------
 
-BoundModule::BoundModule(Token token, std::string name, std::shared_ptr<Block> block, BoundStatements exports, BoundStatements imports)
-    : BoundExpression(std::move(token), PrimitiveType::Module)
+BoundModule::BoundModule(Span location, std::string name, std::shared_ptr<Block> block, BoundStatements exports, BoundStatements imports)
+    : BoundExpression(std::move(location), PrimitiveType::Module)
     , m_name(std::move(name))
     , m_block(std::move(block))
     , m_exports(std::move(exports))
@@ -175,7 +175,7 @@ std::string BoundModule::qualified_name() const
 // -- BoundCompilation ------------------------------------------------------
 
 BoundCompilation::BoundCompilation(BoundModules modules, ObjectTypes const& custom_types, std::string main_module)
-    : BoundExpression(Token {}, PrimitiveType::Compilation)
+    : BoundExpression(Span {}, PrimitiveType::Compilation)
     , m_modules(std::move(modules))
     , m_main_module(std::move(main_module))
 {
@@ -186,11 +186,11 @@ BoundCompilation::BoundCompilation(BoundModules modules, ObjectTypes const& cust
             m_main = module;
     }
     for (auto const& type : custom_types)
-        m_custom_types.push_back(std::make_shared<BoundType>(Token {}, type));
+        m_custom_types.push_back(std::make_shared<BoundType>(Span {}, type));
 }
 
 BoundCompilation::BoundCompilation(BoundModules modules, BoundTypes custom_types, std::string main_module)
-    : BoundExpression(Token {}, PrimitiveType::Compilation)
+    : BoundExpression(Span {}, PrimitiveType::Compilation)
     , m_modules(std::move(modules))
     , m_custom_types(std::move(custom_types))
     , m_main_module(std::move(main_module))

@@ -19,13 +19,15 @@ protected:
 public:
     [[nodiscard]] std::string attributes() const override;
     [[nodiscard]] std::string to_string() const override;
-    [[nodiscard]] virtual std::shared_ptr<Expression> apply(Token const&);
+    [[nodiscard]] Token const& token() const;
+
+private:
+    Token m_token;
 };
 
 NODE_CLASS(IntLiteral, Literal)
 public:
     IntLiteral(Token, std::shared_ptr<ExpressionType> = nullptr);
-    [[nodiscard]] std::shared_ptr<Expression> apply(Token const&) override;
 };
 
 NODE_CLASS(CharLiteral, Literal)
@@ -36,7 +38,6 @@ public:
 NODE_CLASS(FloatLiteral, Literal)
 public:
     FloatLiteral(Token, std::shared_ptr<ExpressionType> = nullptr);
-    [[nodiscard]] std::shared_ptr<Expression> apply(Token const&) override;
 };
 
 NODE_CLASS(StringLiteral, Literal)
@@ -47,7 +48,6 @@ public:
 NODE_CLASS(BooleanLiteral, Literal)
 public:
     BooleanLiteral(Token, std::shared_ptr<ExpressionType> = nullptr);
-    [[nodiscard]] std::shared_ptr<Expression> apply(Token const&) override;
 };
 
 }

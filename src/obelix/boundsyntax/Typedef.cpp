@@ -13,8 +13,8 @@ extern_logging_category(parser);
 
 // -- BoundType -------------------------------------------------------------
 
-BoundType::BoundType(Token token, std::shared_ptr<ObjectType> type)
-    : SyntaxNode(std::move(token))
+BoundType::BoundType(Span location, std::shared_ptr<ObjectType> type)
+    : SyntaxNode(std::move(location))
     , m_type(std::move(type))
 {
 }
@@ -37,7 +37,7 @@ std::string BoundType::to_string() const
 // -- BoundStructDefinition -------------------------------------------------
 
 BoundStructDefinition::BoundStructDefinition(pStructDefinition const& struct_def, pObjectType type, BoundIdentifiers fields, Statements methods)
-    : BoundStatement(struct_def->token())
+    : BoundStatement(struct_def->location())
     , m_name(struct_def->name())
     , m_type(std::move(type))
     , m_fields(std::move(fields))
@@ -45,8 +45,8 @@ BoundStructDefinition::BoundStructDefinition(pStructDefinition const& struct_def
 {
 }
 
-BoundStructDefinition::BoundStructDefinition(Token token, pObjectType type, BoundIdentifiers fields, Statements methods)
-    : BoundStatement(std::move(token))
+BoundStructDefinition::BoundStructDefinition(Span location, pObjectType type, BoundIdentifiers fields, Statements methods)
+    : BoundStatement(std::move(location))
     , m_name(type->name())
     , m_type(std::move(type))
     , m_fields(std::move(fields))
@@ -107,8 +107,8 @@ bool BoundStructDefinition::is_fully_bound() const
 
 // -- BoundEnumValueDef -----------------------------------------------------
 
-BoundEnumValueDef::BoundEnumValueDef(Token token, std::string label, long value)
-    : SyntaxNode(std::move(token))
+BoundEnumValueDef::BoundEnumValueDef(Span location, std::string label, long value)
+    : SyntaxNode(std::move(location))
     , m_value(value)
     , m_label(std::move(label))
 {
@@ -137,7 +137,7 @@ std::string BoundEnumValueDef::to_string() const
 // -- BoundEnumDef ----------------------------------------------------------
 
 BoundEnumDef::BoundEnumDef(std::shared_ptr<EnumDef> const& enum_def, std::shared_ptr<ObjectType> type, BoundEnumValueDefs values)
-    : BoundStatement(enum_def->token())
+    : BoundStatement(enum_def->location())
     , m_name(enum_def->name())
     , m_type(std::move(type))
     , m_values(std::move(values))
@@ -145,8 +145,8 @@ BoundEnumDef::BoundEnumDef(std::shared_ptr<EnumDef> const& enum_def, std::shared
 {
 }
 
-BoundEnumDef::BoundEnumDef(Token token, std::string name, std::shared_ptr<ObjectType> type, BoundEnumValueDefs values, bool extend)
-    : BoundStatement(std::move(token))
+BoundEnumDef::BoundEnumDef(Span location, std::string name, std::shared_ptr<ObjectType> type, BoundEnumValueDefs values, bool extend)
+    : BoundStatement(std::move(location))
     , m_name(std::move(name))
     , m_type(std::move(type))
     , m_values(std::move(values))
@@ -198,8 +198,8 @@ std::string BoundEnumDef::to_string() const
 
 // -- BoundTypeDef -------------------------------------------------------
 
-BoundTypeDef::BoundTypeDef(Token token, std::string name, std::shared_ptr<BoundType> type)
-    : BoundStatement(std::move(token))
+BoundTypeDef::BoundTypeDef(Span location, std::string name, std::shared_ptr<BoundType> type)
+    : BoundStatement(std::move(location))
     , m_name(std::move(name))
     , m_type(std::move(type))
 {

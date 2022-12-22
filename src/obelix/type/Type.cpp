@@ -505,7 +505,7 @@ bool ObjectType::operator==(ObjectType const& other) const
  *  - non-integers: types must be the same.
  *  - integers:
  *      -- signedness is the same and this size is less or equal to other
- *      -- signedness is different and this size is stritcly less than other
+ *      -- signedness is different and this size is strictly less than other
  */
 bool ObjectType::is_assignable_to(ObjectType const& assignee) const
 {
@@ -614,7 +614,7 @@ CanCast ObjectType::can_cast_to(Obelix::ObjectType const& other) const
     }
 }
 
-ErrorOr<pObjectType> ObjectType::smallest_compatible_type() const
+pObjectType ObjectType::smallest_compatible_type() const
 {
     if (type() != PrimitiveType::IntegerNumber && type() != PrimitiveType::SignedIntegerNumber)
         return get(this);
@@ -626,8 +626,6 @@ ErrorOr<pObjectType> ObjectType::smallest_compatible_type() const
             name = pair.first;
         }
     }
-    if (name.empty())
-        return Error<int> { ErrorCode::TypeMismatch };
     return get(name);
 }
 
@@ -712,7 +710,7 @@ bool ObjectType::is_compatible(pMethodDescription const& mth, ObjectTypes const&
                     return false;
                 break;
             case PrimitiveType::Compatible:
-                if (auto smallest = arg_type->smallest_compatible_type(); !smallest.has_value() || !is_compatible_with(smallest.value()))
+                if (auto smallest = arg_type->smallest_compatible_type(); !is_compatible_with(smallest))
                     return false;
                 break;
             case PrimitiveType::AssignableTo:
@@ -720,7 +718,7 @@ bool ObjectType::is_compatible(pMethodDescription const& mth, ObjectTypes const&
                     return false;
                 break;
             default:
-                if (auto smallest = arg_type->smallest_compatible_type(); !smallest.has_value() || !param.type->is_compatible_with(smallest.value()))
+                if (auto smallest = arg_type->smallest_compatible_type(); !param.type->is_compatible_with(smallest))
                     return false;
                 break;
         }
@@ -1025,13 +1023,13 @@ pObjectType ObjectType::register_struct_type(std::string const& name, FieldDefs 
     return ret_or_error.value();
 }
 
-ErrorOr<pObjectType> ObjectType::specialize(pObjectType const& base_type, TemplateArguments const& template_args)
+ErrorOr<pObjectType,SyntaxError> ObjectType::specialize(pObjectType const& base_type, TemplateArguments const& template_args)
 {
     static uint16_t counter = 0;
     if (base_type->is_parameterized() && (template_args.size() != base_type->template_parameters().size()))
-        return Error<int> { ErrorCode::TemplateParameterMismatch, base_type, base_type->template_parameters().size(), template_args.size() };
+        return SyntaxError { ErrorCode::TemplateParameterMismatch, base_type, base_type->template_parameters().size(), template_args.size() };
     if (!base_type->is_parameterized() && !template_args.empty())
-        return Error<int> { ErrorCode::TypeNotParameterized, base_type };
+        return SyntaxError { ErrorCode::TypeNotParameterized, base_type };
     if (!base_type->is_parameterized())
         return base_type;
     for (auto& template_specialization : s_template_specializations) {
@@ -1051,32 +1049,32 @@ ErrorOr<pObjectType> ObjectType::specialize(pObjectType const& base_type, Templa
     return specialization;
 }
 
-ErrorOr<pObjectType> ObjectType::specialize(std::string const& base_type_name, TemplateArguments const& template_args)
+ErrorOr<pObjectType,SyntaxError> ObjectType::specialize(std::string const& base_type_name, TemplateArguments const& template_args)
 {
     auto base_type = ObjectType::get(base_type_name);
     if (base_type == nullptr || *base_type == *s_unknown)
-        return Error<int> { ErrorCode::NoSuchType, base_type_name };
-    auto new_type_maybe = specialize(base_type, template_args);
-    if (new_type_maybe.has_value() && base_type->type() != PrimitiveType::Pointer)
-        new_type_maybe.value()->m_custom = true;
-    return new_type_maybe;
+        return SyntaxError { ErrorCode::NoSuchType, base_type_name };
+    auto new_type = TRY(specialize(base_type, template_args));
+    if (new_type && base_type->type() != PrimitiveType::Pointer)
+        new_type->m_custom = true;
+    return new_type;
 }
 
-ErrorOr<pObjectType> ObjectType::make_struct_type(std::string name, FieldDefs fields, ObjectTypeBuilder const& builder)
+ErrorOr<pObjectType,SyntaxError> ObjectType::make_struct_type(std::string name, FieldDefs fields, ObjectTypeBuilder const& builder)
 {
     initialize_types();
     pObjectType ret;
     if (s_types_by_name.contains(name)) {
         auto existing = s_types_by_name.at(name);
         if (existing->type() != PrimitiveType::Struct)
-            return Error<int> { ErrorCode::DuplicateTypeName, name };
+            return SyntaxError { ErrorCode::DuplicateTypeName, name };
         if (existing->fields().size() != fields.size())
-            return Error<int> { ErrorCode::DuplicateTypeName, name };
+            return SyntaxError { ErrorCode::DuplicateTypeName, name };
         for (auto ix = 0u; ix < fields.size(); ++ix) {
             auto existing_field = existing->fields()[ix];
             auto new_field = fields[ix];
             if (*existing_field.type != *new_field.type || existing_field.name != new_field.name)
-                return Error<int> { ErrorCode::DuplicateTypeName, name };
+                return SyntaxError { ErrorCode::DuplicateTypeName, name };
         }
         return existing;
     }
@@ -1109,10 +1107,10 @@ pObjectType ObjectType::make_enum_type(std::string const& name, NVPs const& valu
     return ret;
 }
 
-ErrorOr<void> ObjectType::extend_enum_type(NVPs const& new_values)
+ErrorOr<void,SyntaxError> ObjectType::extend_enum_type(NVPs const& new_values)
 {
     if (type() != PrimitiveType::Enum)
-        return Error<int> { ErrorCode::TypeMismatch, "Type '{}' is not an enum", name() };
+        return SyntaxError { "Type '{}' is not an enum", name() };
     auto values = template_argument<NVPs>("values");
     for (auto const &v : new_values) {
         values.push_back(v);

@@ -49,7 +49,7 @@ NODE_PROCESSOR(MaterializedFunctionDef)
 
     for (auto& param : func_def->declaration()->parameters()) {
         auto address = std::dynamic_pointer_cast<StackVariableAddress>(param->address());
-        ctx.declare(param->name(), address->offset());
+        TRY_RETURN(ctx.declare(param->name(), address->offset()));
     }
 
     if (func_def->declaration()->node_type() == SyntaxNodeType::MaterializedFunctionDecl) {
@@ -169,7 +169,7 @@ NODE_PROCESSOR(MaterializedIntrinsicCall)
     TRY_RETURN(evaluate_arguments(ctx, call->declaration(), call->arguments()));
     ARM64Implementation impl = get_arm64_intrinsic(call->intrinsic());
     if (!impl)
-        return SyntaxError { ErrorCode::InternalError, call->token(), format("No ARM64 implementation for intrinsic {}", call->to_string()) };
+        return SyntaxError { call->location(), "No ARM64 implementation for intrinsic {}", call->to_string() };
     auto ret = impl(ctx);
     if (ret.is_error())
         return ret.error();
@@ -196,7 +196,7 @@ NODE_PROCESSOR(BoundCastExpression)
         case PrimitiveType::Enum:
         case PrimitiveType::Boolean: {
             if (expr->type()->can_cast_to(cast->type()) == CanCast::Sometimes) {
-                // Dynamically check that value can be casted
+                // Dynamically check that value can be cast
             }
             if (cast->type()->size() < 8) {
                 std::string mask = "#0x";
@@ -280,7 +280,7 @@ NODE_PROCESSOR(BoundAssignment)
     auto assignment = std::dynamic_pointer_cast<BoundAssignment>(tree);
     auto assignee = std::dynamic_pointer_cast<MaterializedVariableAccess>(assignment->assignee());
     if (assignee == nullptr)
-        return SyntaxError { ErrorCode::InternalError, assignment->token(), format("Variable access '{}' not materialized", assignment->assignee()) };
+        return SyntaxError { assignment->location(), "Variable access '{}' not materialized", assignment->assignee() };
 
     TRY_RETURN(process(assignment->expression(), ctx));
     auto array_access = std::dynamic_pointer_cast<MaterializedArrayAccess>(assignee);
@@ -327,7 +327,7 @@ NODE_PROCESSOR(MaterializedStaticVariableDecl)
         if (var_decl->type()->type() != PrimitiveType::Struct) {
             auto mm = get_type_mnemonic_map(var_decl->type());
             if (mm == nullptr)
-                return SyntaxError { ErrorCode::NotYetImplemented, Token {},
+                return SyntaxError { ErrorCode::NotYetImplemented, Span {},
                     format("Cannot store values of type {} yet", var_decl->type()) };
 
             ctx.assembly()->add_instruction("adrp", "x8,{}@PAGE", var_decl->label());
@@ -364,7 +364,7 @@ NODE_PROCESSOR(MaterializedGlobalVariableDecl)
         if (var_decl->type()->type() != PrimitiveType::Struct) {
             auto mm = get_type_mnemonic_map(var_decl->type());
             if (mm == nullptr)
-                return SyntaxError { ErrorCode::NotYetImplemented, Token {},
+                return SyntaxError { ErrorCode::NotYetImplemented, Span {},
                     format("Cannot store values of type {} yet", var_decl->type()) };
 
             ctx.assembly()->add_instruction("adrp", "x8,{}@PAGE", var_decl->label());
@@ -459,24 +459,28 @@ NODE_PROCESSOR(BoundIfStatement)
     return tree;
 }
 
-ProcessResult output_arm64(std::shared_ptr<SyntaxNode> const& tree, Config const& config)
+ProcessResult& output_arm64(ProcessResult& result, Config const& config)
 {
-    auto processed = TRY(materialize_arm64(tree));
+    if (result.is_error())
+        return result;
+    materialize_arm64(result);
+    if (result.is_error())
+        return result;
+
     if (config.cmdline_flag<bool>("show-tree"))
         std::cout << "\n\nMaterialized:\n"
-                  << std::dynamic_pointer_cast<BoundCompilation>(processed)->root_to_xml()
+                  << std::dynamic_pointer_cast<BoundCompilation>(result.value())->root_to_xml()
                   << "\n"
-                  << processed->to_xml()
+                  << result.value()->to_xml()
                   << "\n";
     if (!config.compile)
-        return processed;
+        return result;
 
     ARM64Context root(config);
-    auto ret = process(processed, root);
+    process(result.value(), root, result);
 
-    if (ret.is_error()) {
-        return ret;
-    }
+    if (result.is_error())
+        return result;
 
     namespace fs = std::filesystem;
     fs::create_directory(".obelix");
@@ -489,7 +493,8 @@ ProcessResult output_arm64(std::shared_ptr<SyntaxNode> const& tree, Config const
         }
     }
     if (main == nullptr) {
-        return SyntaxError { ErrorCode::FunctionUndefined, Token {}, "No main() function found" };
+        result.error(SyntaxError { "No main() function found" });
+        return result;
     }
 
     main->enter_function("static_initializer");
@@ -517,7 +522,11 @@ ProcessResult output_arm64(std::shared_ptr<SyntaxNode> const& tree, Config const
                 std::cout << assembly->to_string();
             }
 
-            TRY_RETURN(assembly->save_and_assemble(bare_file_name));
+            auto assembly_result = assembly->save_and_assemble(bare_file_name);
+            if (assembly_result.is_error()) {
+                result.error(assembly_result.error());
+                return result;
+            }
             if (!config.cmdline_flag<bool>("keep-assembly")) {
                 auto assembly_file = bare_file_name + ".s";
                 unlink(assembly_file.c_str());
@@ -532,8 +541,13 @@ ProcessResult output_arm64(std::shared_ptr<SyntaxNode> const& tree, Config const
         static std::string sdk_path; // "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX12.1.sdk";
         if (sdk_path.empty()) {
             Process p("xcrun", "-sdk", "macosx", "--show-sdk-path");
-            if (auto exit_code_or_error = p.execute(); exit_code_or_error.is_error())
-                return SyntaxError { exit_code_or_error.error(), Token {} };
+            if (auto exit_code_or_error = p.execute(); exit_code_or_error.is_error() || (exit_code_or_error.value() != 0)) {
+                if (exit_code_or_error.is_error())
+                    result.error(SyntaxError { "XCode execution failed: {}", exit_code_or_error.error() });
+                else
+                    result.error(SyntaxError { "XCode execution failed" });
+                return result;
+            }
             sdk_path = strip(p.standard_out());
         }
 
@@ -542,17 +556,24 @@ ProcessResult output_arm64(std::shared_ptr<SyntaxNode> const& tree, Config const
         for (auto& m : modules)
             ld_args.push_back(m);
 
-        if (auto code = execute("ld", ld_args); code.is_error())
-            return SyntaxError { code.error(), Token {} };
+        if (auto exit_code_or_error = execute("ld", ld_args); exit_code_or_error.is_error() || (exit_code_or_error.value() != 0)) {
+            if (exit_code_or_error.is_error())
+                result.error(SyntaxError { "Linking failed: {}", exit_code_or_error.error() });
+            else
+                result.error(SyntaxError { "Linking failed" });
+            return result;
+        }
         if (config.run) {
             auto run_cmd = format("./{}", config.main());
-            auto exit_code = execute(run_cmd);
-            if (exit_code.is_error())
-                return SyntaxError { exit_code.error(), Token {} };
-            ret = make_node<BoundIntLiteral>(Token { TokenCode::Integer, format("{}", exit_code.value()) }, (long) exit_code.value());
+            auto exit_code_or_error = execute(run_cmd);
+            if (exit_code_or_error.is_error()) {
+                result.error(SyntaxError { "Program execution failed: {}", exit_code_or_error.error() });
+            } else {
+                result = std::make_shared<BoundIntLiteral>(Span {}, (long)exit_code_or_error.value());
+            }
         }
     }
-    return ret;
+    return result;
 }
 
 }

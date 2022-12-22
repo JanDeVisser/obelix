@@ -19,8 +19,8 @@ BoundVariableAccess::BoundVariableAccess(std::shared_ptr<Expression> reference, 
 {
 }
 
-BoundVariableAccess::BoundVariableAccess(Token token, std::shared_ptr<ObjectType> type)
-    : BoundExpression(std::move(token), std::move(type))
+BoundVariableAccess::BoundVariableAccess(Span location, std::shared_ptr<ObjectType> type)
+    : BoundExpression(std::move(location), std::move(type))
 {
 }
 
@@ -32,8 +32,8 @@ BoundIdentifier::BoundIdentifier(std::shared_ptr<Identifier> const& identifier, 
 {
 }
 
-BoundIdentifier::BoundIdentifier(Token token, std::string identifier, std::shared_ptr<ObjectType> type)
-    : BoundVariableAccess(std::move(token), std::move(type))
+BoundIdentifier::BoundIdentifier(Span location, std::string identifier, std::shared_ptr<ObjectType> type)
+    : BoundVariableAccess(std::move(location), std::move(type))
     , m_identifier(std::move(identifier))
 {
 }
@@ -65,15 +65,15 @@ BoundVariable::BoundVariable(std::shared_ptr<Variable> identifier, std::shared_p
 {
 }
 
-BoundVariable::BoundVariable(Token token, std::string name, std::shared_ptr<ObjectType> type)
-    : BoundIdentifier(std::move(token), std::move(name), std::move(type))
+BoundVariable::BoundVariable(Span location, std::string name, std::shared_ptr<ObjectType> type)
+    : BoundIdentifier(std::move(location), std::move(name), std::move(type))
 {
 }
 
 // -- BoundMemberAccess -----------------------------------------------------
 
 BoundMemberAccess::BoundMemberAccess(std::shared_ptr<BoundExpression> strukt, std::shared_ptr<BoundIdentifier> member)
-    : BoundVariableAccess(strukt->token(), member->type())
+    : BoundVariableAccess(strukt->location(), member->type())
     , m_struct(std::move(strukt))
     , m_member(std::move(member))
 {
@@ -112,7 +112,7 @@ std::string BoundMemberAccess::to_string() const
 // -- UnboundMemberAccess -----------------------------------------------------
 
 UnboundMemberAccess::UnboundMemberAccess(std::shared_ptr<BoundExpression> strukt, std::shared_ptr<Variable> member)
-    : Expression(strukt->token(), member->type())
+    : Expression(strukt->location(), member->type())
     , m_struct(std::move(strukt))
     , m_member(std::move(member))
 {
@@ -153,7 +153,7 @@ BoundMemberAssignment::BoundMemberAssignment(std::shared_ptr<BoundExpression> st
 // -- BoundArrayAccess ------------------------------------------------------
 
 BoundArrayAccess::BoundArrayAccess(std::shared_ptr<BoundExpression> array, std::shared_ptr<BoundExpression> index, std::shared_ptr<ObjectType> type)
-    : BoundVariableAccess(array->token(), std::move(type))
+    : BoundVariableAccess(array->location(), std::move(type))
     , m_array(std::move(array))
     , m_index(std::move(index))
 {
@@ -192,15 +192,15 @@ std::string BoundArrayAccess::qualified_name() const
 // -- BoundVariableDeclaration ----------------------------------------------
 
 BoundVariableDeclaration::BoundVariableDeclaration(std::shared_ptr<VariableDeclaration> const& decl, std::shared_ptr<BoundIdentifier> variable, std::shared_ptr<BoundExpression> expr)
-    : BoundStatement(decl->token())
+    : BoundStatement(decl->location())
     , m_variable(std::move(variable))
     , m_const(decl->is_const())
     , m_expression(std::move(expr))
 {
 }
 
-BoundVariableDeclaration::BoundVariableDeclaration(Token token, std::shared_ptr<BoundIdentifier> variable, bool is_const, std::shared_ptr<BoundExpression> expr)
-    : BoundStatement(std::move(token))
+BoundVariableDeclaration::BoundVariableDeclaration(Span location, std::shared_ptr<BoundIdentifier> variable, bool is_const, std::shared_ptr<BoundExpression> expr)
+    : BoundStatement(std::move(location))
     , m_variable(std::move(variable))
     , m_const(is_const)
     , m_expression(std::move(expr))
@@ -264,8 +264,8 @@ BoundStaticVariableDeclaration::BoundStaticVariableDeclaration(std::shared_ptr<V
 {
 }
 
-BoundStaticVariableDeclaration::BoundStaticVariableDeclaration(Token token, std::shared_ptr<BoundIdentifier> variable, bool is_const, std::shared_ptr<BoundExpression> expr)
-    : BoundVariableDeclaration(std::move(token), std::move(variable), is_const, std::move(expr))
+BoundStaticVariableDeclaration::BoundStaticVariableDeclaration(Span location, std::shared_ptr<BoundIdentifier> variable, bool is_const, std::shared_ptr<BoundExpression> expr)
+    : BoundVariableDeclaration(std::move(location), std::move(variable), is_const, std::move(expr))
 {
 }
 
@@ -286,8 +286,8 @@ BoundLocalVariableDeclaration::BoundLocalVariableDeclaration(std::shared_ptr<Var
 {
 }
 
-BoundLocalVariableDeclaration::BoundLocalVariableDeclaration(Token token, std::shared_ptr<BoundIdentifier> variable, bool is_const, std::shared_ptr<BoundExpression> expr)
-    : BoundVariableDeclaration(std::move(token), std::move(variable), is_const, std::move(expr))
+BoundLocalVariableDeclaration::BoundLocalVariableDeclaration(Span location, std::shared_ptr<BoundIdentifier> variable, bool is_const, std::shared_ptr<BoundExpression> expr)
+    : BoundVariableDeclaration(std::move(location), std::move(variable), is_const, std::move(expr))
 {
 }
 
@@ -303,8 +303,8 @@ BoundGlobalVariableDeclaration::BoundGlobalVariableDeclaration(std::shared_ptr<V
 {
 }
 
-BoundGlobalVariableDeclaration::BoundGlobalVariableDeclaration(Token token, std::shared_ptr<BoundIdentifier> variable, bool is_const, std::shared_ptr<BoundExpression> expr)
-    : BoundVariableDeclaration(std::move(token), std::move(variable), is_const, std::move(expr))
+BoundGlobalVariableDeclaration::BoundGlobalVariableDeclaration(Span location, std::shared_ptr<BoundIdentifier> variable, bool is_const, std::shared_ptr<BoundExpression> expr)
+    : BoundVariableDeclaration(std::move(location), std::move(variable), is_const, std::move(expr))
 {
 }
 
@@ -320,8 +320,8 @@ bool BoundGlobalVariableDeclaration::is_static() const
 
 // -- BoundAssignment -------------------------------------------------------
 
-BoundAssignment::BoundAssignment(Token token, std::shared_ptr<BoundVariableAccess> assignee, std::shared_ptr<BoundExpression> expression)
-    : BoundExpression(std::move(token), assignee->type())
+BoundAssignment::BoundAssignment(Span location, std::shared_ptr<BoundVariableAccess> assignee, std::shared_ptr<BoundExpression> expression)
+    : BoundExpression(std::move(location), assignee->type())
     , m_assignee(std::move(assignee))
     , m_expression(std::move(expression))
 {

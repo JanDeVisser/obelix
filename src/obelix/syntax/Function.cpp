@@ -12,8 +12,8 @@ extern_logging_category(parser);
 
 // -- FunctionDecl ----------------------------------------------------------
 
-FunctionDecl::FunctionDecl(Token token, std::string module, std::shared_ptr<Identifier> identifier, Identifiers parameters)
-    : Statement(std::move(token))
+FunctionDecl::FunctionDecl(Span location, std::string module, std::shared_ptr<Identifier> identifier, Identifiers parameters)
+    : Statement(std::move(location))
     , m_module(std::move(module))
     , m_identifier(std::move(identifier))
     , m_parameters(std::move(parameters))
@@ -93,8 +93,8 @@ std::string FunctionDecl::parameters_to_string() const
 
 // -- NativeFunctionDecl ----------------------------------------------------
 
-NativeFunctionDecl::NativeFunctionDecl(Token token, std::string module, std::shared_ptr<Identifier> identifier, Identifiers parameters, std::string native_function)
-    : FunctionDecl(std::move(token), std::move(module), std::move(identifier), std::move(parameters))
+NativeFunctionDecl::NativeFunctionDecl(Span location, std::string module, std::shared_ptr<Identifier> identifier, Identifiers parameters, std::string native_function)
+    : FunctionDecl(std::move(location), std::move(module), std::move(identifier), std::move(parameters))
     , m_native_function_name(std::move(native_function))
 {
 }
@@ -116,8 +116,8 @@ std::string NativeFunctionDecl::to_string() const
 
 // -- IntrinsicDecl ---------------------------------------------------------
 
-IntrinsicDecl::IntrinsicDecl(Token token, std::string module, std::shared_ptr<Identifier> identifier, Identifiers parameters)
-    : FunctionDecl(std::move(token), std::move(module), std::move(identifier), std::move(parameters))
+IntrinsicDecl::IntrinsicDecl(Span location, std::string module, std::shared_ptr<Identifier> identifier, Identifiers parameters)
+    : FunctionDecl(std::move(location), std::move(module), std::move(identifier), std::move(parameters))
 {
 }
 
@@ -128,8 +128,8 @@ std::string IntrinsicDecl::to_string() const
 
 // -- FunctionDef -----------------------------------------------------------
 
-FunctionDef::FunctionDef(Token token, std::shared_ptr<FunctionDecl> func_decl, std::shared_ptr<Statement> statement)
-    : Statement(std::move(token))
+FunctionDef::FunctionDef(Span location, std::shared_ptr<FunctionDecl> func_decl, std::shared_ptr<Statement> statement)
+    : Statement(std::move(location))
     , m_function_decl(std::move(func_decl))
     , m_statement(std::move(statement))
 {

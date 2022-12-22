@@ -58,7 +58,7 @@ using Strings = std::vector<std::string>;
 
 class SyntaxNode : public std::enable_shared_from_this<SyntaxNode> {
 public:
-    explicit SyntaxNode(Token token = {});
+    explicit SyntaxNode(Span location = {});
     virtual ~SyntaxNode() = default;
 
     [[nodiscard]] virtual SyntaxNodeType node_type() const = 0;
@@ -68,10 +68,10 @@ public:
     [[nodiscard]] std::string to_xml(int) const;
     [[nodiscard]] virtual std::string to_string() const;
     [[nodiscard]] std::string to_xml() const;
-    [[nodiscard]] Token const& token() const;
+    [[nodiscard]] Span const& location() const;
 
 private:
-    Token m_token;
+    Span m_location;
 };
 
 using pSyntaxNode = std::shared_ptr<SyntaxNode>;

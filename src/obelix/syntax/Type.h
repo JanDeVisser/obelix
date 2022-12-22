@@ -14,7 +14,7 @@ namespace Obelix {
 
 ABSTRACT_NODE_CLASS(TemplateArgumentNode, SyntaxNode)
 public:
-    explicit TemplateArgumentNode(Token);
+    explicit TemplateArgumentNode(Span);
     [[nodiscard]] virtual TemplateParameterType parameter_type() const = 0;
 };
 
@@ -22,7 +22,7 @@ using TemplateArgumentNodes = std::vector<std::shared_ptr<TemplateArgumentNode>>
 
 NODE_CLASS(StringTemplateArgument, TemplateArgumentNode)
 public:
-    StringTemplateArgument(Token token, std::string value);
+    StringTemplateArgument(Span location, std::string value);
     [[nodiscard]] std::string to_string() const override;
     [[nodiscard]] std::string attributes() const override;
     [[nodiscard]] std::string value() const;
@@ -34,7 +34,7 @@ private:
 
 NODE_CLASS(IntegerTemplateArgument, TemplateArgumentNode)
 public:
-    IntegerTemplateArgument(Token token, long value);
+    IntegerTemplateArgument(Span location, long value);
     [[nodiscard]] std::string to_string() const override;
     [[nodiscard]] std::string attributes() const override;
     [[nodiscard]] long value() const;
@@ -46,10 +46,10 @@ private:
 
 NODE_CLASS(ExpressionType, TemplateArgumentNode)
 public:
-    ExpressionType(Token, std::string, TemplateArgumentNodes);
-    ExpressionType(Token, std::string);
-    ExpressionType(Token, PrimitiveType);
-    ExpressionType(Token, std::shared_ptr<ObjectType> const&);
+    ExpressionType(Span, std::string, TemplateArgumentNodes);
+    ExpressionType(Span, std::string);
+    ExpressionType(Span, PrimitiveType);
+    ExpressionType(Span, std::shared_ptr<ObjectType> const&);
     [[nodiscard]] bool is_template_instantiation() const;
     [[nodiscard]] std::string const& type_name() const;
     [[nodiscard]] TemplateArgumentNodes const& template_arguments() const;

@@ -27,14 +27,14 @@ NODE_PROCESSOR(BoundFunctionDef)
         switch (statement->node_type()) {
         case SyntaxNodeType::Block: {
             auto block = std::dynamic_pointer_cast<Block>(statement);
-            return std::make_shared<BoundFunctionDef>(func_def, std::make_shared<FunctionBlock>(block->token(), block->statements(), func_def->declaration()));
+            return std::make_shared<BoundFunctionDef>(func_def, std::make_shared<FunctionBlock>(block->location(), block->statements(), func_def->declaration()));
         }
         case SyntaxNodeType::FunctionBlock: {
             auto block = std::dynamic_pointer_cast<FunctionBlock>(statement);
             return std::make_shared<BoundFunctionDef>(func_def, block);
         }
         default:
-            return std::make_shared<BoundFunctionDef>(func_def, std::make_shared<FunctionBlock>(statement->token(), statement, func_def->declaration()));
+            return std::make_shared<BoundFunctionDef>(func_def, std::make_shared<FunctionBlock>(statement->location(), statement, func_def->declaration()));
         }
     }
     return tree;
@@ -66,15 +66,15 @@ NODE_PROCESSOR(BoundSwitchStatement)
 
     BoundBranches branches;
     for (auto& c : cases) {
-        branches.push_back(std::make_shared<BoundBranch>(c->token(),
-            std::make_shared<BoundBinaryExpression>(switch_expr->token(), switch_expr, BinaryOperator::Equals, c->condition(), ObjectType::get(PrimitiveType::Boolean)),
+        branches.push_back(std::make_shared<BoundBranch>(c->location(),
+            std::make_shared<BoundBinaryExpression>(switch_expr->location(), switch_expr, BinaryOperator::Equals, c->condition(), ObjectType::get(PrimitiveType::Boolean)),
             c->statement()));
     }
     if (default_case) {
         auto default_stmt = TRY_AND_CAST(Statement, default_case->statement(), ctx);
-        branches.push_back(std::make_shared<BoundBranch>(default_case->token(), nullptr, default_stmt));
+        branches.push_back(std::make_shared<BoundBranch>(default_case->location(), nullptr, default_stmt));
     }
-    return TRY(process(std::make_shared<BoundIfStatement>(switch_stmt->token(), branches), ctx, result));
+    return TRY(process(std::make_shared<BoundIfStatement>(switch_stmt->location(), branches), ctx, result));
 }
 
 NODE_PROCESSOR(BoundWhileStatement)
@@ -104,21 +104,21 @@ NODE_PROCESSOR(BoundWhileStatement)
     //
 
     Statements while_block;
-    auto start_of_loop = std::make_shared<Label>(while_stmt->token());
-    auto jump_out_of_loop = std::make_shared<Goto>(while_stmt->token());
+    auto start_of_loop = std::make_shared<Label>(while_stmt->location());
+    auto jump_out_of_loop = std::make_shared<Goto>(while_stmt->location());
     while_block.push_back(start_of_loop);
 
     BoundBranches branches {
-        std::make_shared<BoundBranch>(while_stmt->token(),
-            std::make_shared<BoundUnaryExpression>(condition->token(),
+        std::make_shared<BoundBranch>(while_stmt->location(),
+            std::make_shared<BoundUnaryExpression>(condition->location(),
                 condition, UnaryOperator::LogicalInvert, ObjectType::get(PrimitiveType::Boolean)),
             jump_out_of_loop),
     };
-    while_block.push_back(std::make_shared<BoundIfStatement>(condition->token(), branches));
+    while_block.push_back(std::make_shared<BoundIfStatement>(condition->location(), branches));
     while_block.push_back(stmt);
-    while_block.push_back(std::make_shared<Goto>(while_stmt->token(), start_of_loop));
+    while_block.push_back(std::make_shared<Goto>(while_stmt->location(), start_of_loop));
     while_block.push_back(std::make_shared<Label>(jump_out_of_loop));
-    return TRY(process(std::make_shared<Block>(while_stmt->token(), while_block), ctx, result));
+    return TRY(process(std::make_shared<Block>(while_stmt->location(), while_block), ctx, result));
 }
 
 NODE_PROCESSOR(BoundForStatement)
@@ -129,7 +129,7 @@ NODE_PROCESSOR(BoundForStatement)
         auto range = std::dynamic_pointer_cast<BoundBinaryExpression>(for_stmt->range());
         auto range_low = TRY_AND_CAST(BoundExpression, range->lhs(), ctx);
         auto range_high = TRY_AND_CAST(BoundExpression, range->rhs(), ctx);
-        range = std::make_shared<BoundBinaryExpression>(range->token(), range_low, BinaryOperator::Range, range_high, range->type());
+        range = std::make_shared<BoundBinaryExpression>(range->location(), range_low, BinaryOperator::Range, range_high, range->type());
         auto stmt = TRY_AND_CAST(Statement, for_stmt->statement(), ctx);
         return std::make_shared<BoundForStatement>(for_stmt, variable, range, stmt);
     }
@@ -154,21 +154,21 @@ NODE_PROCESSOR(BoundForStatement)
     auto stmt = TRY_AND_CAST(Statement, for_stmt->statement(), ctx);
 
     if (range_expr->node_type() != SyntaxNodeType::BoundBinaryExpression)
-        return SyntaxError { ErrorCode::SyntaxError, for_stmt->token(), "Invalid for-loop range" };
+        return SyntaxError { for_stmt->location(), "Invalid for-loop range" };
     auto range_binary_expr = std::dynamic_pointer_cast<BoundBinaryExpression>(range_expr);
     if (range_binary_expr->op() != BinaryOperator::Range)
-        return SyntaxError { ErrorCode::SyntaxError, range_expr->token(), "Invalid for-loop range" };
+        return SyntaxError { range_expr->location(), "Invalid for-loop range" };
     auto variable_type = for_stmt->variable()->type();
 
     Statements for_block;
 
     if (for_stmt->must_declare_variable()) {
         for_block.push_back(
-            std::make_shared<BoundVariableDeclaration>(for_stmt->token(), for_stmt->variable(), false, range_binary_expr->lhs()));
+            std::make_shared<BoundVariableDeclaration>(for_stmt->location(), for_stmt->variable(), false, range_binary_expr->lhs()));
     } else {
         for_block.push_back(
-            std::make_shared<BoundExpressionStatement>(for_stmt->token(),
-                std::make_shared<BoundAssignment>(for_stmt->token(),
+            std::make_shared<BoundExpressionStatement>(for_stmt->location(),
+                std::make_shared<BoundAssignment>(for_stmt->location(),
                     for_stmt->variable(),
                     range_binary_expr->lhs())));
     }
@@ -183,23 +183,23 @@ NODE_PROCESSOR(BoundForStatement)
         rhs = TRY(rhs_int->cast(variable_type));
     }
 
-    for_block.push_back(std::make_shared<BoundIfStatement>(for_stmt->token(),
+    for_block.push_back(std::make_shared<BoundIfStatement>(for_stmt->location(),
         BoundBranches {
-            std::make_shared<BoundBranch>(for_stmt->token(),
-                std::make_shared<BoundBinaryExpression>(for_stmt->token(),
+            std::make_shared<BoundBranch>(for_stmt->location(),
+                std::make_shared<BoundBinaryExpression>(for_stmt->location(),
                     for_stmt->variable(), BinaryOperator::GreaterEquals, rhs, ObjectType::get(PrimitiveType::Boolean)),
                 jump_past_loop),
         }));
     for_block.push_back(stmt);
     for_block.push_back(
-        std::make_shared<BoundExpressionStatement>(range_binary_expr->token(),
-            std::make_shared<BoundUnaryExpression>(range_binary_expr->token(),
+        std::make_shared<BoundExpressionStatement>(range_binary_expr->location(),
+            std::make_shared<BoundUnaryExpression>(range_binary_expr->location(),
                 for_stmt->variable(),
                 UnaryOperator::UnaryIncrement,
                 variable_type)));
-    for_block.push_back(std::make_shared<Goto>(for_stmt->token(), jump_back_label));
+    for_block.push_back(std::make_shared<Goto>(for_stmt->location(), jump_back_label));
     for_block.push_back(std::make_shared<Label>(jump_past_loop));
-    return TRY(process(std::make_shared<Block>(stmt->token(), for_block), ctx, result));
+    return TRY(process(std::make_shared<Block>(stmt->location(), for_block), ctx, result));
 }
 
 NODE_PROCESSOR(BoundBinaryExpression)
@@ -213,28 +213,28 @@ NODE_PROCESSOR(BoundBinaryExpression)
     }
 
     if (expr->op() == BinaryOperator::GreaterEquals) {
-        return std::make_shared<BoundBinaryExpression>(expr->token(),
-            std::make_shared<BoundBinaryExpression>(expr->token(),
+        return std::make_shared<BoundBinaryExpression>(expr->location(),
+            std::make_shared<BoundBinaryExpression>(expr->location(),
                 lhs, BinaryOperator::Equals, rhs, ObjectType::get(PrimitiveType::Boolean)),
             BinaryOperator::LogicalOr,
-            std::make_shared<BoundBinaryExpression>(expr->token(),
+            std::make_shared<BoundBinaryExpression>(expr->location(),
                 lhs, BinaryOperator::Greater, rhs, ObjectType::get(PrimitiveType::Boolean)),
             ObjectType::get(PrimitiveType::Boolean));
     }
 
     if (expr->op() == BinaryOperator::LessEquals) {
-        return std::make_shared<BoundBinaryExpression>(expr->token(),
-            std::make_shared<BoundBinaryExpression>(expr->token(),
+        return std::make_shared<BoundBinaryExpression>(expr->location(),
+            std::make_shared<BoundBinaryExpression>(expr->location(),
                 lhs, BinaryOperator::Equals, rhs, ObjectType::get(PrimitiveType::Boolean)),
             BinaryOperator::LogicalOr,
-            std::make_shared<BoundBinaryExpression>(expr->token(),
+            std::make_shared<BoundBinaryExpression>(expr->location(),
                 lhs, BinaryOperator::Less, rhs, ObjectType::get(PrimitiveType::Boolean)),
             ObjectType::get(PrimitiveType::Boolean));
     }
 
     if (expr->op() == BinaryOperator::NotEquals) {
-        return std::make_shared<BoundUnaryExpression>(expr->token(),
-            std::make_shared<BoundBinaryExpression>(expr->token(),
+        return std::make_shared<BoundUnaryExpression>(expr->location(),
+            std::make_shared<BoundBinaryExpression>(expr->location(),
                 lhs, BinaryOperator::Equals, rhs, ObjectType::get(PrimitiveType::Boolean)),
             UnaryOperator::LogicalInvert,
             ObjectType::get(PrimitiveType::Boolean));
@@ -249,21 +249,26 @@ NODE_PROCESSOR(BoundUnaryExpression)
     auto operand = TRY_AND_CAST(BoundExpression, expr->operand(), ctx);
     if (expr->op() == UnaryOperator::UnaryIncrement || expr->op() == UnaryOperator::UnaryDecrement) {
         auto identifier = std::dynamic_pointer_cast<BoundIdentifier>(operand);
-        auto new_rhs = std::make_shared<BoundBinaryExpression>(expr->token(),
+        auto new_rhs = std::make_shared<BoundBinaryExpression>(expr->location(),
             identifier,
             (expr->op() == UnaryOperator::UnaryIncrement) ? BinaryOperator::Add : BinaryOperator::Subtract,
-            std::make_shared<BoundIntLiteral>(expr->token(), 1l, identifier->type()),
+            std::make_shared<BoundIntLiteral>(expr->location(), 1l, identifier->type()),
             identifier->type());
-        return std::make_shared<BoundAssignment>(expr->token(), identifier, new_rhs);
+        return std::make_shared<BoundAssignment>(expr->location(), identifier, new_rhs);
     }
     return tree;
 }
 
-ProcessResult lower(std::shared_ptr<SyntaxNode> const& tree, Config const& config)
+ProcessResult& lower(Config const& config, ProcessResult& result)
 {
+    if (result.is_error())
+        return result;
     LowerContext ctx { config };
-    auto lowered = TRY(process<LowerContext>(tree, ctx));
-    return resolve_operators(lowered);
+    process<LowerContext>(result.value(), ctx, result);
+    if (result.is_error())
+        return result;
+    resolve_operators(result);
+    return result;
 }
 
 }

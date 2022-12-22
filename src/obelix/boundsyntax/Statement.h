@@ -14,17 +14,17 @@ namespace Obelix {
 NODE_CLASS(BoundStatement, Statement)
 public:
     BoundStatement() = default;
-    explicit BoundStatement(Token);
+    explicit BoundStatement(Span);
     [[nodiscard]] bool is_fully_bound() const override { return true; }
 };
 
 NODE_CLASS(BoundExpression, SyntaxNode)
 public:
     BoundExpression() = default;
-    BoundExpression(Token, std::shared_ptr<ObjectType>);
+    BoundExpression(Span, std::shared_ptr<ObjectType>);
     BoundExpression(std::shared_ptr<Expression> const&, std::shared_ptr<ObjectType>);
     BoundExpression(std::shared_ptr<BoundExpression> const&, pObjectType = nullptr);
-    BoundExpression(Token, PrimitiveType);
+    BoundExpression(Span, PrimitiveType);
     [[nodiscard]] std::shared_ptr<ObjectType> const& type() const;
     [[nodiscard]] std::string const& type_name() const;
     [[nodiscard]] std::string attributes() const override;
@@ -36,7 +36,7 @@ private:
 
 NODE_CLASS(BoundModule, BoundExpression)
 public:
-    BoundModule(Token, std::string, std::shared_ptr<Block>, BoundStatements, BoundStatements);
+    BoundModule(Span, std::string, std::shared_ptr<Block>, BoundStatements, BoundStatements);
     [[nodiscard]] std::string const& name() const;
     [[nodiscard]] std::shared_ptr<Block> const& block() const;
     [[nodiscard]] BoundStatements const& exports() const;

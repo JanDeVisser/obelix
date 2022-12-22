@@ -12,8 +12,8 @@ extern_logging_category(parser);
 
 // -- StructForward ---------------------------------------------------------
 
-StructForward::StructForward(Token token, std::string name)
-    : Statement(std::move(token))
+StructForward::StructForward(Span location, std::string name)
+    : Statement(std::move(location))
     , m_name(std::move(name))
 {
 }
@@ -35,8 +35,8 @@ std::string const& StructForward::name() const
 
 // -- StructDefinition ------------------------------------------------------
 
-StructDefinition::StructDefinition(Token token, std::string name, Identifiers fields, FunctionDefs methods)
-    : Statement(std::move(token))
+StructDefinition::StructDefinition(Span location, std::string name, Identifiers fields, FunctionDefs methods)
+    : Statement(std::move(location))
     , m_name(std::move(name))
     , m_fields(std::move(fields))
     , m_methods(std::move(methods))
@@ -83,8 +83,8 @@ FunctionDefs const& StructDefinition::methods() const
 
 // -- EnumValue -------------------------------------------------------------
 
-EnumValue::EnumValue(Token token, std::string label, std::optional<long> value)
-    : SyntaxNode(std::move(token))
+EnumValue::EnumValue(Span location, std::string label, std::optional<long> value)
+    : SyntaxNode(std::move(location))
     , m_value(std::move(value))
     , m_label(std::move(label))
 {
@@ -116,8 +116,8 @@ std::string EnumValue::to_string() const
 
 // -- EnumDef ---------------------------------------------------------------
 
-EnumDef::EnumDef(Token token, std::string name, EnumValues values, bool extend)
-    : Statement(std::move(token))
+EnumDef::EnumDef(Span location, std::string name, EnumValues values, bool extend)
+    : Statement(std::move(location))
     , m_name(std::move(name))
     , m_values(std::move(values))
     , m_extend(extend)
@@ -165,8 +165,8 @@ std::string EnumDef::to_string() const
 
 // -- TypeDef ---------------------------------------------------------------
 
-TypeDef::TypeDef(Token token, std::string name, std::shared_ptr<ExpressionType> type)
-    : Statement(std::move(token))
+TypeDef::TypeDef(Span location, std::string name, std::shared_ptr<ExpressionType> type)
+    : Statement(std::move(location))
     , m_name(std::move(name))
     , m_type(std::move(type))
 {

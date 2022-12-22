@@ -12,8 +12,8 @@ extern_logging_category(parser);
 
 // -- Expression ------------------------------------------------------------
 
-Expression::Expression(Token token, std::shared_ptr<ExpressionType> type)
-    : SyntaxNode(std::move(token))
+Expression::Expression(Span location, std::shared_ptr<ExpressionType> type)
+    : SyntaxNode(std::move(location))
     , m_type(std::move(type))
 {
 }
@@ -40,8 +40,8 @@ std::string Expression::attributes() const
 
 // -- ExpressionList --------------------------------------------------------
 
-ExpressionList::ExpressionList(Token token, Expressions expressions)
-    : Expression(std::move(token))
+ExpressionList::ExpressionList(Span location, Expressions expressions)
+    : Expression(std::move(location))
     , m_expressions(std::move(expressions))
 {
 }
@@ -71,8 +71,8 @@ std::string ExpressionList::to_string() const
 
 // -- Identifier ------------------------------------------------------------
 
-Identifier::Identifier(Token token, std::string name, std::shared_ptr<ExpressionType> type)
-    : Expression(std::move(token), std::move(type))
+Identifier::Identifier(Span location, std::string name, std::shared_ptr<ExpressionType> type)
+    : Expression(std::move(location), std::move(type))
     , m_identifier(std::move(name))
 {
 }
@@ -94,15 +94,15 @@ std::string Identifier::to_string() const
 
 // -- Variable --------------------------------------------------------------
 
-Variable::Variable(Token token, std::string name, std::shared_ptr<ExpressionType> type)
-    : Identifier(std::move(token), std::move(name), std::move(type))
+Variable::Variable(Span location, std::string name, std::shared_ptr<ExpressionType> type)
+    : Identifier(std::move(location), std::move(name), std::move(type))
 {
 }
 
 // -- This ------------------------------------------------------------------
 
-This::This(Token token)
-    : Expression(std::move(token))
+This::This(Span location)
+    : Expression(std::move(location))
 {
 }
 
@@ -114,7 +114,7 @@ std::string This::to_string() const
 // -- BinaryExpression ------------------------------------------------------
 
 BinaryExpression::BinaryExpression(std::shared_ptr<Expression> lhs, Token op, std::shared_ptr<Expression> rhs, std::shared_ptr<ExpressionType> type)
-    : Expression(op, std::move(type))
+    : Expression(lhs->location().merge(rhs->location()), std::move(type))
     , m_lhs(std::move(lhs))
     , m_operator(std::move(op))
     , m_rhs(std::move(rhs))
@@ -154,7 +154,7 @@ Token BinaryExpression::op() const
 // -- UnaryExpression -------------------------------------------------------
 
 UnaryExpression::UnaryExpression(Token op, std::shared_ptr<Expression> operand, std::shared_ptr<ExpressionType> type)
-    : Expression(op, std::move(type))
+    : Expression(op.location().merge(operand->location()), std::move(type))
     , m_operator(std::move(op))
     , m_operand(std::move(operand))
 {
@@ -187,8 +187,8 @@ std::shared_ptr<Expression> const& UnaryExpression::operand() const
 
 // -- CastExpression --------------------------------------------------------
 
-CastExpression::CastExpression(Token token, std::shared_ptr<Expression> expression, std::shared_ptr<ExpressionType> cast_to)
-    : Expression(std::move(token), std::move(cast_to))
+CastExpression::CastExpression(Span location, std::shared_ptr<Expression> expression, std::shared_ptr<ExpressionType> cast_to)
+    : Expression(std::move(location), std::move(cast_to))
     , m_expression(std::move(expression))
 {
 }

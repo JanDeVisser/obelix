@@ -12,8 +12,8 @@ extern_logging_category(parser);
 
 // -- VariableDeclaration ---------------------------------------------------
 
-VariableDeclaration::VariableDeclaration(Token token, std::shared_ptr<Identifier> identifier, std::shared_ptr<Expression> expr, bool constant)
-    : Statement(std::move(token))
+VariableDeclaration::VariableDeclaration(Span location, std::shared_ptr<Identifier> identifier, std::shared_ptr<Expression> expr, bool constant)
+    : Statement(std::move(location))
     , m_identifier(std::move(identifier))
     , m_const(constant)
     , m_expression(std::move(expr))
@@ -72,8 +72,8 @@ std::shared_ptr<Expression> const& VariableDeclaration::expression() const
 
 // -- StaticVariableDeclaration ---------------------------------------------
 
-StaticVariableDeclaration::StaticVariableDeclaration(Token token, std::shared_ptr<Identifier> identifier, std::shared_ptr<Expression> expr, bool constant)
-    : VariableDeclaration(std::move(token), std::move(identifier), std::move(expr), constant)
+StaticVariableDeclaration::StaticVariableDeclaration(Span location, std::shared_ptr<Identifier> identifier, std::shared_ptr<Expression> expr, bool constant)
+    : VariableDeclaration(std::move(location), std::move(identifier), std::move(expr), constant)
 {
 }
 
@@ -84,8 +84,8 @@ std::string StaticVariableDeclaration::to_string() const
 
 // -- LocalVariableDeclaration ----------------------------------------------
 
-LocalVariableDeclaration::LocalVariableDeclaration(Token token, std::shared_ptr<Identifier> identifier, std::shared_ptr<Expression> expr, bool constant)
-    : VariableDeclaration(std::move(token), std::move(identifier), std::move(expr), constant)
+LocalVariableDeclaration::LocalVariableDeclaration(Span location, std::shared_ptr<Identifier> identifier, std::shared_ptr<Expression> expr, bool constant)
+    : VariableDeclaration(std::move(location), std::move(identifier), std::move(expr), constant)
 {
 }
 
@@ -96,8 +96,8 @@ std::string LocalVariableDeclaration::to_string() const
 
 // -- GlobalVariableDeclaration ---------------------------------------------
 
-GlobalVariableDeclaration::GlobalVariableDeclaration(Token token, std::shared_ptr<Identifier> identifier, std::shared_ptr<Expression> expr, bool constant)
-    : VariableDeclaration(std::move(token), std::move(identifier), std::move(expr), constant)
+GlobalVariableDeclaration::GlobalVariableDeclaration(Span location, std::shared_ptr<Identifier> identifier, std::shared_ptr<Expression> expr, bool constant)
+    : VariableDeclaration(std::move(location), std::move(identifier), std::move(expr), constant)
 {
 }
 

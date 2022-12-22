@@ -60,10 +60,10 @@ public:
     {
     }
 
-    [[nodiscard]] ErrorOr<std::string> locate(std::string const&) const override;
+    [[nodiscard]] ErrorOr<std::string,SystemError> locate(std::string const&) const override;
 
 private:
-    static ErrorOr<std::string> check_in_dir(std::string const&, std::string const&);
+    static ErrorOr<std::string,SystemError> check_in_dir(std::string const&, std::string const&);
     Config const& m_config;
 };
 

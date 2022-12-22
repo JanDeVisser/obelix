@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: MIT
  */
 
+#include <core/StringUtil.h>
 #include <obelix/boundsyntax/Literal.h>
 
 namespace Obelix {
@@ -12,8 +13,9 @@ extern_logging_category(parser);
 
 // -- BoundLiteral ----------------------------------------------------------
 
-BoundLiteral::BoundLiteral(Token token, std::shared_ptr<ObjectType> type)
-    : BoundExpression(std::move(token), std::move(type))
+BoundLiteral::BoundLiteral(Token token, pObjectType type)
+    : BoundExpression(token.location(), std::move(type))
+    , m_token(std::move(token))
 {
 }
 
@@ -32,12 +34,17 @@ bool BoundLiteral::bool_value() const
     fatal("Called bool_value() on '{}'", node_type());
 }
 
+Token const& BoundLiteral::token() const
+{
+    return m_token;
+}
+
 // -- BoundIntLiteral -------------------------------------------------------
 
 BoundIntLiteral::BoundIntLiteral(std::shared_ptr<IntLiteral> const& literal, std::shared_ptr<ObjectType> type)
     : BoundLiteral(literal->token(), (type) ? std::move(type) : ObjectType::get("s64"))
 {
-    auto int_maybe = token_value<long>(token());
+    auto int_maybe = token_value<long>(literal->token());
     if (int_maybe.is_error())
         fatal("Error instantiating BoundIntLiteral: {}", int_maybe.error());
     m_int = int_maybe.value();
@@ -48,62 +55,62 @@ BoundIntLiteral::BoundIntLiteral(std::shared_ptr<BoundIntLiteral> const& literal
 {
 }
 
-BoundIntLiteral::BoundIntLiteral(Token t, long value, std::shared_ptr<ObjectType> type)
-    : BoundLiteral(std::move(t), std::move(type))
+BoundIntLiteral::BoundIntLiteral(Span location, long value, std::shared_ptr<ObjectType> type)
+    : BoundLiteral(Token { location, TokenCode::Integer, Obelix::to_string(value) }, std::move(type))
     , m_int(value)
 {
 }
 
-BoundIntLiteral::BoundIntLiteral(Token t, unsigned long value, std::shared_ptr<ObjectType> type)
-    : BoundLiteral(std::move(t), std::move(type))
+BoundIntLiteral::BoundIntLiteral(Span location, unsigned long value, std::shared_ptr<ObjectType> type)
+    : BoundLiteral(Token { std::move(location), TokenCode::Integer, Obelix::to_string(value) }, std::move(type))
     , m_int(value)
 {
 }
 
-BoundIntLiteral::BoundIntLiteral(Token t, long value)
-    : BoundLiteral(std::move(t), ObjectType::get("s64"))
+BoundIntLiteral::BoundIntLiteral(Span location, long value)
+    : BoundLiteral(Token { std::move(location), TokenCode::Integer, Obelix::to_string(value) }, ObjectType::get("s64"))
     , m_int(value)
 {
 }
 
-BoundIntLiteral::BoundIntLiteral(Token t, unsigned long value)
-    : BoundLiteral(std::move(t), ObjectType::get("u64"))
+BoundIntLiteral::BoundIntLiteral(Span location, unsigned long value)
+    : BoundLiteral(Token { std::move(location), TokenCode::Integer, Obelix::to_string(value) }, ObjectType::get("u64"))
     , m_int(value)
 {
 }
 
-BoundIntLiteral::BoundIntLiteral(Token t, int value)
-    : BoundLiteral(std::move(t), ObjectType::get("s32"))
+BoundIntLiteral::BoundIntLiteral(Span location, int value)
+    : BoundLiteral(Token { std::move(location), TokenCode::Integer, Obelix::to_string(value) }, ObjectType::get("s32"))
     , m_int(value)
 {
 }
 
-BoundIntLiteral::BoundIntLiteral(Token t, unsigned value)
-    : BoundLiteral(std::move(t), ObjectType::get("u32"))
+BoundIntLiteral::BoundIntLiteral(Span location, unsigned value)
+    : BoundLiteral(Token { std::move(location), TokenCode::Integer, Obelix::to_string(value) }, ObjectType::get("u32"))
     , m_int(value)
 {
 }
 
-BoundIntLiteral::BoundIntLiteral(Token t, short value)
-    : BoundLiteral(std::move(t), ObjectType::get("s16"))
+BoundIntLiteral::BoundIntLiteral(Span location, short value)
+    : BoundLiteral(Token { std::move(location), TokenCode::Integer, Obelix::to_string(value) }, ObjectType::get("s16"))
     , m_int(value)
 {
 }
 
-BoundIntLiteral::BoundIntLiteral(Token t, unsigned char value)
-    : BoundLiteral(std::move(t), ObjectType::get("u8"))
+BoundIntLiteral::BoundIntLiteral(Span location, unsigned char value)
+    : BoundLiteral(Token { std::move(location), TokenCode::Integer, Obelix::to_string(value) }, ObjectType::get("u8"))
     , m_int(value)
 {
 }
 
-BoundIntLiteral::BoundIntLiteral(Token t, signed char value)
-    : BoundLiteral(std::move(t), ObjectType::get("s8"))
+BoundIntLiteral::BoundIntLiteral(Span location, signed char value)
+    : BoundLiteral(Token { std::move(location), TokenCode::Integer, Obelix::to_string(value) }, ObjectType::get("s8"))
     , m_int(value)
 {
 }
 
-BoundIntLiteral::BoundIntLiteral(Token t, unsigned short value)
-    : BoundLiteral(std::move(t), ObjectType::get("u16"))
+BoundIntLiteral::BoundIntLiteral(Span location, unsigned short value)
+    : BoundLiteral(Token { std::move(location), TokenCode::Integer, Obelix::to_string(value) }, ObjectType::get("u16"))
     , m_int(value)
 {
 }
@@ -116,31 +123,31 @@ ErrorOr<std::shared_ptr<BoundIntLiteral>, SyntaxError> BoundIntLiteral::cast(std
         case 1: {
             auto char_maybe = token_value<char>(token());
             if (char_maybe.has_value())
-                return std::make_shared<BoundIntLiteral>(token(), char_maybe.value());
+                return std::make_shared<BoundIntLiteral>(location(), char_maybe.value());
             return char_maybe.error();
         }
         case 2: {
             auto short_maybe = token_value<short>(token());
             if (short_maybe.has_value())
-                return std::make_shared<BoundIntLiteral>(token(), short_maybe.value());
+                return std::make_shared<BoundIntLiteral>(location(), short_maybe.value());
             return short_maybe.error();
         }
         case 4: {
             auto int_maybe = token_value<int>(token());
             if (int_maybe.has_value())
-                return std::make_shared<BoundIntLiteral>(token(), int_maybe.value());
+                return std::make_shared<BoundIntLiteral>(location(), int_maybe.value());
             return int_maybe.error();
         }
         case 8: {
             auto long_probably = token_value<long>(token());
             assert(long_probably.has_value());
-            return std::make_shared<BoundIntLiteral>(token(), long_probably.value());
+            return std::make_shared<BoundIntLiteral>(location(), long_probably.value());
         }
         default:
             fatal("Unexpected int size {}", target_type->size());
         }
     }
-    return SyntaxError { ErrorCode::TypeMismatch, token(), format("Cannot cast literal value {} of type {} to type {}", token().value(), type(), target_type) };
+    return SyntaxError { location(), "Cannot cast literal value {} of type {} to type {}", token().value(), type(), target_type };
 }
 
 std::string BoundIntLiteral::attributes() const
@@ -161,12 +168,12 @@ long BoundIntLiteral::int_value() const
 // -- BoundStringLiteral ----------------------------------------------------
 
 BoundStringLiteral::BoundStringLiteral(std::shared_ptr<StringLiteral> const& literal)
-    : BoundStringLiteral(literal->token(), literal->token().value())
+    : BoundStringLiteral(literal->location(), literal->token().value())
 {
 }
 
-BoundStringLiteral::BoundStringLiteral(Token t, std::string value)
-    : BoundLiteral(std::move(t), get_type<std::string>())
+BoundStringLiteral::BoundStringLiteral(Span location, std::string value)
+    : BoundLiteral(Token { std::move(location), TokenCode::DoubleQuotedString, value }, get_type<std::string>())
     , m_string(std::move(value))
 {
 }
@@ -194,12 +201,12 @@ std::string BoundStringLiteral::string_value() const
 // -- BoundBooleanLiteral ---------------------------------------------------
 
 BoundBooleanLiteral::BoundBooleanLiteral(std::shared_ptr<BooleanLiteral> const& literal)
-    : BoundBooleanLiteral(literal->token(), token_value<bool>(literal->token()).value())
+    : BoundBooleanLiteral(literal->location(), token_value<bool>(literal->token()).value())
 {
 }
 
-BoundBooleanLiteral::BoundBooleanLiteral(Token t, bool value)
-    : BoundLiteral(std::move(t), get_type<bool>())
+BoundBooleanLiteral::BoundBooleanLiteral(Span location, bool value)
+    : BoundLiteral(Token { std::move(location), TokenCode::Identifier, Obelix::to_string(value) }, get_type<bool>())
     , m_value(value)
 {
 }
@@ -226,8 +233,8 @@ bool BoundBooleanLiteral::bool_value() const
 
 // -- BoundTypeLiteral ------------------------------------------------------
 
-BoundTypeLiteral::BoundTypeLiteral(Token t, std::shared_ptr<ObjectType> type)
-    : BoundLiteral(std::move(t), get_type<ObjectType>())
+BoundTypeLiteral::BoundTypeLiteral(Span location, std::shared_ptr<ObjectType> type)
+    : BoundLiteral(Token { std::move(location), TokenCode::Identifier, type->name() }, get_type<ObjectType>())
     , m_type_value(std::move(type))
 {
 }
@@ -249,8 +256,8 @@ std::shared_ptr<ObjectType> const& BoundTypeLiteral::value() const
 
 // -- BoundEnumValue --------------------------------------------------------
 
-BoundEnumValue::BoundEnumValue(Token token, std::shared_ptr<ObjectType> enum_type, std::string label, long value)
-    : BoundExpression(std::move(token), std::move(enum_type))
+BoundEnumValue::BoundEnumValue(Span location, std::shared_ptr<ObjectType> enum_type, std::string label, long value)
+    : BoundExpression(std::move(location), std::move(enum_type))
     , m_value(value)
     , m_label(std::move(label))
 {
@@ -279,13 +286,13 @@ std::string BoundEnumValue::to_string() const
 // -- BoundModuleLiteral ----------------------------------------------------
 
 BoundModuleLiteral::BoundModuleLiteral(std::shared_ptr<Variable> const& variable)
-    : BoundExpression(variable->token(), PrimitiveType::Module)
+    : BoundExpression(variable->location(), PrimitiveType::Module)
     , m_name(variable->name())
 {
 }
 
-BoundModuleLiteral::BoundModuleLiteral(Token token, std::string name)
-    : BoundExpression(std::move(token), PrimitiveType::Module)
+BoundModuleLiteral::BoundModuleLiteral(Span location, std::string name)
+    : BoundExpression(std::move(location), PrimitiveType::Module)
     , m_name(std::move(name))
 {
 }

@@ -94,7 +94,7 @@ private:
 struct StaticVariableAddress : public VariableAddress {
 public:
     explicit StaticVariableAddress(std::string label)
-        : m_label(move(label))
+        : m_label(std::move(label))
     {
     }
     [[nodiscard]] std::string const& label() const { return m_label; }
@@ -114,7 +114,7 @@ private:
 struct GlobalVariableAddress : public StaticVariableAddress {
 public:
     explicit GlobalVariableAddress(std::string label)
-        : StaticVariableAddress(move(label))
+        : StaticVariableAddress(std::move(label))
     {
     }
     [[nodiscard]] std::string to_string() const override
@@ -127,7 +127,7 @@ public:
 struct StructMemberAddress : public VariableAddress {
 public:
     StructMemberAddress(std::shared_ptr<VariableAddress> strukt, int offset)
-        : m_struct(move(strukt))
+        : m_struct(std::move(strukt))
         , m_offset(offset)
     {
     }
@@ -150,7 +150,7 @@ private:
 class ArrayElementAddress : public VariableAddress {
 public:
     ArrayElementAddress(std::shared_ptr<VariableAddress> array, int element_size)
-        : m_array(move(array))
+        : m_array(std::move(array))
         , m_element_size(element_size)
     {
     }

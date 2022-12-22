@@ -382,7 +382,7 @@ public:
     void has_template_parameter(TemplateParameter const&);
     void has_size(size_t);
     void has_template_stamp(ObjectTypeBuilder const&);
-    void has_can_cast_to(CanCastTo const&);
+    [[maybe_unused]] void has_can_cast_to(CanCastTo const&);
     void has_alias(std::string const& alias);
     [[nodiscard]] bool is_parameterized() const;
     [[nodiscard]] size_t size() const;
@@ -434,7 +434,7 @@ public:
 
     [[nodiscard]] bool is_a(ObjectType const*) const;
     [[nodiscard]] bool is_a(pObjectType const&) const;
-    [[nodiscard]] pObjectType return_type_of(std::string_view method_name, ObjectTypes const& argument_types = {}) const;
+    [[nodiscard]] [[maybe_unused]] pObjectType return_type_of(std::string_view method_name, ObjectTypes const& argument_types = {}) const;
     [[nodiscard]] pObjectType return_type_of(Operator op, ObjectTypes const& argument_types = {}) const;
 
     pMethodDescription add_method(MethodDescription const&);
@@ -445,7 +445,7 @@ public:
     [[nodiscard]] bool has_method(std::string const&) const;
     [[nodiscard]] FieldDefs const& fields() const;
     [[nodiscard]] FieldDef const& field(std::string const&) const;
-    ErrorOr<void> extend_enum_type(NVPs const&);
+    ErrorOr<void,SyntaxError> extend_enum_type(NVPs const&);
 
     bool operator==(ObjectType const&) const;
     [[nodiscard]] bool is_assignable_to(pcObjectType const&) const;
@@ -492,14 +492,14 @@ public:
     static pObjectType const& get(PrimitiveType);
     static pObjectType get(std::string const&);
     static pObjectType get(ObjectType const*);
-    static ErrorOr<pObjectType> specialize(pObjectType const&, TemplateArguments const&);
-    static ErrorOr<pObjectType> specialize(std::string const&, TemplateArguments const&);
+    static ErrorOr<pObjectType,SyntaxError> specialize(pObjectType const&, TemplateArguments const&);
+    static ErrorOr<pObjectType,SyntaxError> specialize(std::string const&, TemplateArguments const&);
 
-    static ErrorOr<pObjectType> make_struct_type(std::string, FieldDefs, ObjectTypeBuilder const& = nullptr);
+    static ErrorOr<pObjectType,SyntaxError> make_struct_type(std::string, FieldDefs, ObjectTypeBuilder const& = nullptr);
     static pObjectType register_struct_type(std::string const&, FieldDefs, ObjectTypeBuilder const& = nullptr);
     static pObjectType make_enum_type(std::string const&, NVPs const&);
 
-    [[nodiscard]] ErrorOr<pObjectType> smallest_compatible_type() const;
+    [[nodiscard]] pObjectType smallest_compatible_type() const;
 
     static void dump();
 
