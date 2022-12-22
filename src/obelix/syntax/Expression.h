@@ -13,7 +13,7 @@ namespace Obelix {
 
 ABSTRACT_NODE_CLASS(Expression, SyntaxNode)
 public:
-    explicit Expression(Token = {}, std::shared_ptr<ExpressionType> = nullptr);
+    explicit Expression(Span = {}, std::shared_ptr<ExpressionType> = nullptr);
     [[nodiscard]] std::shared_ptr<ExpressionType> const& type() const;
     [[nodiscard]] std::string type_name() const;
     [[nodiscard]] bool is_typed();
@@ -27,7 +27,7 @@ using Expressions = std::vector<std::shared_ptr<Expression>>;
 
 NODE_CLASS(ExpressionList, Expression)
 public:
-    ExpressionList(Token, Expressions);
+    ExpressionList(Span, Expressions);
     [[nodiscard]] Expressions const& expressions() const;
     [[nodiscard]] Nodes children() const override;
     [[nodiscard]] std::string to_string() const override;
@@ -37,7 +37,7 @@ private:
 
 NODE_CLASS(Identifier, Expression)
 public:
-    explicit Identifier(Token, std::string, std::shared_ptr<ExpressionType> = nullptr);
+    explicit Identifier(Span, std::string, std::shared_ptr<ExpressionType> = nullptr);
     [[nodiscard]] std::string const& name() const;
     [[nodiscard]] std::string attributes() const override;
     [[nodiscard]] std::string to_string() const override;
@@ -50,12 +50,12 @@ using Identifiers = std::vector<std::shared_ptr<Identifier>>;
 
 NODE_CLASS(Variable, Identifier)
 public:
-    Variable(Token, std::string, std::shared_ptr<ExpressionType> type = nullptr);
+    Variable(Span, std::string, std::shared_ptr<ExpressionType> type = nullptr);
 };
 
 NODE_CLASS(This, Expression)
 public:
-    explicit This(Token);
+    explicit This(Span);
     [[nodiscard]] std::string to_string() const override;
 };
 
@@ -92,7 +92,7 @@ private:
 
 NODE_CLASS(CastExpression, Expression)
 public:
-    CastExpression(Token token, std::shared_ptr<Expression> expression, std::shared_ptr<ExpressionType> cast_to);
+    CastExpression(Span location, std::shared_ptr<Expression> expression, std::shared_ptr<ExpressionType> cast_to);
     [[nodiscard]] std::string attributes() const override;
     [[nodiscard]] Nodes children() const override;
     [[nodiscard]] std::string to_string() const override;

@@ -157,11 +157,11 @@ pObjectType const& MethodDescription::method_of() const
 
 std::shared_ptr<BoundFunctionDecl> MethodDescription::declaration() const
 {
-    auto ident = std::make_shared<BoundIdentifier>(Token {}, method_of()->name() + '$' + name(), return_type());
+    auto ident = std::make_shared<BoundIdentifier>(Span {}, method_of()->name() + '$' + name(), return_type());
     BoundIdentifiers params;
-    params.push_back(make_node<BoundIdentifier>(Token {}, "this", method_of()));
+    params.push_back(make_node<BoundIdentifier>(Span {}, "this", method_of()));
     for (auto const& p : parameters()) {
-        params.push_back(make_node<BoundIdentifier>(Token {}, p.name, p.type));
+        params.push_back(make_node<BoundIdentifier>(Span {}, p.name, p.type));
     }
     if (implementation().is_intrinsic)
         return std::make_shared<BoundIntrinsicDecl>("/", ident, params);
@@ -207,7 +207,7 @@ bool MethodDescription::is_compatible(ObjectTypes const& argument_types) const
                     return false;
                 break;
             case PrimitiveType::Compatible:
-                if (auto smallest = arg_type->smallest_compatible_type(); !smallest.has_value() || !param.type->is_compatible_with(smallest.value()))
+                if (auto smallest = arg_type->smallest_compatible_type(); !param.type->is_compatible_with(smallest))
                     return false;
                 break;
             case PrimitiveType::AssignableTo:
@@ -215,7 +215,7 @@ bool MethodDescription::is_compatible(ObjectTypes const& argument_types) const
                     return false;
                 break;
             default:
-                if (auto smallest = arg_type->smallest_compatible_type(); !smallest.has_value() || !param.type->is_compatible_with(smallest.value()))
+                if (auto smallest = arg_type->smallest_compatible_type(); !param.type->is_compatible_with(smallest))
                     return false;
                 break;
         }

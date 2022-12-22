@@ -93,21 +93,21 @@ public:
         return false;
     }
 
-    std::optional<SyntaxError> declare(std::string const& name, T const& value)
+    ErrorOr<void, SyntaxError> declare(std::string const& name, T const& value)
     {
         if (m_names.contains(name))
-            return SyntaxError(ErrorCode::VariableAlreadyDeclared, name);
+            return SyntaxError { ErrorCode::VariableAlreadyDeclared, name };
         m_names[name] = value;
         return {};
     }
 
-    std::optional<SyntaxError> declare_global(std::string const& name, T const& value)
+    ErrorOr<void, SyntaxError> declare_global(std::string const& name, T const& value)
     {
         if (m_parent)
             return m_parent->declare_global(name, value);
 
         if (m_names.contains(name))
-            return SyntaxError(ErrorCode::VariableAlreadyDeclared, name);
+            return SyntaxError { ErrorCode::VariableAlreadyDeclared, name };
         m_names[name] = value;
         return {};
     }

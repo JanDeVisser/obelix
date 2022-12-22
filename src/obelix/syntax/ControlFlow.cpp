@@ -12,8 +12,8 @@ extern_logging_category(parser);
 
 // -- Break -----------------------------------------------------------------
 
-Break::Break(Token token)
-    : Statement(std::move(token))
+Break::Break(Span location)
+    : Statement(std::move(location))
 {
 }
 
@@ -24,8 +24,8 @@ std::string Break::to_string() const
 
 // -- Continue --------------------------------------------------------------
 
-Continue::Continue(Token token)
-    : Statement(std::move(token))
+Continue::Continue(Span location)
+    : Statement(std::move(location))
 {
 }
 std::string Continue::to_string() const
@@ -35,22 +35,22 @@ std::string Continue::to_string() const
 
 // -- Branch ----------------------------------------------------------------
 
-Branch::Branch(Token token, std::shared_ptr<Expression> condition, std::shared_ptr<Statement> statement)
-    : Statement(std::move(token))
+Branch::Branch(Span location, std::shared_ptr<Expression> condition, std::shared_ptr<Statement> statement)
+    : Statement(std::move(location))
     , m_condition(std::move(condition))
     , m_statement(std::move(statement))
 {
 }
 
 Branch::Branch(std::shared_ptr<SyntaxNode> const& node, std::shared_ptr<Expression> condition, std::shared_ptr<Statement> statement)
-    : Statement(node->token())
+    : Statement(node->location())
     , m_condition(std::move(condition))
     , m_statement(std::move(statement))
 {
 }
 
-Branch::Branch(Token token, std::shared_ptr<Statement> statement)
-    : Statement(std::move(token))
+Branch::Branch(Span location, std::shared_ptr<Statement> statement)
+    : Statement(std::move(location))
     , m_statement(std::move(statement))
 {
 }
@@ -83,8 +83,8 @@ std::shared_ptr<Statement> const& Branch::statement() const
 
 // -- IfStatement -----------------------------------------------------------
 
-IfStatement::IfStatement(Token token, Branches branches)
-    : Statement(std::move(token))
+IfStatement::IfStatement(Span location, Branches branches)
+    : Statement(std::move(location))
     , m_branches(std::move(branches))
 {
     auto const& last_branch = m_branches.back();
@@ -94,21 +94,21 @@ IfStatement::IfStatement(Token token, Branches branches)
     }
 }
 
-IfStatement::IfStatement(Token token, std::shared_ptr<Expression> condition, std::shared_ptr<Statement> if_stmt, Branches branches, std::shared_ptr<Statement> else_stmt)
-    : Statement(std::move(token))
+IfStatement::IfStatement(Span location, std::shared_ptr<Expression> condition, std::shared_ptr<Statement> if_stmt, Branches branches, std::shared_ptr<Statement> else_stmt)
+    : Statement(std::move(location))
     , m_branches(std::move(branches))
     , m_else(std::move(else_stmt))
 {
-    m_branches.insert(m_branches.begin(), std::make_shared<Branch>(if_stmt->token(), std::move(condition), std::move(if_stmt)));
+    m_branches.insert(m_branches.begin(), std::make_shared<Branch>(if_stmt->location(), std::move(condition), std::move(if_stmt)));
 }
 
-IfStatement::IfStatement(Token token, std::shared_ptr<Expression> condition, std::shared_ptr<Statement> if_stmt, std::shared_ptr<Statement> else_stmt)
-    : IfStatement(std::move(token), std::move(condition), std::move(if_stmt), Branches {}, std::move(else_stmt))
+IfStatement::IfStatement(Span location, std::shared_ptr<Expression> condition, std::shared_ptr<Statement> if_stmt, std::shared_ptr<Statement> else_stmt)
+    : IfStatement(std::move(location), std::move(condition), std::move(if_stmt), Branches {}, std::move(else_stmt))
 {
 }
 
-IfStatement::IfStatement(Token token, std::shared_ptr<Expression> condition, std::shared_ptr<Statement> if_stmt)
-    : IfStatement(std::move(token), std::move(condition), std::move(if_stmt), nullptr)
+IfStatement::IfStatement(Span location, std::shared_ptr<Expression> condition, std::shared_ptr<Statement> if_stmt)
+    : IfStatement(std::move(location), std::move(condition), std::move(if_stmt), nullptr)
 {
 }
 
@@ -149,8 +149,8 @@ Branches const& IfStatement::branches() const
 
 // -- WhileStatement --------------------------------------------------------
 
-WhileStatement::WhileStatement(Token token, std::shared_ptr<Expression> condition, std::shared_ptr<Statement> stmt)
-    : Statement(std::move(token))
+WhileStatement::WhileStatement(Span location, std::shared_ptr<Expression> condition, std::shared_ptr<Statement> stmt)
+    : Statement(std::move(location))
     , m_condition(std::move(condition))
     , m_stmt(std::move(stmt))
 {
@@ -178,8 +178,8 @@ std::string WhileStatement::to_string() const
 
 // -- ForStatement ----------------------------------------------------------
 
-ForStatement::ForStatement(Token token, std::shared_ptr<Variable> variable, std::shared_ptr<Expression> range, std::shared_ptr<Statement> stmt)
-    : Statement(std::move(token))
+ForStatement::ForStatement(Span location, std::shared_ptr<Variable> variable, std::shared_ptr<Expression> range, std::shared_ptr<Statement> stmt)
+    : Statement(std::move(location))
     , m_variable(std::move(variable))
     , m_range(std::move(range))
     , m_stmt(std::move(stmt))
@@ -218,8 +218,8 @@ std::string ForStatement::to_string() const
 
 // -- CaseStatement ---------------------------------------------------------
 
-CaseStatement::CaseStatement(Token token, std::shared_ptr<Expression> const& case_expression, std::shared_ptr<Statement> const& stmt)
-    : Branch(std::move(token), case_expression, stmt)
+CaseStatement::CaseStatement(Span location, std::shared_ptr<Expression> const& case_expression, std::shared_ptr<Statement> const& stmt)
+    : Branch(std::move(location), case_expression, stmt)
 {
 }
 
@@ -230,8 +230,8 @@ CaseStatement::CaseStatement(std::shared_ptr<SyntaxNode> const& node, std::share
 
 // -- DefaultCase -----------------------------------------------------------
 
-DefaultCase::DefaultCase(Token token, std::shared_ptr<Statement> const& stmt)
-    : Branch(std::move(token), stmt)
+DefaultCase::DefaultCase(Span location, std::shared_ptr<Statement> const& stmt)
+    : Branch(std::move(location), stmt)
 {
 }
 
@@ -247,8 +247,8 @@ DefaultCase::DefaultCase(std::shared_ptr<SyntaxNode> const& node, std::shared_pt
 
 // -- SwitchStatement -------------------------------------------------------
 
-SwitchStatement::SwitchStatement(Token token, std::shared_ptr<Expression> switch_expression, CaseStatements case_statements, std::shared_ptr<DefaultCase> default_case)
-    : Statement(std::move(token))
+SwitchStatement::SwitchStatement(Span location, std::shared_ptr<Expression> switch_expression, CaseStatements case_statements, std::shared_ptr<DefaultCase> default_case)
+    : Statement(std::move(location))
     , m_switch_expression(std::move(switch_expression))
     , m_cases(std::move(case_statements))
     , m_default(std::move(default_case))

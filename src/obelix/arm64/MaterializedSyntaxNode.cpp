@@ -12,7 +12,7 @@ namespace Obelix {
 // -- MaterializedFunctionParameter -----------------------------------------
 
 MaterializedFunctionParameter::MaterializedFunctionParameter(std::shared_ptr<BoundIdentifier> const& param, std::shared_ptr<VariableAddress> address, ParameterPassingMethod method, int where)
-    : BoundIdentifier(param->token(), param->name(), param->type())
+    : BoundIdentifier(param->location(), param->name(), param->type())
     , MaterializedDeclaration()
     , m_address(std::move(address))
     , m_method(method)
@@ -55,7 +55,7 @@ int MaterializedFunctionParameter::where() const
 // -- MaterializedFunctionDecl --------------------------------------------------------
 
 MaterializedFunctionDecl::MaterializedFunctionDecl(std::shared_ptr<BoundFunctionDecl> const& decl, MaterializedFunctionParameters parameters, int nsaa, int stack_depth)
-    : Statement(decl->token())
+    : Statement(decl->location())
     , m_identifier(decl->identifier())
     , m_parameters(std::move(parameters))
     , m_nsaa(nsaa)
@@ -171,7 +171,7 @@ std::string MaterializedIntrinsicDecl::to_string() const
 // -- MaterializedFunctionDef --------------------------------------------------------
 
 MaterializedFunctionDef::MaterializedFunctionDef(std::shared_ptr<BoundFunctionDef> const& bound_def, std::shared_ptr<MaterializedFunctionDecl> func_decl, std::shared_ptr<Statement> statement, int stack_depth)
-    : Statement(bound_def->token())
+    : Statement(bound_def->location())
     , m_function_decl(std::move(func_decl))
     , m_statement(std::move(statement))
     , m_stack_depth(stack_depth)
@@ -316,7 +316,7 @@ IntrinsicType MaterializedIntrinsicCall::intrinsic() const
 // -- MaterializedVariableDecl ----------------------------------------------
 
 MaterializedVariableDecl::MaterializedVariableDecl(std::shared_ptr<BoundVariableDeclaration> const& var_decl, size_t offset, std::shared_ptr<BoundExpression> expression)
-    : Statement(var_decl->token())
+    : Statement(var_decl->location())
     , MaterializedDeclaration()
     , m_variable(var_decl->variable())
     , m_const(var_decl->is_const())
@@ -326,7 +326,7 @@ MaterializedVariableDecl::MaterializedVariableDecl(std::shared_ptr<BoundVariable
 }
 
 MaterializedVariableDecl::MaterializedVariableDecl(std::shared_ptr<BoundVariableDeclaration> const& var_decl, std::shared_ptr<BoundExpression> expression)
-    : Statement(var_decl->token())
+    : Statement(var_decl->location())
     , m_variable(var_decl->variable())
     , m_const(var_decl->is_const())
     , m_expression(std::move(expression))
@@ -427,7 +427,7 @@ MaterializedGlobalVariableDecl::MaterializedGlobalVariableDecl(std::shared_ptr<B
 // -- MaterializedVariableAccess --------------------------------------------------------
 
 MaterializedVariableAccess::MaterializedVariableAccess(std::shared_ptr<BoundExpression> const& expr, std::shared_ptr<VariableAddress> address)
-    : BoundVariableAccess(expr->token(), expr->type())
+    : BoundVariableAccess(expr->location(), expr->type())
     , m_address(std::move(address))
 {
 }

@@ -12,15 +12,15 @@ extern_logging_category(parser);
 
 // -- TemplateArgumentNode --------------------------------------------------
 
-TemplateArgumentNode::TemplateArgumentNode(Token token)
-    : SyntaxNode(std::move(token))
+TemplateArgumentNode::TemplateArgumentNode(Span location)
+    : SyntaxNode(std::move(location))
 {
 }
 
 // -- StringTemplateArgument ------------------------------------------------
 
-StringTemplateArgument::StringTemplateArgument(Token token, std::string value)
-    : TemplateArgumentNode(std::move(token))
+StringTemplateArgument::StringTemplateArgument(Span location, std::string value)
+    : TemplateArgumentNode(std::move(location))
     , m_value(std::move(value))
 {
 }
@@ -47,8 +47,8 @@ TemplateParameterType StringTemplateArgument::parameter_type() const
 
 // -- IntegerTemplateArgument -----------------------------------------------
 
-IntegerTemplateArgument::IntegerTemplateArgument(Token token, long value)
-    : TemplateArgumentNode(std::move(token))
+IntegerTemplateArgument::IntegerTemplateArgument(Span location, long value)
+    : TemplateArgumentNode(std::move(location))
     , m_value(value)
 {
 }
@@ -75,27 +75,27 @@ TemplateParameterType IntegerTemplateArgument::parameter_type() const
 
 // -- ExpressionType --------------------------------------------------------
 
-ExpressionType::ExpressionType(Token token, std::string type_name, TemplateArgumentNodes template_arguments)
-    : TemplateArgumentNode(std::move(token))
+ExpressionType::ExpressionType(Span location, std::string type_name, TemplateArgumentNodes template_arguments)
+    : TemplateArgumentNode(std::move(location))
     , m_type_name(std::move(type_name))
     , m_template_args(std::move(template_arguments))
 {
 }
 
-ExpressionType::ExpressionType(Token token, std::string type_name)
-    : TemplateArgumentNode(std::move(token))
+ExpressionType::ExpressionType(Span location, std::string type_name)
+    : TemplateArgumentNode(std::move(location))
     , m_type_name(std::move(type_name))
 {
 }
 
-ExpressionType::ExpressionType(Token token, PrimitiveType type)
-    : TemplateArgumentNode(std::move(token))
+ExpressionType::ExpressionType(Span location, PrimitiveType type)
+    : TemplateArgumentNode(std::move(location))
     , m_type_name(PrimitiveType_name(type))
 {
 }
 
-ExpressionType::ExpressionType(Token token, std::shared_ptr<ObjectType> const& type)
-    : TemplateArgumentNode(std::move(token))
+ExpressionType::ExpressionType(Span location, std::shared_ptr<ObjectType> const& type)
+    : TemplateArgumentNode(std::move(location))
     , m_type_name(type->name())
 {
 }
@@ -129,14 +129,14 @@ ErrorOr<std::shared_ptr<ObjectType>, SyntaxError> ExpressionType::resolve_type()
 {
     auto type = ObjectType::get(type_name());
     if (!type)
-        return SyntaxError { ErrorCode::TypeMismatch, token(), format("Type '{}' does not exist", type_name()) };
+        return SyntaxError { location(), "Type '{}' does not exist", type_name() };
     if (!type->is_parameterized()) {
         if (!template_arguments().empty())
-            return SyntaxError { ErrorCode::TypeMismatch, token(), format("Type '{}' is not parameterized so should cannot be specialized", type_name()) };
+            return SyntaxError { location(), "Type '{}' is not parameterized so should cannot be specialized", type_name() };
         return type;
     }
     if (template_arguments().size() > type->template_parameters().size())
-        return SyntaxError { ErrorCode::TypeMismatch, token(), format("Type '{}' has only {} parameters so cannot be specialized with {} arguments", type_name(), type->template_parameters().size(), template_arguments().size()) };
+        return SyntaxError { location(), "Type '{}' has only {} parameters so cannot be specialized with {} arguments", type_name(), type->template_parameters().size(), template_arguments().size() };
     TemplateArguments args;
     auto ix = 0;
     for (auto& arg : template_arguments()) {
@@ -144,8 +144,7 @@ ErrorOr<std::shared_ptr<ObjectType>, SyntaxError> ExpressionType::resolve_type()
         switch (arg->node_type()) {
         case SyntaxNodeType::ExpressionType: {
             if (param.type != TemplateParameterType::Type)
-                return SyntaxError { ErrorCode::TypeMismatch, token(),
-                    format("Template parameter {} of '{}' has parameter type '{}', not '{}'", ix, type_name(), param.type, arg->parameter_type()) };
+                return SyntaxError { location(), "Template parameter {} of '{}' has parameter type '{}', not '{}'", ix, type_name(), param.type, arg->parameter_type() };
             auto expr_type = std::dynamic_pointer_cast<ExpressionType>(arg);
             auto arg_type_or_error = expr_type->resolve_type();
             if (arg_type_or_error.is_error())
@@ -155,14 +154,12 @@ ErrorOr<std::shared_ptr<ObjectType>, SyntaxError> ExpressionType::resolve_type()
         }
         case SyntaxNodeType::StringTemplateArgument:
             if (param.type != TemplateParameterType::String)
-                return SyntaxError { ErrorCode::TypeMismatch, token(),
-                    format("Template parameter {} of '{}' has parameter type '{}', not '{}'", ix, type_name(), param.type, arg->parameter_type()) };
+                return SyntaxError { location(), "Template parameter {} of '{}' has parameter type '{}', not '{}'", ix, type_name(), param.type, arg->parameter_type() };
             args[param.name] = std::dynamic_pointer_cast<StringTemplateArgument>(arg)->value();
             break;
         case SyntaxNodeType::IntegerTemplateArgument:
             if (param.type != TemplateParameterType::Integer)
-                return SyntaxError { ErrorCode::TypeMismatch, token(),
-                    format("Template parameter {} of '{}' has parameter type '{}', not '{}'", ix, type_name(), param.type, arg->parameter_type()) };
+                return SyntaxError { location(), "Template parameter {} of '{}' has parameter type '{}', not '{}'", ix, type_name(), param.type, arg->parameter_type() };
             args[param.name] = std::dynamic_pointer_cast<IntegerTemplateArgument>(arg)->value();
             break;
         default:
@@ -172,7 +169,7 @@ ErrorOr<std::shared_ptr<ObjectType>, SyntaxError> ExpressionType::resolve_type()
     }
     auto ret = ObjectType::specialize(type_name(), args);
     if (ret.is_error())
-        return SyntaxError { ErrorCode::TypeMismatch, token(), format("Could not specialize template class '{}': {}", type_name(), ret.error().message()) };
+        return SyntaxError { location(), "Could not specialize template class '{}': {}", type_name(), ret.error().message() };
     return ret.value();
 }
 

@@ -15,23 +15,23 @@ namespace Obelix {
 
 NODE_CLASS(Break, Statement)
 public:
-    explicit Break(Token);
+    explicit Break(Span);
     [[nodiscard]] std::string to_string() const override;
     [[nodiscard]] bool is_fully_bound() const override { return true; }
 };
 
 NODE_CLASS(Continue, Statement)
 public:
-    explicit Continue(Token);
+    explicit Continue(Span);
     [[nodiscard]] std::string to_string() const override;
     [[nodiscard]] bool is_fully_bound() const override { return true; }
 };
 
 NODE_CLASS(Branch, Statement)
 public:
-    Branch(Token, std::shared_ptr<Expression>, std::shared_ptr<Statement>);
+    Branch(Span, std::shared_ptr<Expression>, std::shared_ptr<Statement>);
     Branch(std::shared_ptr<SyntaxNode> const&, std::shared_ptr<Expression>, std::shared_ptr<Statement>);
-    Branch(Token, std::shared_ptr<Statement>);
+    Branch(Span, std::shared_ptr<Statement>);
     [[nodiscard]] Nodes children() const override;
     [[nodiscard]] std::string to_string() const override;
     [[nodiscard]] std::shared_ptr<Expression> const& condition() const;
@@ -46,10 +46,10 @@ using Branches = std::vector<std::shared_ptr<Branch>>;
 
 NODE_CLASS(IfStatement, Statement)
 public:
-    IfStatement(Token, Branches);
-    IfStatement(Token, std::shared_ptr<Expression>, std::shared_ptr<Statement>, Branches, std::shared_ptr<Statement>);
-    IfStatement(Token, std::shared_ptr<Expression>, std::shared_ptr<Statement>, std::shared_ptr<Statement>);
-    IfStatement(Token, std::shared_ptr<Expression>, std::shared_ptr<Statement>);
+    IfStatement(Span, Branches);
+    IfStatement(Span, std::shared_ptr<Expression>, std::shared_ptr<Statement>, Branches, std::shared_ptr<Statement>);
+    IfStatement(Span, std::shared_ptr<Expression>, std::shared_ptr<Statement>, std::shared_ptr<Statement>);
+    IfStatement(Span, std::shared_ptr<Expression>, std::shared_ptr<Statement>);
     [[nodiscard]] std::shared_ptr<Statement> const& else_stmt() const;
     [[nodiscard]] Nodes children() const override;
     [[nodiscard]] std::string to_string() const override;
@@ -62,7 +62,7 @@ private:
 
 NODE_CLASS(WhileStatement, Statement)
 public:
-    WhileStatement(Token, std::shared_ptr<Expression>, std::shared_ptr<Statement>);
+    WhileStatement(Span, std::shared_ptr<Expression>, std::shared_ptr<Statement>);
     [[nodiscard]] Nodes children() const override;
     [[nodiscard]] std::shared_ptr<Expression> const& condition() const;
     [[nodiscard]] std::shared_ptr<Statement> const& statement() const;
@@ -75,7 +75,7 @@ private:
 
 NODE_CLASS(ForStatement, Statement)
 public:
-    ForStatement(Token, std::shared_ptr<Variable>, std::shared_ptr<Expression>, std::shared_ptr<Statement>);
+    ForStatement(Span, std::shared_ptr<Variable>, std::shared_ptr<Expression>, std::shared_ptr<Statement>);
     [[nodiscard]] std::string attributes() const override;
     [[nodiscard]] Nodes children() const override;
     [[nodiscard]] std::shared_ptr<Variable> const& variable() const;
@@ -91,7 +91,7 @@ private:
 
 NODE_CLASS(CaseStatement, Branch)
 public:
-    CaseStatement(Token, std::shared_ptr<Expression> const&, std::shared_ptr<Statement> const&);
+    CaseStatement(Span, std::shared_ptr<Expression> const&, std::shared_ptr<Statement> const&);
     CaseStatement(std::shared_ptr<SyntaxNode> const&, std::shared_ptr<Expression> const&, std::shared_ptr<Statement> const&);
 };
 
@@ -99,14 +99,14 @@ using CaseStatements = std::vector<std::shared_ptr<CaseStatement>>;
 
 NODE_CLASS(DefaultCase, Branch)
 public:
-    DefaultCase(Token, std::shared_ptr<Statement> const&);
+    DefaultCase(Span, std::shared_ptr<Statement> const&);
     DefaultCase(std::shared_ptr<SyntaxNode> const&, std::shared_ptr<Statement> const&);
     DefaultCase(std::shared_ptr<SyntaxNode> const&, std::shared_ptr<Expression> const&, std::shared_ptr<Statement> const&);
 };
 
 NODE_CLASS(SwitchStatement, Statement)
 public:
-    SwitchStatement(Token, std::shared_ptr<Expression>, CaseStatements, std::shared_ptr<DefaultCase>);
+    SwitchStatement(Span, std::shared_ptr<Expression>, CaseStatements, std::shared_ptr<DefaultCase>);
     [[nodiscard]] std::shared_ptr<Expression> const& expression() const;
     [[nodiscard]] CaseStatements const& cases() const;
     [[nodiscard]] std::shared_ptr<DefaultCase> const& default_case() const;

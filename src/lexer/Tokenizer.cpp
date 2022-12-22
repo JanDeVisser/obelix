@@ -178,7 +178,7 @@ Token Tokenizer::accept_token(TokenCode code, std::string value)
 
 Token Tokenizer::accept_token(Token& token)
 {
-    token.location = m_location;
+    token.location(m_location);
     skip();
     debug(lexer, "Lexer::accept_token({})", token.to_string());
     m_state = TokenizerState::Success;

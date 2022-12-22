@@ -15,7 +15,7 @@ namespace Obelix {
 ABSTRACT_NODE_CLASS(Statement, SyntaxNode)
 public:
     Statement() = default;
-    explicit Statement(Token);
+    explicit Statement(Span);
     [[nodiscard]] virtual bool is_fully_bound() const { return false; }
 };
 
@@ -24,7 +24,7 @@ using Statements = std::vector<pStatement>;
 
 NODE_CLASS(Import, Statement)
 public:
-    Import(Token, std::string);
+    Import(Span, std::string);
     [[nodiscard]] std::string attributes() const override;
     [[nodiscard]] std::string to_string() const override;
     [[nodiscard]] std::string const& name() const;
@@ -35,7 +35,7 @@ private:
 
 NODE_CLASS(Pass, Statement)
 public:
-    explicit Pass(Token);
+    explicit Pass(Span);
     explicit Pass(std::shared_ptr<Statement> elided_statement);
     [[nodiscard]] std::shared_ptr<Statement> const& elided_statement() const;
     [[nodiscard]] std::string text_contents() const override;
@@ -49,7 +49,7 @@ class Goto;
 
 NODE_CLASS(Label, Statement)
 public:
-    explicit Label(Token = {});
+    explicit Label(Span = {});
     explicit Label(std::shared_ptr<Goto> const&);
     [[nodiscard]] std::string attributes() const override;
     [[nodiscard]] std::string to_string() const override;
@@ -64,7 +64,7 @@ private:
 
 NODE_CLASS(Goto, Statement)
 public:
-    explicit Goto(Token = {}, std::shared_ptr<Label> const& = nullptr);
+    explicit Goto(Span = {}, std::shared_ptr<Label> const& = nullptr);
     [[nodiscard]] std::string attributes() const override;
     [[nodiscard]] std::string to_string() const override;
     [[nodiscard]] bool is_fully_bound() const override { return true; }
@@ -76,7 +76,7 @@ private:
 
 NODE_CLASS(Block, Statement)
 public:
-    explicit Block(Token, Statements);
+    explicit Block(Span, Statements);
     [[nodiscard]] Statements const& statements() const;
     [[nodiscard]] Nodes children() const override;
     [[nodiscard]] std::string to_string() const override;
@@ -90,7 +90,7 @@ protected:
 NODE_CLASS(Module, Block)
 public:
     Module(Statements const&, std::string);
-    Module(Token, Statements const&, std::string);
+    Module(Span, Statements const&, std::string);
     Module(std::shared_ptr<Module> const&, Statements const&);
     [[nodiscard]] std::string attributes() const override;
     [[nodiscard]] std::string to_string() const override;
@@ -136,7 +136,7 @@ private:
 
 NODE_CLASS(Return, Statement)
 public:
-    Return(Token, std::shared_ptr<Expression>, bool = false);
+    Return(Span, std::shared_ptr<Expression>, bool = false);
     [[nodiscard]] Nodes children() const override;
     [[nodiscard]] std::string attributes() const override;
     [[nodiscard]] std::string to_string() const override;

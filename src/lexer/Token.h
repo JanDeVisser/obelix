@@ -145,7 +145,7 @@ enum class TokenCode {
 #define __ENUMERATE_TOKEN_CODE(code, c, str) code,
     ENUMERATE_TOKEN_CODES(__ENUMERATE_TOKEN_CODE)
 #undef __ENUMERATE_TOKEN_CODE
-    count
+        count
 };
 
 constexpr TokenCode TokenCode_by_char(int ch)
@@ -168,15 +168,15 @@ constexpr TokenCode TokenCode_by_char(int ch)
 inline TokenCode TokenCode_by_string(char const* str)
 {
 #undef __ENUMERATE_TOKEN_CODE
-#define __ENUMERATE_TOKEN_CODE(code, c, s)      \
-    {                                           \
-        if (c != nullptr) {                     \
-            char const* c_str = c;              \
-            if (str != nullptr) {               \
-                if (strcmp(str, c_str) == 0)    \
-                    return TokenCode::code;     \
-            }                                   \
-        }                                       \
+#define __ENUMERATE_TOKEN_CODE(code, c, s)   \
+    {                                        \
+        if (c != nullptr) {                  \
+            char const* c_str = c;           \
+            if (str != nullptr) {            \
+                if (strcmp(str, c_str) == 0) \
+                    return TokenCode::code;  \
+            }                                \
+        }                                    \
     }
     ENUMERATE_TOKEN_CODES(__ENUMERATE_TOKEN_CODE)
 #undef __ENUMERATE_TOKEN_CODE
@@ -199,22 +199,6 @@ constexpr char const* TokenCode_to_string(TokenCode code)
 
 std::string TokenCode_name(TokenCode);
 
-struct Span {
-    std::string file_name;
-    size_t start_line;
-    size_t start_column;
-    size_t end_line;
-    size_t end_column;
-
-    [[nodiscard]] std::string to_string() const
-    {
-        return (!file_name.empty())
-            ? format("{}:{}:{} - {}:{}", file_name, start_line, start_column, end_line, end_column)
-            : format("{}:{} - {}:{}", start_line, start_column, end_line, end_column);
-    }
-};
-
-
 template<>
 struct Converter<TokenCode> {
     static std::string to_string(TokenCode val)
@@ -233,21 +217,64 @@ struct Converter<TokenCode> {
     }
 };
 
+struct Span {
+    std::string file_name;
+    size_t start_line;
+    size_t start_column;
+    size_t end_line;
+    size_t end_column;
+
+    [[nodiscard]] std::string to_string() const
+    {
+        if (!empty()) {
+            return (!file_name.empty())
+                ? format("{}:{}:{}-{}:{}:", file_name, start_line, start_column, end_line, end_column)
+                : format("{}:{}-{}:{}", start_line, start_column, end_line, end_column);
+        } else {
+            return format("{}:", file_name);
+        }
+    }
+
+    [[nodiscard]] Span merge(Span const&) const;
+    [[nodiscard]] bool empty() const
+    {
+        return (start_line == end_line) && (start_column == end_column);
+    }
+
+    bool operator==(Span const& other) const
+    {
+        return file_name == other.file_name && start_line == other.start_line && end_line == other.end_line && start_column == other.start_column && end_column == other.end_column;
+    }
+};
 
 class Token {
 public:
     Token() = default;
     explicit Token(TokenCode code, std::string value = "")
         : m_code(code)
-        , m_value(move(value))
+        , m_value(std::move(value))
     {
     }
 
     explicit Token(int code, std::string value = "")
-        : Token((TokenCode)code, move(value))
+        : Token((TokenCode)code, std::move(value))
     {
     }
 
+    Token(Span location, TokenCode code, std::string value = "")
+        : m_location(std::move(location))
+        , m_code(code)
+        , m_value(std::move(value))
+    {
+    }
+
+    Token(Span location, int code, std::string value = "")
+        : Token(std::move(location), (TokenCode)code, std::move(value))
+    {
+    }
+
+    [[nodiscard]] Span const& location() const { return m_location; }
+    void location(Span location) { m_location = std::move(location); }
     [[nodiscard]] TokenCode code() const { return m_code; }
     [[nodiscard]] std::string code_name() const { return TokenCode_name(code()); }
     [[nodiscard]] std::string const& value() const { return m_value; }
@@ -258,14 +285,68 @@ public:
     [[nodiscard]] int compare(Token const& other) const;
     [[nodiscard]] bool is_whitespace() const;
 
-    Span location { {}, 0, 0, 0, 0 };
-
 private:
+    Span m_location { {}, 0, 0, 0, 0 };
     TokenCode m_code { TokenCode::Unknown };
     std::string m_value {};
 };
 
-using SyntaxError = Error<Token>;
+class SyntaxError {
+public:
+    SyntaxError(Span location, std::string msg)
+        : m_location(std::move(location))
+        , m_message(std::move(msg))
+    {
+    }
+
+    template<typename... Args>
+    SyntaxError(Span location, std::string message, Args&&... args)
+        : m_location(std::move(location))
+    {
+        m_message = format(message, std::forward<Args>(args)...);
+    }
+
+    template<typename... Args>
+    SyntaxError(Span location, ErrorCode code, Args&&... args)
+        : m_location(std::move(location))
+    {
+        m_message = format(ErrorCode_message(code), std::forward<Args>(args)...);
+    }
+
+    SyntaxError(std::string msg)
+        : m_message(std::move(msg))
+    {
+    }
+
+    template<typename... Args>
+    SyntaxError(std::string message, Args&&... args)
+    {
+        m_message = format(message, std::forward<Args>(args)...);
+    }
+
+    template<typename... Args>
+    SyntaxError(ErrorCode code, Args&&... args)
+    {
+        m_message = format(ErrorCode_message(code), std::forward<Args>(args)...);
+    }
+
+    [[nodiscard]] std::string const& message() const { return m_message; }
+    [[nodiscard]] Span const& location() const { return m_location; }
+
+    [[nodiscard]] std::string to_string() const
+    {
+        return format("{} {}", m_location, m_message);
+    }
+
+    bool operator==(SyntaxError const& other) const
+    {
+        return location() == other.m_location && m_message == other.m_message;
+    }
+
+private:
+    Span m_location {};
+    std::string m_message;
+};
 
 template<typename T>
 inline ErrorOr<T, SyntaxError> token_value(Token const& token)
@@ -277,10 +358,10 @@ template<std::convertible_to<long> T>
 inline ErrorOr<T, SyntaxError> token_value(Token const& token)
 {
     if (token.code() != TokenCode::Float && token.code() != TokenCode::Integer && token.code() != TokenCode::HexNumber)
-        return SyntaxError { ErrorCode::TypeMismatch, token, "Cannot get {} value as {}", token.code(), typeid(T).name() };
+        return SyntaxError { token.location(), "Cannot get {} value as {}", token.code(), typeid(T).name() };
     auto v = to_long_unconditional(token.value());
     if (v < std::numeric_limits<T>::min() || v > std::numeric_limits<T>::max())
-        return SyntaxError { ErrorCode::TypeMismatch, token, "Long value {} overflows {}", v, typeid(T).name() };
+        return SyntaxError { token.location(), "Long value {} overflows {}", v, typeid(T).name() };
     return static_cast<T>(v);
 }
 
@@ -299,22 +380,22 @@ inline ErrorOr<bool, SyntaxError> token_value(Token const& token)
     auto bool_maybe = Obelix::to_bool(token.value());
     if (bool_maybe.has_value())
         return bool_maybe.value();
-    return SyntaxError { ErrorCode::TypeMismatch, token, "Cannot convert get {} with value {} as bool", token.code(), token.value() };
+    return SyntaxError { token.location(), "Cannot convert get {} with value {} as bool", token.code(), token.value() };
 }
 
 template<>
 struct Converter<Token> {
-    static std::string to_string(Token t)
+    static std::string to_string(Token const& t)
     {
-        return format("{}:{}", t.location.to_string(), t.to_string());
+        return format("{}:{}", t.location().to_string(), t.to_string());
     }
 
-    static double to_double(Token t)
+    static double to_double(Token const&)
     {
         fatal("Can't convert Token to double");
     }
 
-    static long to_long(Token t)
+    static long to_long(Token const&)
     {
         fatal("Can't convert Token to long");
     }

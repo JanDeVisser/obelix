@@ -17,19 +17,19 @@ namespace Obelix {
 
 extern_logging_category(parser);
 
-ProcessResult interpret(std::shared_ptr<SyntaxNode> expr, InterpContext &ctx)
+ProcessResult& interpret(ProcessResult& result, InterpContext &ctx)
 {
-    return process<InterpContext>(expr, ctx);
+    return process<InterpContext>(result.value(), ctx, result);
 }
 
-ProcessResult interpret(std::shared_ptr<SyntaxNode> expr)
+ProcessResult& interpret(ProcessResult& result)
 {
     Config config;
     InterpContext ctx(config);
-    return interpret(expr, ctx);
+    return interpret(result, ctx);
 }
 
-INIT_NODE_PROCESSOR(InterpContext);
+INIT_NODE_PROCESSOR(InterpContext)
 
 NODE_PROCESSOR(BoundVariableDeclaration)
 {
@@ -37,20 +37,20 @@ NODE_PROCESSOR(BoundVariableDeclaration)
     auto expr = TRY_AND_CAST(BoundExpression, var_decl->expression(), ctx);
     auto literal = std::dynamic_pointer_cast<BoundLiteral>(expr);
     if (var_decl->is_const() && (literal != nullptr)) {
-        ctx.declare(var_decl->name(), literal);
+        TRY_RETURN(ctx.declare(var_decl->name(), literal));
         return make_node<Pass>(var_decl);
     }
     switch (var_decl->node_type()) {
     case SyntaxNodeType::BoundVariableDeclaration:
-        return make_node<BoundVariableDeclaration>(var_decl->token(), var_decl->variable(), var_decl->is_const(), expr);
+        return make_node<BoundVariableDeclaration>(var_decl->location(), var_decl->variable(), var_decl->is_const(), expr);
     case SyntaxNodeType::BoundStaticVariableDeclaration:
-        return make_node<BoundStaticVariableDeclaration>(var_decl->token(), var_decl->variable(), var_decl->is_const(), expr);
+        return make_node<BoundStaticVariableDeclaration>(var_decl->location(), var_decl->variable(), var_decl->is_const(), expr);
     default:
         fatal("Unreachable: node type = {}", var_decl->node_type());
     }
 }
 
-ALIAS_NODE_PROCESSOR(BoundStaticVariableDeclaration, BoundVariableDeclaration);
+ALIAS_NODE_PROCESSOR(BoundStaticVariableDeclaration, BoundVariableDeclaration)
 
 NODE_PROCESSOR(BoundVariable)
 {

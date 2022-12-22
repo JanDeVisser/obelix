@@ -44,7 +44,7 @@ ErrorOr<void, SyntaxError> ARM64Context::zero_initialize(std::shared_ptr<ObjectT
         break;
     }
     default:
-        return SyntaxError { ErrorCode::NotYetImplemented, Token {}, format("Cannot initialize variables of type {} yet", type) };
+        return SyntaxError { "Cannot initialize variables of type {} yet", type };
     }
     return {};
 }
@@ -54,8 +54,7 @@ ErrorOr<void, SyntaxError> ARM64Context::load_variable(std::shared_ptr<ObjectTyp
     if (type->type() != PrimitiveType::Struct) {
         auto mm = get_type_mnemonic_map(type);
         if (mm == nullptr)
-            return SyntaxError { ErrorCode::NotYetImplemented, Token {},
-                format("Cannot load values of variables of type {} yet", type) };
+            return SyntaxError { "Cannot load values of variables of type {} yet", type };
         assembly()->add_comment(format("Loading variable: stack_depth {} offset {}", stack_depth(), offset));
         if (type->size() < 8)
             assembly()->add_instruction("mov", "x{},xzr", target);
@@ -77,8 +76,7 @@ ErrorOr<void, SyntaxError> ARM64Context::store_variable(std::shared_ptr<ObjectTy
     if (type->type() != PrimitiveType::Struct) {
         auto mm = get_type_mnemonic_map(type);
         if (mm == nullptr)
-            return SyntaxError { ErrorCode::NotYetImplemented, Token {},
-                format("Cannot store values of type {} yet", type) };
+            return SyntaxError { "Cannot store values of type {} yet", type };
         assembly()->add_comment(format("Storing to variable: stack_depth {} offset {}", stack_depth(), offset));
         assembly()->add_instruction(mm->store_mnemonic, "{}{},[fp,#{}]", mm->reg_width, from, stack_depth() - offset);
         return {};

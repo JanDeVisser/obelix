@@ -15,7 +15,7 @@ namespace Obelix {
 
 NODE_CLASS(VariableDeclaration, Statement)
 public:
-    VariableDeclaration(Token, std::shared_ptr<Identifier>, std::shared_ptr<Expression> = nullptr, bool = false);
+    VariableDeclaration(Span, std::shared_ptr<Identifier>, std::shared_ptr<Expression> = nullptr, bool = false);
     [[nodiscard]] std::string attributes() const override;
     [[nodiscard]] Nodes children() const override;
     [[nodiscard]] std::string to_string() const override;
@@ -34,19 +34,19 @@ private:
 
 NODE_CLASS(StaticVariableDeclaration, VariableDeclaration)
 public:
-    StaticVariableDeclaration(Token, std::shared_ptr<Identifier>, std::shared_ptr<Expression> = nullptr, bool = false);
+    StaticVariableDeclaration(Span, std::shared_ptr<Identifier>, std::shared_ptr<Expression> = nullptr, bool = false);
     [[nodiscard]] std::string to_string() const override;
 };
 
 NODE_CLASS(LocalVariableDeclaration, VariableDeclaration)
 public:
-    LocalVariableDeclaration(Token, std::shared_ptr<Identifier>, std::shared_ptr<Expression> = nullptr, bool = false);
+    LocalVariableDeclaration(Span, std::shared_ptr<Identifier>, std::shared_ptr<Expression> = nullptr, bool = false);
     [[nodiscard]] std::string to_string() const override;
 };
 
 NODE_CLASS(GlobalVariableDeclaration, VariableDeclaration)
 public:
-    GlobalVariableDeclaration(Token, std::shared_ptr<Identifier>, std::shared_ptr<Expression> = nullptr, bool = false);
+    GlobalVariableDeclaration(Span, std::shared_ptr<Identifier>, std::shared_ptr<Expression> = nullptr, bool = false);
     [[nodiscard]] std::string to_string() const override;
 };
 

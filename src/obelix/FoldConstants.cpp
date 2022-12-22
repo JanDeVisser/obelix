@@ -49,14 +49,14 @@ NODE_PROCESSOR(BoundVariableDeclaration)
     auto expr = TRY_AND_CAST(BoundExpression, var_decl->expression(), ctx);
     auto literal = std::dynamic_pointer_cast<BoundLiteral>(expr);
     if (var_decl->is_const() && (literal != nullptr)) {
-        ctx.declare(var_decl->name(), literal);
+        TRY_RETURN(ctx.declare(var_decl->name(), literal));
         return make_node<Pass>(var_decl);
     }
     switch (var_decl->node_type()) {
     case SyntaxNodeType::BoundVariableDeclaration:
-        return make_node<BoundVariableDeclaration>(var_decl->token(), var_decl->variable(), var_decl->is_const(), expr);
+        return make_node<BoundVariableDeclaration>(var_decl->location(), var_decl->variable(), var_decl->is_const(), expr);
     case SyntaxNodeType::BoundStaticVariableDeclaration:
-        return make_node<BoundStaticVariableDeclaration>(var_decl->token(), var_decl->variable(), var_decl->is_const(), expr);
+        return make_node<BoundStaticVariableDeclaration>(var_decl->location(), var_decl->variable(), var_decl->is_const(), expr);
     default:
         fatal("Unreachable: node type = {}", var_decl->node_type());
     }
@@ -76,8 +76,9 @@ NODE_PROCESSOR(BoundIntrinsicCall)
         auto processed = TRY_AND_CAST(BoundExpression, arg, ctx);
         processed_args.push_back(processed);
     }
-    auto processed_call = make_node<BoundIntrinsicCall>(call, processed_args, std::dynamic_pointer_cast<BoundIntrinsicDecl>(call->declaration()));
-    return TRY(interpret(processed_call));
+    result = std::make_shared<BoundIntrinsicCall>(call, processed_args, std::dynamic_pointer_cast<BoundIntrinsicDecl>(call->declaration()));
+    interpret(result);
+    return result.value();
 }
 
 #if 0
@@ -113,10 +114,10 @@ NODE_PROCESSOR(BoundBinaryExpression)
     if ((lhs_literal != nullptr) && rhs->node_type() == SyntaxNodeType::BinaryExpression) {
         auto rhs_expr = std::dynamic_pointer_cast<BoundBinaryExpression>(rhs);
         if ((std::dynamic_pointer_cast<BoundLiteral>(rhs_expr->lhs()) != nullptr) && BinaryOperator_precedence(expr->op()) == BinaryOperator_precedence(rhs_expr->op())) {
-            std::shared_ptr<BoundExpression> new_lhs = make_node<BoundBinaryExpression>(lhs->token(), lhs, expr->op(), rhs_expr->lhs(), expr->type());
+            std::shared_ptr<BoundExpression> new_lhs = make_node<BoundBinaryExpression>(lhs->location(), lhs, expr->op(), rhs_expr->lhs(), expr->type());
             new_lhs = TRY_AND_CAST(BoundExpression, interpret(new_lhs));
             if (std::dynamic_pointer_cast<BoundLiteral>(new_lhs) != nullptr) {
-                return std::make_shared<BoundBinaryExpression>(expr->token(),
+                return std::make_shared<BoundBinaryExpression>(expr->location(),
                     new_lhs,
                     rhs_expr->op(),
                     rhs_expr->rhs(),
@@ -129,10 +130,10 @@ NODE_PROCESSOR(BoundBinaryExpression)
     if ((rhs_literal != nullptr) && lhs->node_type() == SyntaxNodeType::BinaryExpression) {
         auto lhs_expr = std::dynamic_pointer_cast<BoundBinaryExpression>(lhs);
         if ((std::dynamic_pointer_cast<BoundLiteral>(lhs_expr->rhs()) != nullptr) && BinaryOperator_precedence(expr->op()) == BinaryOperator_precedence(lhs_expr->op())) {
-            std::shared_ptr<BoundExpression> new_rhs = make_node<BoundBinaryExpression>(rhs->token(), lhs_expr->rhs(), expr->op(), rhs, expr->type());
+            std::shared_ptr<BoundExpression> new_rhs = make_node<BoundBinaryExpression>(rhs->location(), lhs_expr->rhs(), expr->op(), rhs, expr->type());
             new_rhs = TRY_AND_CAST(BoundExpression, interpret(new_rhs));
             if (std::dynamic_pointer_cast<BoundLiteral>(new_rhs) != nullptr) {
-                return std::make_shared<BoundBinaryExpression>(expr->token(),
+                return std::make_shared<BoundBinaryExpression>(expr->location(),
                     lhs_expr->lhs(),
                     lhs_expr->op(),
                     new_rhs,
@@ -159,11 +160,11 @@ NODE_PROCESSOR(BoundBranch)
     auto branch = std::dynamic_pointer_cast<BoundBranch>(tree);
     auto cond = branch->condition();
     if (auto switch_expr = ctx.data().last_switch_expression(); switch_expr != nullptr && cond != nullptr) {
-        cond = std::make_shared<BoundBinaryExpression>(branch->token(), switch_expr, BinaryOperator::Equals, branch->condition(), ObjectType::get(PrimitiveType::Boolean));
+        cond = std::make_shared<BoundBinaryExpression>(branch->location(), switch_expr, BinaryOperator::Equals, branch->condition(), ObjectType::get(PrimitiveType::Boolean));
     }
     auto stmt = TRY_AND_CAST(Statement, branch->statement(), ctx);
     if (cond == nullptr)
-        return std::make_shared<BoundBranch>(branch->token(), nullptr, stmt);
+        return std::make_shared<BoundBranch>(branch->location(), nullptr, stmt);
     cond = TRY_AND_CAST(BoundExpression, cond, ctx);
 
     auto cond_literal = std::dynamic_pointer_cast<BoundBooleanLiteral>(cond);
@@ -176,7 +177,7 @@ NODE_PROCESSOR(BoundBranch)
         }
     }
     cond = TRY_AND_CAST(BoundExpression, branch->condition(), ctx);
-    return std::make_shared<BoundBranch>(branch->token(), cond, stmt);
+    return std::make_shared<BoundBranch>(branch->location(), cond, stmt);
 }
 
 ErrorOr<BoundBranches, SyntaxError> new_branches(BoundBranches current_branches, FoldContext& ctx, ProcessResult &result)
@@ -199,7 +200,7 @@ ErrorOr<BoundBranches, SyntaxError> new_branches(BoundBranches current_branches,
             // This is a constant-true branch. If we're not building a new
             // statement, return this statement. Else add this if it's the
             // first constant true branch:
-            auto else_branch = std::make_shared<BoundBranch>(branch->token(), nullptr, branch);
+            auto else_branch = std::make_shared<BoundBranch>(branch->location(), nullptr, branch);
             if (new_branches.empty())
                 return BoundBranches { else_branch };
             new_branches.push_back(else_branch);
@@ -222,13 +223,13 @@ NODE_PROCESSOR(BoundIfStatement)
 
     if (branches.empty())
         // Nothing left. Everything was false and there was no 'else' branch:
-        return std::make_shared<Pass>(stmt->token());
+        return std::make_shared<Pass>(stmt->location());
 
     if ((branches.size() == 1) && (branches[0]->condition() == nullptr))
         // First branch is always true, or only 'else' branch left:
         return branches[0]->statement();
 
-    return std::make_shared<BoundIfStatement>(stmt->token(), branches);
+    return std::make_shared<BoundIfStatement>(stmt->location(), branches);
 }
 
 NODE_PROCESSOR(BoundSwitchStatement)
@@ -245,21 +246,21 @@ NODE_PROCESSOR(BoundSwitchStatement)
         if (default_branch != nullptr) {
             return default_branch->statement();
         }
-        return std::make_shared<Pass>(stmt->token());
+        return std::make_shared<Pass>(stmt->location());
     }
 
     if ((branches.size() == 1) && (branches[0]->condition() == nullptr))
         return branches[0]->statement();
     if (branches[branches.size()-1]->condition() == nullptr)
         default_branch = nullptr;
-    return std::make_shared<BoundSwitchStatement>(stmt->token(), expr, branches, default_branch);
+    return std::make_shared<BoundSwitchStatement>(stmt->location(), expr, branches, default_branch);
 }
 
-ProcessResult fold_constants(std::shared_ptr<SyntaxNode> const& tree)
+ProcessResult& fold_constants(ProcessResult& result)
 {
     Config config;
     FoldContext ctx(config);
-    return process<FoldContext>(tree, ctx);
+    return process<FoldContext>(result.value(), ctx, result);
 }
 
 }

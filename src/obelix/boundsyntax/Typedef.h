@@ -16,7 +16,7 @@ namespace Obelix {
 
 NODE_CLASS(BoundType, SyntaxNode)
 public:
-    BoundType(Token, std::shared_ptr<ObjectType>);
+    BoundType(Span, std::shared_ptr<ObjectType>);
     [[nodiscard]] std::shared_ptr<ObjectType> type() const;
     [[nodiscard]] std::string attributes() const override;
     [[nodiscard]] std::string to_string() const override;
@@ -28,7 +28,7 @@ private:
 NODE_CLASS(BoundStructDefinition, BoundStatement)
 public:
     BoundStructDefinition(pStructDefinition const&, pObjectType, BoundIdentifiers, Statements = {});
-    BoundStructDefinition(Token, pObjectType, BoundIdentifiers, Statements = {});
+    BoundStructDefinition(Span, pObjectType, BoundIdentifiers, Statements = {});
     [[nodiscard]] std::string const& name() const;
     [[nodiscard]] std::shared_ptr<ObjectType> type() const;
     [[nodiscard]] std::string attributes() const override;
@@ -47,7 +47,7 @@ private:
 
 NODE_CLASS(BoundEnumValueDef, SyntaxNode)
 public:
-    BoundEnumValueDef(Token, std::string, long);
+    BoundEnumValueDef(Span, std::string, long);
     [[nodiscard]] long const& value() const;
     [[nodiscard]] std::string const& label() const;
     [[nodiscard]] std::string attributes() const override;
@@ -63,7 +63,7 @@ using BoundEnumValueDefs = std::vector<std::shared_ptr<BoundEnumValueDef>>;
 NODE_CLASS(BoundEnumDef, BoundStatement)
 public:
     BoundEnumDef(std::shared_ptr<EnumDef> const& enum_def, std::shared_ptr<ObjectType> type, BoundEnumValueDefs values);
-    BoundEnumDef(Token, std::string name, std::shared_ptr<ObjectType> type, BoundEnumValueDefs values, bool extend);
+    BoundEnumDef(Span, std::string name, std::shared_ptr<ObjectType> type, BoundEnumValueDefs values, bool extend);
     [[nodiscard]] std::string const& name() const;
     [[nodiscard]] std::shared_ptr<ObjectType> type() const;
     [[nodiscard]] BoundEnumValueDefs const& values() const;
@@ -81,7 +81,7 @@ private:
 
 NODE_CLASS(BoundTypeDef, BoundStatement)
 public:
-    BoundTypeDef(Token, std::string, std::shared_ptr<BoundType>);
+    BoundTypeDef(Span, std::string, std::shared_ptr<BoundType>);
     [[nodiscard]] std::string const& name() const;
     [[nodiscard]] std::shared_ptr<BoundType> const& type() const;
     [[nodiscard]] Nodes children() const override;

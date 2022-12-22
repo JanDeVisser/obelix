@@ -33,72 +33,85 @@ std::string sanitize_module_name(std::string const& unsanitized)
 
 ProcessResult parse(ParserContext& ctx, std::string const& module_name)
 {
-    Parser parser(ctx, module_name);
+    auto parser_or_error = Parser::create(ctx, module_name);
+    if (parser_or_error.is_error()) {
+        return SyntaxError { parser_or_error.error().message() };
+    }
+    auto parser = parser_or_error.value();
     ProcessResult ret;
-    ret = parser.parse();
-    for (auto const& e : parser.errors())
-        ret = SyntaxError { ErrorCode::SyntaxError, e.token, e.message };
+    ret = parser->parse();
+    for (auto const& e : parser->errors())
+        ret.error(e);
     return ret;
 }
 
 #define PROCESS_RESULT(res)        \
     ({                             \
         auto __result = res;       \
-        if (__result.is_error()) { \
+        if (result.is_error()) { \
             return __result;       \
         }                          \
-        __result.value();          \
     })
 
-#define TRY_PROCESS_RESULT(tree, ctx)       \
-    ({                                      \
-        auto __result = process(tree, ctx); \
-        if (__result.is_error()) {          \
-            return __result;                \
-        }                                   \
-        __result.value();                   \
+#define TRY_PROCESS_RESULT(tree, ctx)               \
+    ({                                              \
+        process(tree, ctx, result); \
+        if (__result.is_error()) {                  \
+            return __result;                        \
+        }                                           \
     })
 
 ProcessResult compile_project(Config const& config)
 {
-    auto compilation = std::make_shared<Compilation>(config.main());
     ParserContext ctx { config };
 
-    auto tree = TRY_PROCESS_RESULT(compilation, ctx);
+    ProcessResult result;
+    result = std::make_shared<Compilation>(config.main());
+    process(result.value(), ctx, result);
+    if (result.is_error())
+        return result;
     if (config.cmdline_flag<bool>("show-tree"))
         std::cout << "\n\nOriginal:\n"
-                  << tree->to_xml() << "\n";
+                  << result.value()->to_xml() << "\n";
     if (!config.bind)
-        return tree;
+        return result;
 
-    auto transformed = PROCESS_RESULT(bind_types(tree, config));
-    if (!config.lower)
-        return transformed;
-    transformed = PROCESS_RESULT(lower(transformed, config));
+    bind_types(config, result);
+    if (result.is_error() || !config.lower)
+        return result;
+
+    lower(config, result);
+    if (result.is_error())
+        return result;
     if (config.cmdline_flag<bool>("show-tree"))
         std::cout << "\n\nFlattened:\n"
-                  << transformed->to_xml() << "\n";
+                  << result.value()->to_xml() << "\n";
     if (!config.fold_constants)
-        return transformed;
-    transformed = PROCESS_RESULT(fold_constants(transformed));
+        return result;
+
+    fold_constants(result);
+    if (result.is_error())
+        return result;
     if (config.cmdline_flag<bool>("show-tree"))
         std::cout << "\n\nConstants folded:\n"
-                  << transformed->to_xml() << "\n";
-
+                  << result.value()->to_xml() << "\n";
     if (!config.compile)
-        return transformed;
+        return result;
+
     switch (config.target) {
     case Architecture::MACOS_ARM64: {
-        auto ret = PROCESS_RESULT(output_arm64(transformed, config));
-        if (ret->node_type() != SyntaxNodeType::BoundIntLiteral)
-            ret = std::make_shared<BoundIntLiteral>(Token {}, 0);
-        return ret;
+        output_arm64(result, config);
+        if (result.is_error())
+            return result;
+        if (result.value() == nullptr || result.value()->node_type() != SyntaxNodeType::BoundIntLiteral)
+            result = std::make_shared<BoundIntLiteral>(Span {}, 0);
+        return result;
     }
     case Architecture::C_TRANSPILER: {
-        auto ret = PROCESS_RESULT(transpile_to_c(transformed, config));
-        if (ret->node_type() != SyntaxNodeType::BoundIntLiteral)
-            ret = std::make_shared<BoundIntLiteral>(Token {}, 0);
-        return ret;
+        transpile_to_c(result, config);
+        if (result.value() == nullptr || result.value()->node_type() != SyntaxNodeType::BoundIntLiteral)
+            result = std::make_shared<BoundIntLiteral>(Span {}, 0);
+        return result;
     }
 #ifdef JV80
     case Architecture::JV_80:

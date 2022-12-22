@@ -11,6 +11,6 @@
 
 namespace Obelix {
 
-ProcessResult transpile_to_c(std::shared_ptr<SyntaxNode> const&, Config const& config);
+ProcessResult& transpile_to_c(ProcessResult& result, Config const& config);
 
 }

@@ -7,6 +7,7 @@
 #pragma once
 
 #include <concepts>
+#include <cerrno>
 #include <string>
 
 #include <core/Format.h>
@@ -14,45 +15,46 @@
 namespace Obelix {
 
 #define ENUMERATE_ERROR_CODES(S)                                                              \
-    S(NoError, "There is no error")                                                           \
-    S(IOError, "{}")                                                                          \
-    S(ExecutionError, "Error executing '{}': {}")                                             \
-    S(InternalError, "{}")                                                                    \
-    S(SyntaxError, "{}")                                                                      \
-    S(NotYetImplemented, "{}")                                                                \
-    S(NoSuchFile, "File '{}' does not exist")                                                 \
-    S(PathIsDirectory, "Path '{}' is a directory")                                            \
-    S(PathIsFile, "Path '{}' is a file")                                                      \
-    S(ObjectNotCallable, "Object '{}' is not callable")                                       \
-    S(ObjectNotIterable, "Object '{}' is not iterable")                                       \
-    S(CannotAssignToObject, "Cannot assign to object '{}'")                                   \
-    S(VariableAlreadyDeclared, "Variable '{}' is already declared")                           \
-    S(NameUnresolved, "Could not resolve '{}'")                                               \
-    S(OperatorUnresolved, "Could not apply '{}' to '{}'")                                     \
-    S(ReturnTypeUnresolved, "Return type of operator '{}' unresolved")                        \
-    S(ConversionError, "Cannot convert '{}' to {}")                                           \
-    S(FunctionUndefined, "Function '{}' in image '{}' is undefined")                          \
-    S(UndeclaredVariable, "Undeclared variable '{}'")                                         \
-    S(RegexpSyntaxError, "Regular expression syntax error")                                   \
-    S(TypeMismatch, "Type mismatch in '{}'. Expected '{}', got '{}'")                         \
-    S(UntypedVariable, "Variable '{}' is untyped")                                            \
-    S(UntypedFunction, "Function '{}' has no return type")                                    \
-    S(UntypedParameter, "Parameter '{}' has no return type")                                  \
-    S(UntypedExpression, "Expression '{}' has no type")                                       \
     S(ArgumentCountMismatch, "Function {} called with {} arguments")                          \
     S(ArgumentTypeMismatch, "Function {} called with argument of type {} for parameter {}")   \
-    S(CouldNotResolveNode, "Could not resolve node")                                          \
-    S(CantUseAsUnaryOp, "Cannot use '{}' as a unary operation")                               \
+    S(CannotAccessMember, "Cannot access members of non-struct expression '{}'")              \
     S(CannotAssignToConstant, "Cannot assign to constant '{}'")                               \
     S(CannotAssignToFunction, "Identifier '{}' represents a function and cannot be assigned") \
+    S(CannotAssignToObject, "Cannot assign to object '{}'")                                   \
     S(CannotAssignToRValue, "Cannot assign to expression '{}'")                               \
-    S(NoSuchType, "Unknown type '{}'")                                                        \
+    S(CantUseAsUnaryOp, "Cannot use '{}' as a unary operation")                               \
+    S(ConversionError, "Cannot convert '{}' to {}")                                           \
+    S(CouldNotResolveNode, "Could not resolve node")                                          \
     S(DuplicateTypeName, "Duplicate type '{}'")                                               \
-    S(TemplateParameterMismatch, "Template '{}' expects {} arguments. Got {}")                \
-    S(TypeNotParameterized, "Type '{}' is not parameterized")                                 \
-    S(CannotAccessMember, "Cannot access members of non-struct expression '{}'")              \
+    S(ExecutionError, "Error executing '{}': {}")                                             \
+    S(FunctionUndefined, "Function '{}' in image '{}' is undefined")                          \
+    S(IOError, "{}")                                                                          \
+    S(IndexOutOfBounds, "Index value {} not in [0..{}]")                                      \
+    S(InternalError, "{}")                                                                    \
+    S(NameUnresolved, "Could not resolve '{}'")                                               \
+    S(NoError, "There is no error")                                                           \
+    S(NoSuchFile, "File '{}' does not exist")                                                 \
+    S(NoSuchType, "Unknown type '{}'")                                                        \
     S(NotMember, "Expression '{}' is not a member of '{}'")                                   \
-    S(IndexOutOfBounds, "Index value {} not in [0..{}]")
+    S(NotYetImplemented, "{}")                                                                \
+    S(ObjectNotCallable, "Object '{}' is not callable")                                       \
+    S(ObjectNotIterable, "Object '{}' is not iterable")                                       \
+    S(OperatorUnresolved, "Could not apply '{}' to '{}'")                                     \
+    S(PathIsDirectory, "Path '{}' is a directory")                                            \
+    S(PathIsFile, "Path '{}' is a file")                                                      \
+    S(RegexpSyntaxError, "Regular expression syntax error")                                   \
+    S(ReturnTypeUnresolved, "Return type of operator '{}' unresolved")                        \
+    S(SyntaxError, "{}")                                                                      \
+    S(TemplateParameterMismatch, "Template '{}' expects {} arguments. Got {}")                \
+    S(TypeMismatch, "Type mismatch in '{}'. Expected '{}', got '{}'")                         \
+    S(TypeNotParameterized, "Type '{}' is not parameterized")                                 \
+    S(UndeclaredVariable, "Undeclared variable '{}'")                                         \
+    S(UntypedExpression, "Expression '{}' has no type")                                       \
+    S(UntypedFunction, "Function '{}' has no return type")                                    \
+    S(UntypedParameter, "Parameter '{}' has no return type")                                  \
+    S(UntypedVariable, "Variable '{}' is untyped")                                            \
+    S(VariableAlreadyDeclared, "Variable '{}' is already declared")                           \
+    S(ZZLast, "Don't use me")
 
 enum class ErrorCode {
 #undef __ENUMERATE_ERROR_CODE
@@ -64,62 +66,67 @@ enum class ErrorCode {
 std::string ErrorCode_name(ErrorCode);
 std::string ErrorCode_message(ErrorCode);
 
-template <typename T>
-class Error {
-public:
-    Error()
-        : Error(ErrorCode::NoError)
+template<>
+struct Converter<ErrorCode> {
+    static std::string to_string(ErrorCode val)
     {
+        return ErrorCode_name(val);
     }
 
-    explicit Error(ErrorCode code)
-        : m_code(code)
-        , m_message(ErrorCode_name(code))
+    static double to_double(ErrorCode val)
     {
+        return static_cast<double>(val);
     }
 
-    Error(ErrorCode code, T t)
-        : m_code(code)
-        , m_message(ErrorCode_name(code))
-        , m_payload(std::move(t))
+    static long to_long(ErrorCode val)
     {
+        return static_cast<long>(val);
     }
-
-    template <typename U>
-    Error(Error<U> const& other, T t)
-        : m_code(other.code())
-        , m_message(other.message())
-        , m_payload(std::move(t))
-    {
-    }
-
-    template<typename... Args>
-    explicit Error(ErrorCode code, Args&&... args)
-        : m_code(code)
-        , m_message(ErrorCode_name(code) + ": " + format(std::string(ErrorCode_message(code)), std::forward<Args>(args)...))
-    {
-    }
-
-    template<typename... Args>
-    explicit Error(ErrorCode code, T t, Args&&... args)
-        : m_code(code)
-        , m_message(ErrorCode_name(code) + ": " + format(std::string(ErrorCode_message(code)), std::forward<Args>(args)...))
-        , m_payload(std::move(t))
-    {
-    }
-
-    [[nodiscard]] ErrorCode code() const { return m_code; }
-    [[nodiscard]] std::string const& message() const { return m_message; }
-    [[nodiscard]] std::string to_string() const { return format("{} {}", ErrorCode_name(code()), message()); }
-    [[nodiscard]] T const& payload() const { return m_payload; }
-
-private:
-    ErrorCode m_code { ErrorCode::NoError };
-    std::string m_message {};
-    T m_payload {};
 };
 
-template<typename ReturnType, typename ErrorType = Error<int>>
+
+class SystemError {
+public:
+    SystemError(ErrorCode code, std::string msg = {})
+        : m_code(code)
+        , m_errno(errno)
+        , m_message(std::move(msg))
+    {
+        if (m_message.empty()) {
+            if (m_errno != 0)
+                m_message = strerror(m_errno);
+            else
+                m_message = "No Error";
+        }
+    }
+
+    template <typename ...Args>
+    SystemError(ErrorCode code, std::string message, Args&&... args)
+        : m_code(code)
+        , m_errno(errno)
+    {
+        m_message = format(message, std::forward<Args>(args)...);
+    }
+
+    [[nodiscard]] std::string const& message() const { return m_message; }
+    [[nodiscard]] ErrorCode code() const { return m_code; }
+    [[nodiscard]] int sys_errno() const { return m_errno; }
+
+    [[nodiscard]] std::string to_string() const
+    {
+        if (m_errno != 0)
+            return format("[{}] {}: {}", m_code, m_message, strerror(m_errno));
+        return format("[{}] {}", m_code, m_message);
+    }
+
+private:
+    ErrorCode m_code;
+    int m_errno { 0 };
+    std::string m_message;
+};
+
+
+template<typename ReturnType, typename ErrorType = ErrorCode>
 class [[nodiscard]] ErrorOr {
 public:
     ErrorOr(ReturnType const& return_value)
@@ -133,8 +140,9 @@ public:
     }
 
     template<typename U>
-    ErrorOr(U&& value) requires(!std::is_same_v<std::remove_cvref_t<U>, ReturnType> && !std::is_same_v<std::remove_cvref_t<U>, ErrorOr<ReturnType, ErrorType>> && !std::is_same_v<std::remove_cvref_t<U>, ErrorType>)
-        : m_value(std::forward<U>(value))
+    ErrorOr(U&& value)
+        requires(!std::is_same_v<std::remove_cvref_t<U>, ReturnType> && !std::is_same_v<std::remove_cvref_t<U>, ErrorOr<ReturnType, ErrorType>> && !std::is_same_v<std::remove_cvref_t<U>, ErrorType>)
+    : m_value(std::forward<U>(value))
     {
     }
 

@@ -16,7 +16,6 @@ add_executable(
         ResolveOperators.cpp
         BoundSyntaxNode.h
         Context.h
-        Symbol.h
         Syntax.h
         SyntaxNodeType.h
         arm64/ARM64.cpp

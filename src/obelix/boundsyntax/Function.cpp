@@ -13,7 +13,7 @@ extern_logging_category(parser);
 // -- BoundFunctionDecl -----------------------------------------------------
 
 BoundFunctionDecl::BoundFunctionDecl(std::shared_ptr<SyntaxNode> const& decl, std::string module, std::shared_ptr<BoundIdentifier> identifier, BoundIdentifiers parameters)
-    : BoundStatement(decl->token())
+    : BoundStatement(decl->location())
     , m_module(std::move(module))
     , m_identifier(std::move(identifier))
     , m_parameters(std::move(parameters))
@@ -21,7 +21,7 @@ BoundFunctionDecl::BoundFunctionDecl(std::shared_ptr<SyntaxNode> const& decl, st
 }
 
 BoundFunctionDecl::BoundFunctionDecl(std::shared_ptr<BoundFunctionDecl> const& decl)
-    : BoundStatement(decl->token())
+    : BoundStatement(decl->location())
     , m_module(decl->module())
     , m_identifier(decl->identifier())
     , m_parameters(decl->parameters())
@@ -29,7 +29,7 @@ BoundFunctionDecl::BoundFunctionDecl(std::shared_ptr<BoundFunctionDecl> const& d
 }
 
 BoundFunctionDecl::BoundFunctionDecl(std::string module, std::shared_ptr<BoundIdentifier> identifier, BoundIdentifiers parameters)
-    : BoundStatement(Token {})
+    : BoundStatement(Span {})
     , m_module(std::move(module))
     , m_identifier(std::move(identifier))
     , m_parameters(std::move(parameters))
@@ -166,11 +166,11 @@ std::string BoundIntrinsicDecl::to_string() const
 // -- BoundMethodDecl -------------------------------------------------------
 
 BoundMethodDecl::BoundMethodDecl(pSyntaxNode const& decl, pMethodDescription method)
-    : BoundFunctionDecl(decl, "/", std::make_shared<BoundIdentifier>(decl->token(), method->name(), method->return_type()), {})
+    : BoundFunctionDecl(decl, "/", std::make_shared<BoundIdentifier>(decl->location(), method->name(), method->return_type()), {})
     , m_method(std::move(method))
 {
     for (auto const& param : m_method->parameters()) {
-        add_parameter(std::make_shared<BoundIdentifier>(Token {}, param.name, param.type));
+        add_parameter(std::make_shared<BoundIdentifier>(Span {}, param.name, param.type));
     }
 }
 
@@ -181,14 +181,14 @@ pMethodDescription const& BoundMethodDecl::method() const
 
 // -- FunctionBlock ---------------------------------------------------------
 
-FunctionBlock::FunctionBlock(Token token, Statements statements, pBoundFunctionDecl declaration)
-    : Block(std::move(token), std::move(statements))
+FunctionBlock::FunctionBlock(Span location, Statements statements, pBoundFunctionDecl declaration)
+    : Block(std::move(location), std::move(statements))
     , m_declaration(std::move(declaration))
 {
 }
 
-FunctionBlock::FunctionBlock(Token token, std::shared_ptr<Statement> statement, pBoundFunctionDecl declaration)
-    : Block(std::move(token), Statements { std::move(statement) })
+FunctionBlock::FunctionBlock(Span location, std::shared_ptr<Statement> statement, pBoundFunctionDecl declaration)
+    : Block(std::move(location), Statements { std::move(statement) })
     , m_declaration(std::move(declaration))
 {
 }
@@ -202,21 +202,21 @@ pBoundFunctionDecl const& FunctionBlock::declaration() const
 // -- BoundFunctionDef ------------------------------------------------------
 
 BoundFunctionDef::BoundFunctionDef(std::shared_ptr<FunctionDef> const& orig_def, std::shared_ptr<BoundFunctionDecl> func_decl, std::shared_ptr<Statement> statement)
-    : BoundStatement(orig_def->token())
+    : BoundStatement(orig_def->location())
     , m_function_decl(std::move(func_decl))
     , m_statement(std::move(statement))
 {
 }
 
-BoundFunctionDef::BoundFunctionDef(Token token, std::shared_ptr<BoundFunctionDecl> func_decl, std::shared_ptr<Statement> statement)
-    : BoundStatement(std::move(token))
+BoundFunctionDef::BoundFunctionDef(Span location, std::shared_ptr<BoundFunctionDecl> func_decl, std::shared_ptr<Statement> statement)
+    : BoundStatement(std::move(location))
     , m_function_decl(std::move(func_decl))
     , m_statement(std::move(statement))
 {
 }
 
 BoundFunctionDef::BoundFunctionDef(std::shared_ptr<BoundFunctionDef> const& orig_def, std::shared_ptr<Statement> statement)
-    : BoundStatement(orig_def->token())
+    : BoundStatement(orig_def->location())
     , m_function_decl(orig_def->declaration())
     , m_statement(std::move(statement))
 {
@@ -287,8 +287,8 @@ BoundFunctionCall::BoundFunctionCall(std::shared_ptr<BoundFunctionCall> const& c
 {
 }
 
-BoundFunctionCall::BoundFunctionCall(Token token, std::shared_ptr<BoundFunctionDecl> const& decl, BoundExpressions arguments)
-    : BoundExpression(std::move(token), decl->type())
+BoundFunctionCall::BoundFunctionCall(Span location, std::shared_ptr<BoundFunctionDecl> const& decl, BoundExpressions arguments)
+    : BoundExpression(std::move(location), decl->type())
     , m_name(decl->name())
     , m_arguments(std::move(arguments))
     , m_declaration(decl)
@@ -352,8 +352,8 @@ ObjectTypes BoundFunctionCall::argument_types() const
 
 // -- BoundNativeFunctionCall -----------------------------------------------
 
-BoundNativeFunctionCall::BoundNativeFunctionCall(Token token, std::shared_ptr<BoundNativeFunctionDecl> const& declaration, BoundExpressions arguments)
-    : BoundFunctionCall(std::move(token), declaration, std::move(arguments))
+BoundNativeFunctionCall::BoundNativeFunctionCall(Span location, std::shared_ptr<BoundNativeFunctionDecl> const& declaration, BoundExpressions arguments)
+    : BoundFunctionCall(std::move(location), declaration, std::move(arguments))
 {
 }
 
@@ -369,8 +369,8 @@ BoundNativeFunctionCall::BoundNativeFunctionCall(std::shared_ptr<BoundNativeFunc
 
 // -- BoundIntrinsicCall ----------------------------------------------------
 
-BoundIntrinsicCall::BoundIntrinsicCall(Token token, std::shared_ptr<BoundIntrinsicDecl> const& declaration, BoundExpressions arguments, IntrinsicType intrinsic)
-    : BoundFunctionCall(std::move(token), declaration, std::move(arguments))
+BoundIntrinsicCall::BoundIntrinsicCall(Span location, std::shared_ptr<BoundIntrinsicDecl> const& declaration, BoundExpressions arguments, IntrinsicType intrinsic)
+    : BoundFunctionCall(std::move(location), declaration, std::move(arguments))
     , m_intrinsic(intrinsic)
 {
 }
@@ -394,8 +394,8 @@ IntrinsicType BoundIntrinsicCall::intrinsic() const
 
 // -- BoundMethodCall -------------------------------------------------------
 
-BoundMethodCall::BoundMethodCall(Token token, pBoundMethodDecl const& declaration, pBoundExpression self, BoundExpressions arguments)
-    : BoundFunctionCall(std::move(token), declaration, std::move(arguments))
+BoundMethodCall::BoundMethodCall(Span location, pBoundMethodDecl const& declaration, pBoundExpression self, BoundExpressions arguments)
+    : BoundFunctionCall(std::move(location), declaration, std::move(arguments))
     , m_self(std::move(self))
 {
 }
@@ -407,8 +407,8 @@ pBoundExpression const& BoundMethodCall::self() const
 
 // -- BoundFunction ---------------------------------------------------------
 
-BoundFunction::BoundFunction(Token token, std::shared_ptr<BoundFunctionDecl> declaration)
-    : BoundExpression(std::move(token), PrimitiveType::Function)
+BoundFunction::BoundFunction(Span location, std::shared_ptr<BoundFunctionDecl> declaration)
+    : BoundExpression(std::move(location), PrimitiveType::Function)
     , m_declaration(std::move(declaration))
 {
 }
@@ -435,15 +435,15 @@ std::string BoundFunction::to_string() const
 
 // -- BoundLocalFunction ----------------------------------------------------
 
-BoundLocalFunction::BoundLocalFunction(Token token, std::shared_ptr<BoundFunctionDecl> declaration)
-    : BoundFunction(std::move(token), std::move(declaration))
+BoundLocalFunction::BoundLocalFunction(Span location, std::shared_ptr<BoundFunctionDecl> declaration)
+    : BoundFunction(std::move(location), std::move(declaration))
 {
 }
 
 // -- BoundImportedFunction -------------------------------------------------
 
-BoundImportedFunction::BoundImportedFunction(Token token, std::shared_ptr<BoundModule> module, std::shared_ptr<BoundFunctionDecl> declaration)
-    : BoundFunction(std::move(token), std::move(declaration))
+BoundImportedFunction::BoundImportedFunction(Span location, std::shared_ptr<BoundModule> module, std::shared_ptr<BoundFunctionDecl> declaration)
+    : BoundFunction(std::move(location), std::move(declaration))
     , m_module(std::move(module))
 {
 }

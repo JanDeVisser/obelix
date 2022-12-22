@@ -98,6 +98,8 @@ void WhitespaceScanner::match(Tokenizer& tokenizer)
                 m_state = WhitespaceState::Done;
             }
             break;
+        default:
+            break;
         }
     }
 }

@@ -15,19 +15,19 @@
 
 namespace Obelix {
 
-ErrorOr<int> execute(std::string const& cmd, std::vector<std::string> const& args)
+ErrorOr<int,SystemError> execute(std::string const& cmd, std::vector<std::string> const& args)
 {
     Process p(cmd, args);
     return p.execute();
 }
 
 Process::Process(std::string command, std::vector<std::string> arguments)
-    : m_command(move(command))
-    , m_arguments(move(arguments))
+    : m_command(std::move(command))
+    , m_arguments(std::move(arguments))
 {
 }
 
-ErrorOr<int> Process::execute()
+ErrorOr<int,SystemError> Process::execute()
 {
     auto sz = m_arguments.size();
     char** argv = new char*[sz + 2];
@@ -48,18 +48,18 @@ ErrorOr<int> Process::execute()
 
     int filedes[2];
     if (pipe(filedes) == -1) {
-        return Error<int> { ErrorCode::IOError, errno, format("pipe() failed: {}", strerror(errno)) };
+        return SystemError { ErrorCode::IOError, "pipe() failed" };
     }
 
     pid_t pid = fork();
     if (pid == -1)
-        return Error<int> { ErrorCode::IOError, errno, format("fork() failed: {}", strerror(errno)) };
+        return SystemError { ErrorCode::IOError, "fork() failed" };
     if (pid == 0) {
         while ((dup2(filedes[1], STDOUT_FILENO) == -1) && (errno == EINTR)) { }
         close(filedes[0]);
         close(filedes[1]);
         execvp(m_command.c_str(), argv);
-        return Error<int> { ErrorCode::IOError, errno, format("execvp() failed: {}", strerror(errno)) };
+        return SystemError { ErrorCode::IOError, "execvp() failed" };
     }
     close(filedes[1]);
 
@@ -70,7 +70,7 @@ ErrorOr<int> Process::execute()
             if (errno == EINTR) {
                 continue;
             } else {
-                return Error<int> { ErrorCode::IOError, errno, format("Error reading child process output: {}", strerror(errno)) };
+                return SystemError { ErrorCode::IOError, "Error reading child process output" };
             }
         }
         if (count == 0)
@@ -82,9 +82,9 @@ ErrorOr<int> Process::execute()
 
     int exit_code;
     if (waitpid(pid, &exit_code, 0) == -1)
-        return Error<int> { ErrorCode::IOError, errno, format("waitpid() failed: {}", strerror(errno)) };
+        return SystemError { ErrorCode::IOError, "waitpid() failed" };
     if (!WIFEXITED(exit_code))
-        return Error<int> { ErrorCode::IOError, errno, format("Child program {} crashed due to signal {}", m_command.c_str(), WTERMSIG(exit_code)) };
+        return SystemError { ErrorCode::IOError, "Child program {} crashed due to signal {}", m_command, WTERMSIG(exit_code) };
     return WEXITSTATUS(exit_code);
 }
 

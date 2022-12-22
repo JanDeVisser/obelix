@@ -17,13 +17,13 @@ namespace Obelix {
 ABSTRACT_NODE_CLASS(BoundVariableAccess, BoundExpression)
 public:
     BoundVariableAccess(std::shared_ptr<Expression>, std::shared_ptr<ObjectType>);
-    BoundVariableAccess(Token, std::shared_ptr<ObjectType>);
+    BoundVariableAccess(Span, std::shared_ptr<ObjectType>);
 };
 
 NODE_CLASS(BoundIdentifier, BoundVariableAccess)
 public:
     BoundIdentifier(std::shared_ptr<Identifier> const&, std::shared_ptr<ObjectType>);
-    BoundIdentifier(Token token, std::string, std::shared_ptr<ObjectType>);
+    BoundIdentifier(Span location, std::string, std::shared_ptr<ObjectType>);
     [[nodiscard]] std::string const& name() const;
     [[nodiscard]] std::string attributes() const override;
     [[nodiscard]] std::string to_string() const override;
@@ -36,7 +36,7 @@ private:
 NODE_CLASS(BoundVariable, BoundIdentifier)
 public:
     BoundVariable(std::shared_ptr<Variable>, std::shared_ptr<ObjectType>);
-    BoundVariable(Token, std::string, std::shared_ptr<ObjectType>);
+    BoundVariable(Span, std::string, std::shared_ptr<ObjectType>);
 };
 
 NODE_CLASS(BoundMemberAccess, BoundVariableAccess)
@@ -91,7 +91,7 @@ private:
 NODE_CLASS(BoundVariableDeclaration, BoundStatement)
 public:
     explicit BoundVariableDeclaration(std::shared_ptr<VariableDeclaration> const&, std::shared_ptr<BoundIdentifier>, std::shared_ptr<BoundExpression>);
-    explicit BoundVariableDeclaration(Token, std::shared_ptr<BoundIdentifier>, bool, std::shared_ptr<BoundExpression>);
+    explicit BoundVariableDeclaration(Span, std::shared_ptr<BoundIdentifier>, bool, std::shared_ptr<BoundExpression>);
     [[nodiscard]] std::string attributes() const override;
     [[nodiscard]] Nodes children() const override;
     [[nodiscard]] std::string to_string() const override;
@@ -111,7 +111,7 @@ private:
 NODE_CLASS(BoundStaticVariableDeclaration, BoundVariableDeclaration)
 public:
     BoundStaticVariableDeclaration(std::shared_ptr<VariableDeclaration> const&, std::shared_ptr<BoundIdentifier>, std::shared_ptr<BoundExpression>);
-    BoundStaticVariableDeclaration(Token, std::shared_ptr<BoundIdentifier>, bool, std::shared_ptr<BoundExpression>);
+    BoundStaticVariableDeclaration(Span, std::shared_ptr<BoundIdentifier>, bool, std::shared_ptr<BoundExpression>);
     [[nodiscard]] std::string to_string() const override;
     [[nodiscard]] bool is_static() const override;
 };
@@ -119,14 +119,14 @@ public:
 NODE_CLASS(BoundLocalVariableDeclaration, BoundVariableDeclaration)
 public:
     BoundLocalVariableDeclaration(std::shared_ptr<VariableDeclaration> const&, std::shared_ptr<BoundIdentifier>, std::shared_ptr<BoundExpression>);
-    BoundLocalVariableDeclaration(Token, std::shared_ptr<BoundIdentifier>, bool, std::shared_ptr<BoundExpression>);
+    BoundLocalVariableDeclaration(Span, std::shared_ptr<BoundIdentifier>, bool, std::shared_ptr<BoundExpression>);
     [[nodiscard]] std::string to_string() const override;
 };
 
 NODE_CLASS(BoundGlobalVariableDeclaration, BoundVariableDeclaration)
 public:
     BoundGlobalVariableDeclaration(std::shared_ptr<VariableDeclaration> const&, std::shared_ptr<BoundIdentifier>, std::shared_ptr<BoundExpression>);
-    BoundGlobalVariableDeclaration(Token, std::shared_ptr<BoundIdentifier>, bool, std::shared_ptr<BoundExpression>);
+    BoundGlobalVariableDeclaration(Span, std::shared_ptr<BoundIdentifier>, bool, std::shared_ptr<BoundExpression>);
     [[nodiscard]] std::string to_string() const override;
     [[nodiscard]] bool is_static() const override;
 };
@@ -134,7 +134,7 @@ public:
 
 NODE_CLASS(BoundAssignment, BoundExpression)
 public:
-    BoundAssignment(Token token, std::shared_ptr<BoundVariableAccess> assignee, std::shared_ptr<BoundExpression> expression);
+    BoundAssignment(Span location, std::shared_ptr<BoundVariableAccess> assignee, std::shared_ptr<BoundExpression> expression);
     [[nodiscard]] std::shared_ptr<BoundVariableAccess> const& assignee() const;
     [[nodiscard]] std::shared_ptr<BoundExpression> const& expression() const;
     [[nodiscard]] Nodes children() const override;

@@ -298,7 +298,7 @@ public:
 
     void add_marker(std::string marker)
     {
-        m_markers.push_back({ false, true, move(marker), "" });
+        m_markers.push_back({ false, true, std::move(marker), "" });
     }
 
     void add_marker(char const* marker)

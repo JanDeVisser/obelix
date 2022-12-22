@@ -13,7 +13,7 @@ namespace Obelix {
 
 NODE_CLASS(BoundExpressionList, BoundExpression)
 public:
-    BoundExpressionList(Token, BoundExpressions);
+    BoundExpressionList(Span, BoundExpressions);
     [[nodiscard]] BoundExpressions const& expressions() const;
     [[nodiscard]] Nodes children() const override;
     [[nodiscard]] std::string to_string() const override;
@@ -26,7 +26,7 @@ private:
 NODE_CLASS(BoundBinaryExpression, BoundExpression)
 public:
     BoundBinaryExpression(std::shared_ptr<BinaryExpression> const&, std::shared_ptr<BoundExpression>, BinaryOperator, std::shared_ptr<BoundExpression>, std::shared_ptr<ObjectType> = nullptr);
-    BoundBinaryExpression(Token, std::shared_ptr<BoundExpression>, BinaryOperator, std::shared_ptr<BoundExpression>, std::shared_ptr<ObjectType>);
+    BoundBinaryExpression(Span, std::shared_ptr<BoundExpression>, BinaryOperator, std::shared_ptr<BoundExpression>, std::shared_ptr<ObjectType>);
     [[nodiscard]] std::string attributes() const override;
     [[nodiscard]] Nodes children() const override;
     [[nodiscard]] std::string to_string() const override;
@@ -43,7 +43,7 @@ private:
 NODE_CLASS(BoundUnaryExpression, BoundExpression)
 public:
     BoundUnaryExpression(std::shared_ptr<UnaryExpression> const&, std::shared_ptr<BoundExpression>, UnaryOperator, std::shared_ptr<ObjectType> = nullptr);
-    BoundUnaryExpression(Token, std::shared_ptr<BoundExpression>, UnaryOperator, std::shared_ptr<ObjectType> = nullptr);
+    BoundUnaryExpression(Span, std::shared_ptr<BoundExpression>, UnaryOperator, std::shared_ptr<ObjectType> = nullptr);
     [[nodiscard]] std::string attributes() const override;
     [[nodiscard]] Nodes children() const override;
     [[nodiscard]] std::string to_string() const override;
@@ -57,7 +57,7 @@ private:
 
 NODE_CLASS(BoundCastExpression, BoundExpression)
 public:
-    BoundCastExpression(Token token, std::shared_ptr<BoundExpression>, std::shared_ptr<ObjectType>);
+    BoundCastExpression(Span location, std::shared_ptr<BoundExpression>, std::shared_ptr<ObjectType>);
 
     [[nodiscard]] std::string attributes() const override;
     [[nodiscard]] Nodes children() const override;
@@ -71,7 +71,7 @@ private:
 NODE_CLASS(BoundExpressionStatement, BoundStatement)
 public:
     BoundExpressionStatement(std::shared_ptr<ExpressionStatement> const&, std::shared_ptr<BoundExpression>);
-    BoundExpressionStatement(Token, std::shared_ptr<BoundExpression>);
+    BoundExpressionStatement(Span, std::shared_ptr<BoundExpression>);
     [[nodiscard]] std::shared_ptr<BoundExpression> const& expression() const;
     [[nodiscard]] Nodes children() const override;
     [[nodiscard]] std::string to_string() const override;
@@ -82,7 +82,7 @@ private:
 
 NODE_CLASS(BoundConditionalValue, BoundExpression)
 public:
-    BoundConditionalValue(Token, std::shared_ptr<BoundExpression>, bool, std::shared_ptr<ObjectType>);
+    BoundConditionalValue(Span, std::shared_ptr<BoundExpression>, bool, std::shared_ptr<ObjectType>);
     [[nodiscard]] std::shared_ptr<BoundExpression> const& expression() const;
     [[nodiscard]] bool success() const;
     [[nodiscard]] std::string attributes() const override;

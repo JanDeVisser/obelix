@@ -71,8 +71,8 @@ private:
 
 NODE_CLASS(FunctionBlock, Block)
 public:
-    FunctionBlock(Token, Statements, pBoundFunctionDecl);
-    FunctionBlock(Token, pStatement, pBoundFunctionDecl);
+    FunctionBlock(Span, Statements, pBoundFunctionDecl);
+    FunctionBlock(Span, pStatement, pBoundFunctionDecl);
     [[nodiscard]] pBoundFunctionDecl const& declaration() const;
 
 private:
@@ -82,7 +82,7 @@ private:
 NODE_CLASS(BoundFunctionDef, BoundStatement)
 public:
     BoundFunctionDef(std::shared_ptr<FunctionDef> const&, std::shared_ptr<BoundFunctionDecl>, std::shared_ptr<Statement> = nullptr);
-    BoundFunctionDef(Token token, std::shared_ptr<BoundFunctionDecl>, std::shared_ptr<Statement> = nullptr);
+    BoundFunctionDef(Span location, std::shared_ptr<BoundFunctionDecl>, std::shared_ptr<Statement> = nullptr);
     explicit BoundFunctionDef(std::shared_ptr<BoundFunctionDef> const&, std::shared_ptr<Statement> = nullptr);
     [[nodiscard]] std::shared_ptr<BoundFunctionDecl> const& declaration() const;
     [[nodiscard]] std::shared_ptr<BoundIdentifier> const& identifier() const;
@@ -101,7 +101,7 @@ protected:
 
 NODE_CLASS(BoundFunctionCall, BoundExpression)
 public:
-    BoundFunctionCall(Token, std::shared_ptr<BoundFunctionDecl> const&, BoundExpressions);
+    BoundFunctionCall(Span, std::shared_ptr<BoundFunctionDecl> const&, BoundExpressions);
     BoundFunctionCall(std::shared_ptr<BoundFunctionCall> const&, BoundExpressions, std::shared_ptr<BoundFunctionDecl> const& = nullptr);
     BoundFunctionCall(std::shared_ptr<BoundFunctionCall> const&, pObjectType = nullptr);
     [[nodiscard]] std::string attributes() const override;
@@ -120,14 +120,14 @@ private:
 
 NODE_CLASS(BoundNativeFunctionCall, BoundFunctionCall)
 public:
-    BoundNativeFunctionCall(Token, std::shared_ptr<BoundNativeFunctionDecl> const&, BoundExpressions);
+    BoundNativeFunctionCall(Span, std::shared_ptr<BoundNativeFunctionDecl> const&, BoundExpressions);
     BoundNativeFunctionCall(std::shared_ptr<BoundNativeFunctionCall> const&, BoundExpressions, std::shared_ptr<BoundFunctionDecl> const& = nullptr);
     BoundNativeFunctionCall(std::shared_ptr<BoundNativeFunctionCall> const&, pObjectType = nullptr);
 };
 
 NODE_CLASS(BoundIntrinsicCall, BoundFunctionCall)
 public:
-    BoundIntrinsicCall(Token, std::shared_ptr<BoundIntrinsicDecl> const&, BoundExpressions, IntrinsicType);
+    BoundIntrinsicCall(Span, std::shared_ptr<BoundIntrinsicDecl> const&, BoundExpressions, IntrinsicType);
     BoundIntrinsicCall(std::shared_ptr<BoundIntrinsicCall> const&, BoundExpressions, std::shared_ptr<BoundIntrinsicDecl> const& decl = nullptr);
     BoundIntrinsicCall(std::shared_ptr<BoundIntrinsicCall> const&, pObjectType = nullptr);
     [[nodiscard]] IntrinsicType intrinsic() const;
@@ -138,7 +138,7 @@ private:
 
 NODE_CLASS(BoundMethodCall, BoundFunctionCall)
 public:
-    BoundMethodCall(Token, pBoundMethodDecl const&, pBoundExpression, BoundExpressions);
+    BoundMethodCall(Span, pBoundMethodDecl const&, pBoundExpression, BoundExpressions);
     [[nodiscard]] pBoundExpression const& self() const;
 
 private:
@@ -147,7 +147,7 @@ private:
 
 ABSTRACT_NODE_CLASS(BoundFunction, BoundExpression)
 public:
-    BoundFunction(Token, std::shared_ptr<BoundFunctionDecl>);
+    BoundFunction(Span, std::shared_ptr<BoundFunctionDecl>);
     [[nodiscard]] std::string const& name() const;
     [[nodiscard]] std::string attributes() const override;
     [[nodiscard]] std::string to_string() const override;
@@ -159,12 +159,12 @@ private:
 
 NODE_CLASS(BoundLocalFunction, BoundFunction)
 public:
-    BoundLocalFunction(Token, std::shared_ptr<BoundFunctionDecl>);
+    BoundLocalFunction(Span, std::shared_ptr<BoundFunctionDecl>);
 };
 
 NODE_CLASS(BoundImportedFunction, BoundFunction)
 public:
-    BoundImportedFunction(Token, std::shared_ptr<BoundModule>, std::shared_ptr<BoundFunctionDecl>);
+    BoundImportedFunction(Span, std::shared_ptr<BoundModule>, std::shared_ptr<BoundFunctionDecl>);
     [[nodiscard]] std::shared_ptr<BoundModule> const& module() const;
 
 private:

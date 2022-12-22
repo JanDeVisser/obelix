@@ -14,8 +14,8 @@ extern_logging_category(parser);
 
 // -- BoundExpressionList ---------------------------------------------------
 
-BoundExpressionList::BoundExpressionList(Token token, BoundExpressions expressions)
-    : BoundExpression(std::move(token), PrimitiveType::List)
+BoundExpressionList::BoundExpressionList(Span location, BoundExpressions expressions)
+    : BoundExpression(std::move(location), PrimitiveType::List)
     , m_expressions(std::move(expressions))
 {
 }
@@ -62,8 +62,8 @@ BoundBinaryExpression::BoundBinaryExpression(std::shared_ptr<BinaryExpression> c
 {
 }
 
-BoundBinaryExpression::BoundBinaryExpression(Token token, std::shared_ptr<BoundExpression> lhs, BinaryOperator op, std::shared_ptr<BoundExpression> rhs, std::shared_ptr<ObjectType> type)
-    : BoundExpression(std::move(token), std::move(type))
+BoundBinaryExpression::BoundBinaryExpression(Span location, std::shared_ptr<BoundExpression> lhs, BinaryOperator op, std::shared_ptr<BoundExpression> rhs, std::shared_ptr<ObjectType> type)
+    : BoundExpression(std::move(location), std::move(type))
     , m_lhs(std::move(lhs))
     , m_operator(op)
     , m_rhs(std::move(rhs))
@@ -109,8 +109,8 @@ BoundUnaryExpression::BoundUnaryExpression(std::shared_ptr<UnaryExpression> cons
 {
 }
 
-BoundUnaryExpression::BoundUnaryExpression(Token token, std::shared_ptr<BoundExpression> operand, UnaryOperator op, std::shared_ptr<ObjectType> type)
-    : BoundExpression(std::move(token), std::move(type))
+BoundUnaryExpression::BoundUnaryExpression(Span location, std::shared_ptr<BoundExpression> operand, UnaryOperator op, std::shared_ptr<ObjectType> type)
+    : BoundExpression(std::move(location), std::move(type))
     , m_operator(op)
     , m_operand(std::move(operand))
 {
@@ -143,8 +143,8 @@ std::shared_ptr<BoundExpression> const& BoundUnaryExpression::operand() const
 
 // -- BoundCastExpression ---------------------------------------------------
 
-BoundCastExpression::BoundCastExpression(Token token, std::shared_ptr<BoundExpression> expression, std::shared_ptr<ObjectType> type)
-    : BoundExpression(std::move(token), std::move(type))
+BoundCastExpression::BoundCastExpression(Span location, std::shared_ptr<BoundExpression> expression, std::shared_ptr<ObjectType> type)
+    : BoundExpression(std::move(location), std::move(type))
     , m_expression(std::move(expression))
 {
 }
@@ -172,13 +172,13 @@ std::shared_ptr<BoundExpression> const& BoundCastExpression::expression() const
 // -- BoundExpressionStatement ----------------------------------------------
 
 BoundExpressionStatement::BoundExpressionStatement(std::shared_ptr<ExpressionStatement> const& stmt, std::shared_ptr<BoundExpression> expression)
-    : BoundStatement(stmt->token())
+    : BoundStatement(stmt->location())
     , m_expression(std::move(expression))
 {
 }
 
-BoundExpressionStatement::BoundExpressionStatement(Token token, std::shared_ptr<BoundExpression> expression)
-    : BoundStatement(std::move(token))
+BoundExpressionStatement::BoundExpressionStatement(Span location, std::shared_ptr<BoundExpression> expression)
+    : BoundStatement(std::move(location))
     , m_expression(std::move(expression))
 {
 }
@@ -200,8 +200,8 @@ std::string BoundExpressionStatement::to_string() const
 
 // -- BoundConditionalValue -------------------------------------------------
 
-BoundConditionalValue::BoundConditionalValue(Token token, std::shared_ptr<BoundExpression> expression, bool success, std::shared_ptr<ObjectType> type)
-    : BoundExpression(std::move(token), std::move(type))
+BoundConditionalValue::BoundConditionalValue(Span location, std::shared_ptr<BoundExpression> expression, bool success, std::shared_ptr<ObjectType> type)
+    : BoundExpression(std::move(location), std::move(type))
     , m_expression(expression)
     , m_success(success)
 {

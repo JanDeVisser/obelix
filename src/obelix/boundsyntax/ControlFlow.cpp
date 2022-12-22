@@ -14,8 +14,8 @@ extern_logging_category(parser);
 
 // -- BoundPass -------------------------------------------------------------
 
-BoundPass::BoundPass(Token token, std::shared_ptr<Statement> const& elided_statement)
-    : BoundStatement(std::move(token))
+BoundPass::BoundPass(Span location, std::shared_ptr<Statement> const& elided_statement)
+    : BoundStatement(std::move(location))
     , m_elided_statement(std::move(elided_statement))
 {
 }
@@ -40,14 +40,14 @@ std::string BoundPass::to_string() const
 // -- BoundIfStatement ------------------------------------------------------
 
 BoundIfStatement::BoundIfStatement(std::shared_ptr<IfStatement> const& if_stmt, BoundBranches branches, std::shared_ptr<Statement> else_stmt)
-    : BoundStatement(if_stmt->token())
+    : BoundStatement(if_stmt->location())
     , m_branches(std::move(branches))
     , m_else(std::move(else_stmt))
 {
 }
 
-BoundIfStatement::BoundIfStatement(Token token, BoundBranches branches, std::shared_ptr<Statement> else_stmt)
-    : BoundStatement(std::move(token))
+BoundIfStatement::BoundIfStatement(Span location, BoundBranches branches, std::shared_ptr<Statement> else_stmt)
+    : BoundStatement(std::move(location))
     , m_branches(std::move(branches))
     , m_else(std::move(else_stmt))
 {
@@ -86,7 +86,7 @@ BoundBranches const& BoundIfStatement::branches() const
 // -- BoundWhileStatement ---------------------------------------------------
 
 BoundWhileStatement::BoundWhileStatement(std::shared_ptr<SyntaxNode> const& node, std::shared_ptr<BoundExpression> condition, std::shared_ptr<Statement> stmt)
-    : BoundStatement(node->token())
+    : BoundStatement(node->location())
     , m_condition(std::move(condition))
     , m_stmt(std::move(stmt))
 {
@@ -115,7 +115,7 @@ std::string BoundWhileStatement::to_string() const
 // -- BoundReturn -----------------------------------------------------------
 
 BoundReturn::BoundReturn(std::shared_ptr<SyntaxNode> const& ret, std::shared_ptr<BoundExpression> expression, bool return_error)
-    : BoundStatement(ret->token())
+    : BoundStatement(ret->location())
     , m_expression(std::move(expression))
     , m_return_error(return_error)
 {
@@ -154,14 +154,14 @@ bool BoundReturn::return_error() const
 // -- BoundBranch -----------------------------------------------------------
 
 BoundBranch::BoundBranch(std::shared_ptr<SyntaxNode> const& node, std::shared_ptr<BoundExpression> condition, std::shared_ptr<Statement> bound_statement)
-    : BoundStatement(node->token())
+    : BoundStatement(node->location())
     , m_condition(std::move(condition))
     , m_statement(std::move(bound_statement))
 {
 }
 
-BoundBranch::BoundBranch(Token token, std::shared_ptr<BoundExpression> condition, std::shared_ptr<Statement> bound_statement)
-    : BoundStatement(std::move(token))
+BoundBranch::BoundBranch(Span location, std::shared_ptr<BoundExpression> condition, std::shared_ptr<Statement> bound_statement)
+    : BoundStatement(std::move(location))
     , m_condition(std::move(condition))
     , m_statement(std::move(bound_statement))
 {
@@ -196,7 +196,7 @@ std::shared_ptr<Statement> const& BoundBranch::statement() const
 // -- BoundForStatement -----------------------------------------------------
 
 BoundForStatement::BoundForStatement(std::shared_ptr<ForStatement> const& orig_for_stmt, std::shared_ptr<BoundVariable> variable, std::shared_ptr<BoundExpression> range, std::shared_ptr<Statement> stmt, bool must_declare)
-    : BoundStatement(orig_for_stmt->token())
+    : BoundStatement(orig_for_stmt->location())
     , m_variable(std::move(variable))
     , m_range(std::move(range))
     , m_stmt(std::move(stmt))
@@ -205,7 +205,7 @@ BoundForStatement::BoundForStatement(std::shared_ptr<ForStatement> const& orig_f
 }
 
 BoundForStatement::BoundForStatement(std::shared_ptr<BoundForStatement> const& orig_for_stmt, std::shared_ptr<BoundVariable> variable, std::shared_ptr<BoundExpression> range, std::shared_ptr<Statement> stmt)
-    : BoundStatement(orig_for_stmt->token())
+    : BoundStatement(orig_for_stmt->location())
     , m_variable(std::move(variable))
     , m_range(std::move(range))
     , m_stmt(std::move(stmt))
@@ -251,15 +251,15 @@ std::string BoundForStatement::to_string() const
 // -- BoundSwitchStatement ----------------------------------------------------------
 
 BoundSwitchStatement::BoundSwitchStatement(std::shared_ptr<SyntaxNode> const& node, std::shared_ptr<BoundExpression> switch_expr, BoundBranches cases, std::shared_ptr<BoundBranch> default_case)
-    : BoundStatement(node->token())
+    : BoundStatement(node->location())
     , m_switch_expression(std::move(switch_expr))
     , m_cases(std::move(cases))
     , m_default(std::move(default_case))
 {
 }
 
-BoundSwitchStatement::BoundSwitchStatement(Token token, std::shared_ptr<BoundExpression> switch_expr, BoundBranches cases, std::shared_ptr<BoundBranch> default_case)
-    : BoundStatement(std::move(token))
+BoundSwitchStatement::BoundSwitchStatement(Span location, std::shared_ptr<BoundExpression> switch_expr, BoundBranches cases, std::shared_ptr<BoundBranch> default_case)
+    : BoundStatement(std::move(location))
     , m_switch_expression(std::move(switch_expr))
     , m_cases(std::move(cases))
     , m_default(std::move(default_case))

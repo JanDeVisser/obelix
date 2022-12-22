@@ -156,43 +156,14 @@ void increase_offset(MaterializeContext& ctx, int increment)
         }).increase_offset(increment);
 }
 
-void add_unresolved_function(MaterializeContext& ctx, std::shared_ptr<BoundFunctionCall> func_call)
-{
-    ctx.call_on_root(
-        [&func_call](MaterializeContext& ctx) -> void {
-            ctx().add_unresolved_function(func_call);
-        }
-    );
-}
-
-[[nodiscard]] BoundFunctionCalls const& unresolved_functions(MaterializeContext const& ctx)
-{
-    return ctx.root_data().unresolved_functions();
-}
-
-void clear_unresolved_functions(MaterializeContext& ctx)
-{
-    ctx.root_data().clear_unresolved_functions();
-}
-
 void add_materialized_function(MaterializeContext& ctx, pMaterializedFunctionDecl func)
 {
     ctx.root_data().add_materialized_function(std::move(func));
 }
 
-[[nodiscard]] std::multimap<std::string, pMaterializedFunctionDecl> const& materialized_functions(MaterializeContext const& ctx)
-{
-    return ctx.root_data().materialized_functions();
-}
-
 [[nodiscard]] pMaterializedFunctionDecl match(MaterializeContext const& ctx, std::string const& name, ObjectTypes const& arg_types)
 {
     return ctx.root_data().match(name, arg_types);
-}
-
-void clear_materialized_functions(MaterializeContext& ctx)
-{
-    ctx.root_data().clear_materialized_functions();
 }
 
 INIT_NODE_PROCESSOR(MaterializeContext)
@@ -261,7 +232,7 @@ NODE_PROCESSOR(BoundFunctionDecl)
     auto materialized_parameters = make_materialized_parameters(func_decl);
     auto ret = make_node<MaterializedFunctionDecl>(func_decl,
         materialized_parameters.function_parameters, materialized_parameters.nsaa, materialized_parameters.offset);
-    ctx.declare(func_decl->name(), ret);
+    TRY_RETURN(ctx.declare(func_decl->name(), ret));
     add_materialized_function(ctx, ret);
     return ret;
 }
@@ -272,7 +243,7 @@ NODE_PROCESSOR(BoundNativeFunctionDecl)
     auto materialized_parameters = make_materialized_parameters(func_decl);
     auto ret = make_node<MaterializedNativeFunctionDecl>(func_decl,
         materialized_parameters.function_parameters, materialized_parameters.nsaa);
-    ctx.declare(func_decl->name(), ret);
+    TRY_RETURN(ctx.declare(func_decl->name(), ret));
     add_materialized_function(ctx, ret);
     return ret;
 }
@@ -283,7 +254,7 @@ NODE_PROCESSOR(BoundIntrinsicDecl)
     auto materialized_parameters = make_materialized_parameters(func_decl);
     auto ret = make_node<MaterializedIntrinsicDecl>(func_decl,
         materialized_parameters.function_parameters, materialized_parameters.nsaa);
-    ctx.declare(func_decl->name(), ret);
+    TRY_RETURN(ctx.declare(func_decl->name(), ret));
     add_materialized_function(ctx, ret);
     return ret;
 }
@@ -295,7 +266,7 @@ NODE_PROCESSOR(BoundFunctionDef)
 
     auto& func_ctx = make_subcontext(ctx, func_decl->stack_depth());
     for (auto const& param : func_decl->parameters()) {
-        func_ctx.declare(param->name(), param);
+        TRY_RETURN(func_ctx.declare(param->name(), param));
     }
     std::shared_ptr<Block> block;
     assert(func_def->statement()->node_type() == SyntaxNodeType::FunctionBlock);
@@ -311,7 +282,7 @@ NODE_PROCESSOR(FunctionBlock)
         auto new_statement = TRY_AND_CAST(Statement, stmt, ctx);
         statements.push_back(new_statement);
     }
-    return std::make_shared<FunctionBlock>(tree->token(), statements, block->declaration());
+    return std::make_shared<FunctionBlock>(tree->location(), statements, block->declaration());
 }
 
 NODE_PROCESSOR(BoundVariableDeclaration)
@@ -320,7 +291,7 @@ NODE_PROCESSOR(BoundVariableDeclaration)
     auto expression = TRY_AND_CAST(BoundExpression, var_decl->expression(), ctx);
     increase_offset(ctx, var_decl->type()->size());
     auto ret = make_node<MaterializedVariableDecl>(var_decl, offset(ctx), expression);
-    ctx.declare(var_decl->name(), ret);
+    TRY_RETURN(ctx.declare(var_decl->name(), ret));
     return ret;
 }
 
@@ -329,7 +300,7 @@ NODE_PROCESSOR(BoundStaticVariableDeclaration)
     auto var_decl = std::dynamic_pointer_cast<BoundStaticVariableDeclaration>(tree);
     auto expression = TRY_AND_CAST(BoundExpression, var_decl->expression(), ctx);
     auto ret = make_node<MaterializedStaticVariableDecl>(var_decl, expression);
-    ctx.declare(var_decl->name(), ret);
+    TRY_RETURN(ctx.declare(var_decl->name(), ret));
     return ret;
 }
 
@@ -338,7 +309,7 @@ NODE_PROCESSOR(BoundLocalVariableDeclaration)
     auto var_decl = std::dynamic_pointer_cast<BoundLocalVariableDeclaration>(tree);
     auto expression = TRY_AND_CAST(BoundExpression, var_decl->expression(), ctx);
     auto ret = make_node<MaterializedLocalVariableDecl>(var_decl, expression);
-    ctx.declare(var_decl->name(), ret);
+    TRY_RETURN(ctx.declare(var_decl->name(), ret));
     return ret;
 }
 
@@ -347,7 +318,7 @@ NODE_PROCESSOR(BoundGlobalVariableDeclaration)
     auto var_decl = std::dynamic_pointer_cast<BoundGlobalVariableDeclaration>(tree);
     auto expression = TRY_AND_CAST(BoundExpression, var_decl->expression(), ctx);
     auto ret = make_node<MaterializedGlobalVariableDecl>(var_decl, expression);
-    ctx.declare(var_decl->name(), ret);
+    TRY_RETURN(ctx.declare(var_decl->name(), ret));
     return ret;
 }
 
@@ -374,7 +345,7 @@ NODE_PROCESSOR(BoundFunctionCall)
         if (materialized_decl == nullptr) {
             materialized = TRY_AND_CAST(MaterializedIntrinsicDecl, call->declaration(), ctx);
             add_materialized_function(ctx, materialized);
-            ctx.declare(call->name(), materialized);
+            TRY_RETURN(ctx.declare(call->name(), materialized));
         } else {
             materialized = std::dynamic_pointer_cast<MaterializedIntrinsicDecl>(materialized_decl);
             assert(materialized != nullptr);
@@ -419,13 +390,13 @@ NODE_PROCESSOR(BoundVariable)
     auto identifier = std::dynamic_pointer_cast<BoundVariable>(tree);
     auto decl_maybe = ctx.get(identifier->name());
     if (!decl_maybe.has_value())
-        return SyntaxError { ErrorCode::InternalError, identifier->token(), format("Undeclared variable '{}' during code generation", identifier->name()) };
+        return SyntaxError { identifier->location(), "Undeclared variable '{}' during code generation", identifier->name() };
     auto decl = decl_maybe.value();
     auto materialized_decl = std::dynamic_pointer_cast<MaterializedDeclaration>(decl);
     if (materialized_decl != nullptr) {
         return make_materialized_identifier(materialized_decl, identifier);
     }
-    return SyntaxError { ErrorCode::InternalError, format("Identifier declaration has unexpected node type '{}'", decl->node_type()) };
+    return SyntaxError { identifier->location(), "Identifier declaration has unexpected node type '{}'", decl->node_type() };
 }
 
 NODE_PROCESSOR(BoundMemberAccess)
@@ -436,7 +407,7 @@ NODE_PROCESSOR(BoundMemberAccess)
     auto type = strukt->type();
     auto offset = type->offset_of(member->name());
     if (offset < 0)
-        return SyntaxError { ErrorCode::InternalError, member_access->token(), format("Invalid member name '{}' for struct of type '{}'", member->name(), type->name()) };
+        return SyntaxError { member_access->location(), "Invalid member name '{}' for struct of type '{}'", member->name(), type->name() };
     auto materialized_member = make_materialized_identifier(member, std::make_shared<StructMemberAddress>(strukt->address(), offset));
     return make_node<MaterializedMemberAccess>(member_access, strukt, materialized_member);
 }
@@ -451,11 +422,13 @@ NODE_PROCESSOR(BoundArrayAccess)
     return make_node<MaterializedArrayAccess>(array_access, array, subscript, element_size);
 }
 
-ProcessResult materialize_arm64(std::shared_ptr<SyntaxNode> const& tree)
+ProcessResult& materialize_arm64(ProcessResult& result)
 {
+    if (result.is_error())
+        return result;
     Config config;
     MaterializeContext ctx(config);
-    return process<MaterializeContext>(tree, ctx);
+    return process<MaterializeContext>(result.value(), ctx, result);
 }
 
 }

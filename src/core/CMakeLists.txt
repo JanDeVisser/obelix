@@ -3,7 +3,7 @@ add_library(
         STATIC
         Error.cpp
         FileBuffer.cpp
-        Format.cpp
+        Format.h
         Logging.cpp
         Process.cpp
         Resolve.cpp

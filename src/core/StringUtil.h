@@ -31,8 +31,6 @@ std::string strip(std::string const& s);
 std::string rstrip(std::string const& s);
 std::string lstrip(std::string const& s);
 std::vector<std::pair<std::string, std::string>> parse_pairs(std::string const& s, char pair_sep = ';', char name_value_sep = '=');
-std::string to_string(long);
-std::string to_hex_string(long);
 std::string to_string(double);
 std::string to_string(bool);
 std::optional<long> to_long(std::string const&);
@@ -64,6 +62,33 @@ std::string join(std::vector<ElementType> const& collection, char sep, ToString 
     std::string sep_str;
     sep_str += sep;
     return join(collection, sep_str, tostring);
+}
+
+template<std::signed_integral T>
+inline std::string to_string(T value)
+{
+    char buf[80];
+    snprintf(buf, 79, "%ld", static_cast<long>(value));
+    return buf;
+
+}
+
+template<std::unsigned_integral T>
+inline std::string to_string(T value)
+{
+    char buf[80];
+    snprintf(buf, 79, "%lu", static_cast<unsigned long>(value));
+    return buf;
+
+}
+
+template<std::unsigned_integral T>
+inline std::string to_hex_string(T value)
+{
+    char buf[80];
+    snprintf(buf, 79, "%lx", static_cast<unsigned long>(value));
+    return buf;
+
 }
 
 }

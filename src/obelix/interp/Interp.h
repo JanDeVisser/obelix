@@ -10,7 +10,7 @@
 
 namespace Obelix {
 
-ErrorOrNode interpret(std::shared_ptr<SyntaxNode>, InterpContext);
-ErrorOrNode interpret(std::shared_ptr<SyntaxNode>);
+ProcessResult& interpret(ProcessResult&, InterpContext);
+ProcessResult& interpret(ProcessResult&);
 
 }

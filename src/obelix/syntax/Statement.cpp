@@ -12,15 +12,15 @@ extern_logging_category(parser);
 
 // -- Statement -------------------------------------------------------------
 
-Statement::Statement(Token token)
-    : SyntaxNode(std::move(token))
+Statement::Statement(Span location)
+    : SyntaxNode(std::move(location))
 {
 }
 
 // -- Import ---------------------------------------------------------------
 
-Import::Import(Token token, std::string name)
-    : Statement(std::move(token))
+Import::Import(Span location, std::string name)
+    : Statement(std::move(location))
     , m_name(std::move(name))
 {
 }
@@ -42,13 +42,13 @@ std::string const& Import::name() const
 
 // -- Pass ------------------------------------------------------------------
 
-Pass::Pass(Token token)
-    : Statement(std::move(token))
+Pass::Pass(Span location)
+    : Statement(std::move(location))
 {
 }
 
 Pass::Pass(std::shared_ptr<Statement> elided_statement)
-    : Statement(elided_statement->token())
+    : Statement(elided_statement->location())
     , m_elided_statement(std::move(elided_statement))
 {
 }
@@ -74,14 +74,14 @@ std::string Pass::to_string() const
 
 int Label::m_current_id = 0;
 
-Label::Label(Token token)
-    : Statement(std::move(token))
+Label::Label(Span location)
+    : Statement(std::move(location))
     , m_label_id(reserve_id())
 {
 }
 
 Label::Label(std::shared_ptr<Goto> const& goto_stmt)
-    : Statement(goto_stmt->token())
+    : Statement(goto_stmt->location())
     , m_label_id(goto_stmt->label_id())
 {
 }
@@ -108,8 +108,8 @@ int Label::reserve_id()
 
 // -- Goto ------------------------------------------------------------------
 
-Goto::Goto(Token token, std::shared_ptr<Label> const& label)
-    : Statement(std::move(token))
+Goto::Goto(Span location, std::shared_ptr<Label> const& label)
+    : Statement(std::move(location))
     , m_label_id((label) ? label->label_id() : Label::reserve_id())
 {
 }
@@ -131,8 +131,8 @@ int Goto::label_id() const
 
 // -- Block -----------------------------------------------------------------
 
-Block::Block(Token token, Statements statements)
-    : Statement(std::move(token))
+Block::Block(Span location, Statements statements)
+    : Statement(std::move(location))
     , m_statements(std::move(statements))
 {
 }
@@ -178,14 +178,14 @@ Module::Module(Statements const& statements, std::string name)
 {
 }
 
-Module::Module(Token token, Statements const& statements, std::string name)
-    : Block(std::move(token), statements)
+Module::Module(Span location, Statements const& statements, std::string name)
+    : Block(std::move(location), statements)
     , m_name(std::move(name))
 {
 }
 
 Module::Module(std::shared_ptr<Module> const& original, Statements const& statements)
-    : Block(original->token(), statements)
+    : Block(original->location(), statements)
     , m_name(original->name())
 {
 }
@@ -208,7 +208,7 @@ const std::string& Module::name() const
 // -- Compilation -----------------------------------------------------------
 
 Compilation::Compilation(Modules modules, std::string main_module)
-    : SyntaxNode(Token {})
+    : SyntaxNode(Span {})
     , m_modules(std::move(modules))
     , m_main_module(std::move(main_module))
 {
@@ -219,7 +219,7 @@ Compilation::Compilation(Modules modules, std::string main_module)
 }
 
 Compilation::Compilation(std::string main_module)
-    : SyntaxNode(Token {})
+    : SyntaxNode(Span {})
     , m_main_module(std::move(main_module))
 {
 }
@@ -299,7 +299,7 @@ int Compilation::unbound_statements() const
 // -- ExpressionStatement ---------------------------------------------------
 
 ExpressionStatement::ExpressionStatement(std::shared_ptr<Expression> expression)
-    : Statement(expression->token())
+    : Statement(expression->location())
     , m_expression(std::move(expression))
 {
 }
@@ -321,8 +321,8 @@ std::string ExpressionStatement::to_string() const
 
 // -- Return ----------------------------------------------------------------
 
-Return::Return(Token token, std::shared_ptr<Expression> expression, bool return_error)
-    : Statement(std::move(token))
+Return::Return(Span location, std::shared_ptr<Expression> expression, bool return_error)
+    : Statement(std::move(location))
     , m_expression(std::move(expression))
     , m_return_error(return_error)
 {
