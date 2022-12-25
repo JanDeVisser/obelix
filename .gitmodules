@@ -1,0 +1,3 @@
+[submodule "obelixlibs"]
+	path = obelixlibs
+	url = git@github.com:JanDeVisser/obelixlibs
