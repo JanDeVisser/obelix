@@ -3,7 +3,7 @@ project(obelix)
 
 cmake_policy(SET CMP0048 NEW)
 cmake_policy(SET CMP0115 NEW)
-#cmake_policy(SET CMP0135 NEW)
+cmake_policy(SET CMP0135 NEW)
 
 set(CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 
@@ -24,8 +24,9 @@ configure_file(
 )
 
 include_directories("${PROJECT_SOURCE_DIR}/src" "${PROJECT_SOURCE_DIR}")
-add_subdirectory(src)
 add_subdirectory(share)
+add_subdirectory(obelixdirs)
+add_subdirectory(src)
 
 include(FetchContent)
 FetchContent_Declare(
